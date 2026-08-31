@@ -1,0 +1,49 @@
+﻿services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  db:
+    image: postgres:16-alpine
+    container_name: nsac_jember_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-hackathon_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-hackathon_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bot_network
+
+  # ==========================================
+  # Discord Bot
+  # ==========================================
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nsac_jember_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override DATABASE_URL to point to the db service
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-hackathon_db}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bot_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  bot_network:
+    driver: bridge

@@ -1,0 +1,27 @@
+{
+  "name": "discord-hackathon-bot",
+  "version": "1.0.0",
+  "description": "Discord Hackathon Management Bot built with Node.js, discord.js v14, and PostgreSQL",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/database/migrate.js",
+    "deploy-commands": "node src/deploy-commands.js"
+  },
+  "keywords": [
+    "discord",
+    "hackathon",
+    "bot",
+    "postgresql",
+    "discordjs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7",
+    "pg": "^8.13.3"
+  }
+}
