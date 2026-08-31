@@ -125,8 +125,12 @@ export class TicketService {
           .setEmoji('🔒')
       );
 
+      // Ping staff & user so staff gets notified
+      const pings = [`<@${user.id}>`];
+      if (staffRoleId) pings.push(`<@&${staffRoleId}>`);
+
       await channel.send({
-        content: `<@${user.id}>`,
+        content: pings.join(' ') + ' 🔔 **Tiket Registrasi Baru Dibuat!**',
         embeds: [registrationTicketEmbed(user)],
         components: [row]
       });
@@ -243,8 +247,13 @@ export class TicketService {
           .setEmoji('🔒')
       );
 
+      // Ping tech support & staff so they get notified instantly
+      const pings = [`<@${user.id}>`];
+      if (techSupportRoleId) pings.push(`<@&${techSupportRoleId}>`);
+      else if (staffRoleId) pings.push(`<@&${staffRoleId}>`);
+
       await channel.send({
-        content: `<@${user.id}>`,
+        content: pings.join(' ') + ' 🆘 **Tiket Bantuan / Support Baru!** Mohon staff/tech support segera merespons.',
         embeds: [supportTicketEmbed(user)],
         components: [row]
       });

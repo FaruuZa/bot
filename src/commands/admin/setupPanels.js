@@ -34,10 +34,11 @@ export default {
     ),
 
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     if (!PermissionService.isStaff(interaction.member)) {
-      return await interaction.reply({
-        embeds: [errorEmbed('Staff Only', 'You do not have permission to use this command.')],
-        flags: MessageFlags.Ephemeral
+      return await interaction.editReply({
+        embeds: [errorEmbed('Staff Only', 'You do not have permission to use this command.')]
       });
     }
 
@@ -87,9 +88,8 @@ export default {
       });
     }
 
-    return await interaction.reply({
-      embeds: [successEmbed('Panels Deployed', `Successfully deployed panel(s) to designated channel(s).`)],
-      flags: MessageFlags.Ephemeral
+    return await interaction.editReply({
+      embeds: [successEmbed('Panels Deployed', `Successfully deployed panel(s) to designated channel(s).`)]
     });
   }
 };

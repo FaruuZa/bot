@@ -112,3 +112,17 @@ CREATE TABLE IF NOT EXISTS guild_config (
     value      VARCHAR(255) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 8. Dynamic Embeds Table (for editable FAQ / Rules / Announcements)
+CREATE TABLE IF NOT EXISTS dynamic_embeds (
+    id VARCHAR(50) PRIMARY KEY,
+    channel_id VARCHAR(32) NOT NULL,
+    message_id VARCHAR(32) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    color VARCHAR(20) DEFAULT 'PRIMARY',
+    fields JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_dynamic_embeds_channel ON dynamic_embeds(channel_id);

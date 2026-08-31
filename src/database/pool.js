@@ -6,11 +6,13 @@ export const pool = new Pool({
   connectionString: env.DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true
 });
 
 pool.on('error', (err) => {
-  console.error('[Database Error] Unexpected idle client error:', err);
+  // Catch and log idle client errors gracefully without crashing the process
+  console.warn('[Database Pool Warning] Idle client reconnecting:', err.message);
 });
 
 /**

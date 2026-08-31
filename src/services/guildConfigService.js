@@ -30,7 +30,6 @@ export const CONFIG_DEFINITIONS = {
 
   // Categories
   REGISTRATION_CATEGORY_ID: { key: 'REGISTRATION_CATEGORY_ID', type: 'CATEGORY', label: 'Registration Category', description: 'Category for team registration tickets' },
-  TEAM_PARENT_CATEGORY_ID: { key: 'TEAM_PARENT_CATEGORY_ID', type: 'CATEGORY', label: 'Team Parent Category', description: 'Parent category for team text/voice channels' },
   SUPPORT_CATEGORY_ID: { key: 'SUPPORT_CATEGORY_ID', type: 'CATEGORY', label: 'Support Category', description: 'Category for support tickets' }
 };
 

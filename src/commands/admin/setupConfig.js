@@ -73,11 +73,12 @@ export default {
     ),
 
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     // Admin check
     if (!PermissionService.isAdmin(interaction.member)) {
-      return await interaction.reply({
-        embeds: [errorEmbed('Administrator Only', 'You must be an Administrator to configure bot settings.')],
-        flags: MessageFlags.Ephemeral
+      return await interaction.editReply({
+        embeds: [errorEmbed('Administrator Only', 'You must be an Administrator to configure bot settings.')]
       });
     }
 
@@ -110,8 +111,7 @@ export default {
           }
         }
 
-        const line = `**${def.label}**
-\`${key}\` → ${displayValue}`;
+        const line = `**${def.label}**\n\`${key}\` → ${displayValue}`;
 
         if (def.type === 'ROLE') rolesSection.push(line);
         else if (def.type === 'CHANNEL') channelsSection.push(line);
@@ -133,9 +133,8 @@ export default {
         .setFooter({ text: 'NSAC Hackathon Bot Config' })
         .setTimestamp();
 
-      return await interaction.reply({
-        embeds: [embed],
-        flags: MessageFlags.Ephemeral
+      return await interaction.editReply({
+        embeds: [embed]
       });
     }
 
@@ -150,9 +149,8 @@ export default {
 
       const def = CONFIG_DEFINITIONS[key];
       if (!def) {
-        return await interaction.reply({
-          embeds: [errorEmbed('Invalid Key', `Key \`${key}\` is not recognized.`)],
-          flags: MessageFlags.Ephemeral
+        return await interaction.editReply({
+          embeds: [errorEmbed('Invalid Key', `Key \`${key}\` is not recognized.`)]
         });
       }
 
@@ -170,9 +168,8 @@ export default {
         // Sanitize raw input (strip mention syntax <@&...>, <#...>, etc)
         const cleanId = rawIdOption.replace(/[^0-9]/g, '');
         if (!cleanId || cleanId.length < 15) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Invalid ID', 'ID Discord yang dimasukkan tidak valid. Masukkan ID numerik yang benar.')],
-            flags: MessageFlags.Ephemeral
+          return await interaction.editReply({
+            embeds: [errorEmbed('Invalid ID', 'ID Discord yang dimasukkan tidak valid. Masukkan ID numerik yang benar.')]
           });
         }
         targetId = cleanId;
@@ -180,38 +177,32 @@ export default {
       }
 
       if (!targetId) {
-        return await interaction.reply({
+        return await interaction.editReply({
           embeds: [
             errorEmbed(
               'Input Required',
               'Silakan pilih salah satu opsi: `role`, `channel`, atau masukkan `raw_id`.'
             )
-          ],
-          flags: MessageFlags.Ephemeral
+          ]
         });
       }
 
       try {
         await GuildConfigService.set(key, targetId);
 
-        return await interaction.reply({
+        return await interaction.editReply({
           embeds: [
             successEmbed(
               'Config Updated ✅',
-              `Konfigurasi **${def.label}** (\`${key}\`) berhasil diperbarui!
-
-` +
-              `**Nilai Baru:** ${displayTarget}
-` +
+              `Konfigurasi **${def.label}** (\`${key}\`) berhasil diperbarui!\n\n` +
+              `**Nilai Baru:** ${displayTarget}\n` +
               `*Perubahan langsung aktif tanpa perlu restart bot.*`
             )
-          ],
-          flags: MessageFlags.Ephemeral
+          ]
         });
       } catch (err) {
-        return await interaction.reply({
-          embeds: [errorEmbed('Update Failed', `Gagal memperbarui konfigurasi: ${err.message}`)],
-          flags: MessageFlags.Ephemeral
+        return await interaction.editReply({
+          embeds: [errorEmbed('Update Failed', `Gagal memperbarui konfigurasi: ${err.message}`)]
         });
       }
     }
@@ -225,9 +216,8 @@ export default {
       const val = GuildConfigService.get(key);
 
       if (!def) {
-        return await interaction.reply({
-          embeds: [errorEmbed('Not Found', `Unknown config key \`${key}\``)],
-          flags: MessageFlags.Ephemeral
+        return await interaction.editReply({
+          embeds: [errorEmbed('Not Found', `Unknown config key \`${key}\``)]
         });
       }
 
@@ -248,9 +238,8 @@ export default {
           { name: 'Current Value', value: valDisplay, inline: false }
         );
 
-      return await interaction.reply({
-        embeds: [embed],
-        flags: MessageFlags.Ephemeral
+      return await interaction.editReply({
+        embeds: [embed]
       });
     }
   }

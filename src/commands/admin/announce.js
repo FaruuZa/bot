@@ -34,10 +34,11 @@ export default {
     ),
 
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     if (!PermissionService.isStaff(interaction.member)) {
-      return await interaction.reply({
-        embeds: [errorEmbed('Staff Only', 'You do not have permission to use this command.')],
-        flags: MessageFlags.Ephemeral
+      return await interaction.editReply({
+        embeds: [errorEmbed('Staff Only', 'You do not have permission to use this command.')]
       });
     }
 
@@ -57,9 +58,8 @@ export default {
 
     await channel.send({ embeds: [embed] });
 
-    return await interaction.reply({
-      embeds: [successEmbed('Announcement Sent', `Announcement posted to <#${channel.id}>.`)],
-      flags: MessageFlags.Ephemeral
+    return await interaction.editReply({
+      embeds: [successEmbed('Announcement Sent', `Announcement posted to <#${channel.id}>.`)]
     });
   }
 };
