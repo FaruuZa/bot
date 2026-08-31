@@ -1,4 +1,4 @@
-﻿services:
+services:
   # ==========================================
   # PostgreSQL Database
   # ==========================================
@@ -12,6 +12,8 @@
       POSTGRES_DB: ${DB_NAME:-hackathon_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-hackathon_db}"]
       interval: 10s
@@ -29,10 +31,13 @@
       dockerfile: Dockerfile
     container_name: nsac_jember_bot
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      # Override DATABASE_URL to point to the db service
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      CLIENT_ID: ${CLIENT_ID}
+      GUILD_ID: ${GUILD_ID}
+      MIN_TEAM_SIZE: ${MIN_TEAM_SIZE:-2}
+      MAX_TEAM_SIZE: ${MAX_TEAM_SIZE:-4}
+      INVITATION_EXPIRE_HOURS: ${INVITATION_EXPIRE_HOURS:-24}
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-hackathon_db}
     depends_on:
       db:

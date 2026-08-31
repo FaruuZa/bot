@@ -9,6 +9,7 @@ import registerTeamCmd from './commands/registration/registerTeam.js';
 import teamCmd from './commands/team/team.js';
 import ticketCmd from './commands/ticket/close.js';
 import setupPanelsCmd from './commands/admin/setupPanels.js';
+import setupConfigCmd from './commands/admin/setupConfig.js';
 import announceCmd from './commands/admin/announce.js';
 import purgeCmd from './commands/admin/purge.js';
 
@@ -17,6 +18,7 @@ const commands = [
   teamCmd.data.toJSON(),
   ticketCmd.data.toJSON(),
   setupPanelsCmd.data.toJSON(),
+  setupConfigCmd.data.toJSON(),
   announceCmd.data.toJSON(),
   purgeCmd.data.toJSON()
 ];

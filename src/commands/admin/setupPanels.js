@@ -7,9 +7,9 @@ import {
   MessageFlags
 } from 'discord.js';
 import { PermissionService } from '../../services/permissionService.js';
+import { GuildConfigService } from '../../services/guildConfigService.js';
 import { registrationPanelEmbed, supportPanelEmbed, errorEmbed, successEmbed } from '../../utils/embeds.js';
 import { CUSTOM_IDS } from '../../config/constants.js';
-import { env } from '../../config/env.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -44,6 +44,9 @@ export default {
     const type = interaction.options.getString('type');
     const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
 
+    const configuredRegChannelId = GuildConfigService.get('REGISTRATION_CHANNEL_ID');
+    const configuredSupportChannelId = GuildConfigService.get('SUPPORT_CHANNEL_ID');
+
     if (type === 'registration' || type === 'both') {
       const regRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -53,9 +56,10 @@ export default {
           .setEmoji('🎫')
       );
 
-      const regChannel = (type === 'both' && env.REGISTRATION_CHANNEL_ID)
-        ? await interaction.guild.channels.fetch(env.REGISTRATION_CHANNEL_ID).catch(() => targetChannel)
-        : targetChannel;
+      let regChannel = targetChannel;
+      if (type === 'both' && configuredRegChannelId) {
+        regChannel = await interaction.guild.channels.fetch(configuredRegChannelId).catch(() => targetChannel);
+      }
 
       await regChannel.send({
         embeds: [registrationPanelEmbed()],
@@ -72,9 +76,10 @@ export default {
           .setEmoji('🆘')
       );
 
-      const supChannel = (type === 'both' && env.SUPPORT_CHANNEL_ID)
-        ? await interaction.guild.channels.fetch(env.SUPPORT_CHANNEL_ID).catch(() => targetChannel)
-        : targetChannel;
+      let supChannel = targetChannel;
+      if (type === 'both' && configuredSupportChannelId) {
+        supChannel = await interaction.guild.channels.fetch(configuredSupportChannelId).catch(() => targetChannel);
+      }
 
       await supChannel.send({
         embeds: [supportPanelEmbed()],

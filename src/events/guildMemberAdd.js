@@ -1,5 +1,5 @@
 import { Events } from 'discord.js';
-import { env } from '../config/env.js';
+import { GuildConfigService } from '../services/guildConfigService.js';
 import { getUserActiveTeamByDiscordId } from '../database/queries/memberQueries.js';
 import { upsertUser } from '../database/queries/userQueries.js';
 import { DiscordService } from '../services/discordService.js';
@@ -34,8 +34,11 @@ export default {
         });
       } else {
         // Assign Unregistered role
-        if (env.UNREGISTERED_ROLE_ID) {
-          await member.roles.add(env.UNREGISTERED_ROLE_ID, 'Assigned Unregistered role on join');
+        const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+        if (unregisteredRoleId) {
+          await member.roles.add(unregisteredRoleId, 'Assigned Unregistered role on join').catch((err) => {
+            logger.warn(`[Member Join Warning] Could not assign Unregistered role: ${err.message}`);
+          });
           logger.info(`[Member Join] Assigned @Unregistered to ${member.user.tag}`);
         }
       }

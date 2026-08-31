@@ -13,13 +13,14 @@ import {
 } from 'discord.js';
 import { CUSTOM_IDS } from '../config/constants.js';
 import { env } from '../config/env.js';
+import { GuildConfigService, ConfigMissingError } from '../services/guildConfigService.js';
 import { TicketService } from '../services/ticketService.js';
 import { InvitationService } from '../services/invitationService.js';
 import { TeamService } from '../services/teamService.js';
 import { PermissionService } from '../services/permissionService.js';
 import { getUserActiveTeamByDiscordId } from '../database/queries/memberQueries.js';
 import { validateTeamName } from '../utils/validators.js';
-import { errorEmbed, successEmbed, infoEmbed } from '../utils/embeds.js';
+import { errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
 
 export default {
@@ -39,10 +40,27 @@ export default {
         await command.execute(interaction);
       } catch (error) {
         logger.error(`[Command Error /${interaction.commandName}] ${error.stack || error.message}`);
-        const errorResponse = {
-          embeds: [errorEmbed('Command Error', 'An unexpected error occurred while executing this command.')],
-          flags: MessageFlags.Ephemeral
-        };
+
+        let errorResponse;
+        if (error instanceof ConfigMissingError) {
+          errorResponse = {
+            embeds: [
+              warningEmbed(
+                'Konfigurasi Belum Diatur',
+                `⚠️ Fitur ini membutuhkan konfigurasi **${error.friendlyName}** (\`${error.configKey}\`), namun belum di-set.
+
+` +
+                `Gunakan command \`/setup-config set key:${error.configKey}\` untuk mengaturnya.`
+              )
+            ],
+            flags: MessageFlags.Ephemeral
+          };
+        } else {
+          errorResponse = {
+            embeds: [errorEmbed('Command Error', `An error occurred: ${error.message}`)],
+            flags: MessageFlags.Ephemeral
+          };
+        }
 
         if (interaction.deferred || interaction.replied) {
           await interaction.followUp(errorResponse).catch(() => {});
@@ -184,26 +202,31 @@ export default {
           logger.warn(`[Modal] Could not disable register button: ${err.message}`);
         }
 
-        // Fetch members to filter ONLY @Unregistered
+        // Fetch members to filter ONLY @Unregistered if role configured
         await interaction.guild.members.fetch().catch(() => {});
+        const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
 
-        const unregisteredMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
           if (m.user.bot) return false;
           if (m.id === interaction.user.id) return false; // exclude leader
-          if (env.UNREGISTERED_ROLE_ID && !m.roles.cache.has(env.UNREGISTERED_ROLE_ID)) return false;
+          if (unregisteredRoleId && !m.roles.cache.has(unregisteredRoleId)) return false;
           return true;
         });
 
         const minMembersToSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
         const maxMembersToSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
 
-        if (unregisteredMembers.length === 0 && minMembersToSelect > 0) {
+        if (eligibleMembers.length === 0 && minMembersToSelect > 0) {
           return await interaction.reply({
             embeds: [
               errorEmbed(
                 'Tidak Ada Anggota Tersedia',
-                `❌ Tidak ditemukan anggota dengan role **@Unregistered** di server untuk diundang ke tim **${teamName}**.\n\n` +
-                'Pastikan rekan tim Anda sudah bergabung ke server Discord ini dan memiliki role `@Unregistered`.'
+                `❌ Tidak ditemukan anggota yang memenuhi syarat di server untuk diundang ke tim **${teamName}**.
+
+` +
+                (unregisteredRoleId
+                  ? 'Pastikan rekan tim Anda sudah bergabung ke server Discord ini dan memiliki role `@Unregistered`.'
+                  : 'Pastikan rekan tim Anda sudah bergabung ke server Discord ini.')
               )
             ],
             flags: MessageFlags.Ephemeral
@@ -213,9 +236,9 @@ export default {
         // Encode team name safely in customId
         const encodedName = encodeURIComponent(teamName);
 
-        // Build StringSelectMenu with only Unregistered members
-        if (unregisteredMembers.length > 0) {
-          const selectOptions = unregisteredMembers.slice(0, 25).map((m) => {
+        // Build StringSelectMenu with eligible members
+        if (eligibleMembers.length > 0) {
+          const selectOptions = eligibleMembers.slice(0, 25).map((m) => {
             const displayName = (m.displayName || m.user.username).substring(0, 100);
             const tag = `@${m.user.username}`.substring(0, 100);
             return new StringSelectMenuOptionBuilder()
@@ -230,7 +253,7 @@ export default {
 
           const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`select_unreg_members_${encodedName}`)
-            .setPlaceholder('Pilih anggota tim (Khusus @Unregistered)')
+            .setPlaceholder('Pilih anggota tim dari daftar di bawah')
             .setMinValues(actualMin === 0 ? 0 : 1)
             .setMaxValues(actualMax)
             .addOptions(selectOptions);
@@ -241,10 +264,14 @@ export default {
             embeds: [
               infoEmbed(
                 `Pilih Anggota Tim: "${teamName}"`,
-                `**Nama Tim:** \`${teamName}\`\n` +
-                `**Team Leader:** <@${interaction.user.id}>\n\n` +
-                `👉 Pilih antara **${actualMin} sampai ${actualMax}** anggota dari menu dropdown di bawah.\n` +
-                `*(Hanya anggota berstatus **@Unregistered** yang ditampilkan)*`
+                `**Nama Tim:** \`${teamName}\`
+` +
+                `**Team Leader:** <@${interaction.user.id}>
+
+` +
+                `👉 Pilih antara **${actualMin} sampai ${actualMax}** anggota dari menu dropdown di bawah.
+` +
+                (unregisteredRoleId ? `*(Hanya anggota berstatus **@Unregistered** yang ditampilkan)*` : '')
               )
             ],
             components: [row]
@@ -277,7 +304,7 @@ export default {
     }
 
     // ========================================================
-    // 4. SELECT MENU ROUTER (Khusus @Unregistered & Fallback)
+    // 4. SELECT MENU ROUTER (Anggota Tim)
     // ========================================================
     if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
       if (
@@ -321,9 +348,14 @@ export default {
               embeds: [
                 successEmbed(
                   'Undangan Tim Terkirim',
-                  `Tim **${teamName}** berhasil didaftarkan dalam status menunggu konfirmasi!\n\n` +
-                  `📨 **Undangan dikirim ke:** ${memberMentions}\n` +
-                  `⏱️ **Batas Waktu:** <t:${unixExpiry}:R>\n\n` +
+                  `Tim **${teamName}** berhasil didaftarkan dalam status menunggu konfirmasi!
+
+` +
+                  `📨 **Undangan dikirim ke:** ${memberMentions}
+` +
+                  `⏱️ **Batas Waktu:** <t:${unixExpiry}:R>
+
+` +
                   `Setelah semua rekan tim menekan tombol **Accept**, role dan channel tim Anda akan otomatis dibuatkan oleh bot.`
                 )
               ]
@@ -351,4 +383,3 @@ export default {
     }
   }
 };
-

@@ -1,4 +1,4 @@
-import { env } from '../config/env.js';
+import { GuildConfigService } from './guildConfigService.js';
 import { createAuditLog } from '../database/queries/auditQueries.js';
 import { auditLogEmbed } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
@@ -52,10 +52,11 @@ export class AuditService {
     }
 
     // 3. Discord Log Channel
-    if (!env.LOG_CHANNEL_ID || !client) return;
+    const logChannelId = GuildConfigService.get('LOG_CHANNEL_ID');
+    if (!logChannelId || !client) return;
 
     try {
-      const channel = await client.channels.fetch(env.LOG_CHANNEL_ID).catch(() => null);
+      const channel = await client.channels.fetch(logChannelId).catch(() => null);
       if (channel && channel.isTextBased()) {
         const embed = auditLogEmbed({
           title: title || action.replace(/_/g, ' '),

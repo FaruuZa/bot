@@ -1,5 +1,5 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { env } from '../config/env.js';
+import { GuildConfigService } from './guildConfigService.js';
 import { logger } from '../utils/logger.js';
 import { sanitizeChannelName } from '../utils/validators.js';
 
@@ -26,6 +26,8 @@ export class DiscordService {
     };
 
     const cleanSlug = sanitizeChannelName(teamName);
+    const staffRoleId = GuildConfigService.get('STAFF_ROLE_ID');
+    const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
 
     try {
       logger.info(`[Discord Provisioning] Starting resource creation for team: "${teamName}"`);
@@ -40,8 +42,8 @@ export class DiscordService {
       logger.info(`[Discord Provisioning] Created Role: ${created.role.name} (${created.role.id})`);
 
       // Position team role below bot/staff if possible
-      if (env.STAFF_ROLE_ID) {
-        const staffRole = guild.roles.cache.get(env.STAFF_ROLE_ID);
+      if (staffRoleId) {
+        const staffRole = guild.roles.cache.get(staffRoleId);
         if (staffRole && created.role.position >= staffRole.position) {
           await created.role.setPosition(Math.max(1, staffRole.position - 1)).catch(() => {});
         }
@@ -87,9 +89,9 @@ export class DiscordService {
       ];
 
       // Staff Role Permissions
-      if (env.STAFF_ROLE_ID) {
+      if (staffRoleId) {
         permissionOverwrites.push({
-          id: env.STAFF_ROLE_ID,
+          id: staffRoleId,
           allow: [
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
@@ -106,9 +108,9 @@ export class DiscordService {
       }
 
       // Admin Role Permissions
-      if (env.ADMINISTRATOR_ROLE_ID) {
+      if (adminRoleId) {
         permissionOverwrites.push({
-          id: env.ADMINISTRATOR_ROLE_ID,
+          id: adminRoleId,
           allow: [
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
@@ -153,11 +155,10 @@ export class DiscordService {
         roleId: created.role.id,
         categoryId: created.category.id,
         textChannelId: created.textChannel.id,
-        voiceChannelId: created.voiceChannel.id
+        voiceChannelId: created.voiceChannelId || created.voiceChannel.id
       };
     } catch (error) {
       logger.error(`[Discord Provisioning Failed] Error creating resources for "${teamName}": ${error.message}`);
-      // Rollback and cleanup created resources
       await this.rollbackProvisioning(created);
       throw error;
     }
@@ -197,18 +198,21 @@ export class DiscordService {
         return;
       }
 
+      const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+      const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+
       const rolesToAdd = [];
       if (teamRoleId && !member.roles.cache.has(teamRoleId)) rolesToAdd.push(teamRoleId);
-      if (env.PARTICIPANT_ROLE_ID && !member.roles.cache.has(env.PARTICIPANT_ROLE_ID)) {
-        rolesToAdd.push(env.PARTICIPANT_ROLE_ID);
+      if (participantRoleId && !member.roles.cache.has(participantRoleId)) {
+        rolesToAdd.push(participantRoleId);
       }
 
       if (rolesToAdd.length > 0) {
         await member.roles.add(rolesToAdd, 'Assigned Hackathon Team & Participant roles');
       }
 
-      if (env.UNREGISTERED_ROLE_ID && member.roles.cache.has(env.UNREGISTERED_ROLE_ID)) {
-        await member.roles.remove(env.UNREGISTERED_ROLE_ID, 'Removed Unregistered role on team join');
+      if (unregisteredRoleId && member.roles.cache.has(unregisteredRoleId)) {
+        await member.roles.remove(unregisteredRoleId, 'Removed Unregistered role on team join');
       }
     } catch (error) {
       logger.error(`[DiscordService] Failed to update roles for member ${discordId}: ${error.message}`);
@@ -230,6 +234,9 @@ export class DiscordService {
         return;
       }
 
+      const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+      const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+
       // 1. Remove Team Role if present
       if (teamRoleId && member.roles.cache.has(teamRoleId)) {
         await member.roles.remove(teamRoleId, 'Removed Hackathon Team role').catch(() => {});
@@ -237,11 +244,11 @@ export class DiscordService {
 
       // 2. Remove Participant role & Restore Unregistered role
       if (restoreUnregistered) {
-        if (env.PARTICIPANT_ROLE_ID && member.roles.cache.has(env.PARTICIPANT_ROLE_ID)) {
-          await member.roles.remove(env.PARTICIPANT_ROLE_ID, 'Removed Participant role on team delete/remove').catch(() => {});
+        if (participantRoleId && member.roles.cache.has(participantRoleId)) {
+          await member.roles.remove(participantRoleId, 'Removed Participant role on team delete/remove').catch(() => {});
         }
-        if (env.UNREGISTERED_ROLE_ID && !member.roles.cache.has(env.UNREGISTERED_ROLE_ID)) {
-          await member.roles.add(env.UNREGISTERED_ROLE_ID, 'Restored Unregistered role on team delete/remove').catch(() => {});
+        if (unregisteredRoleId && !member.roles.cache.has(unregisteredRoleId)) {
+          await member.roles.add(unregisteredRoleId, 'Restored Unregistered role on team delete/remove').catch(() => {});
         }
       }
       logger.info(`[DiscordService] Successfully restored @Unregistered and removed @Participant for ${member.user.tag}`);

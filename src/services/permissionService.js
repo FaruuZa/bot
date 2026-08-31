@@ -1,5 +1,5 @@
 import { PermissionsBitField } from 'discord.js';
-import { env } from '../config/env.js';
+import { GuildConfigService } from './guildConfigService.js';
 import { getUserActiveTeamByDiscordId } from '../database/queries/memberQueries.js';
 
 export class PermissionService {
@@ -11,7 +11,8 @@ export class PermissionService {
   static isAdmin(member) {
     if (!member) return false;
     if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
-    if (env.ADMINISTRATOR_ROLE_ID && member.roles.cache.has(env.ADMINISTRATOR_ROLE_ID)) return true;
+    const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
+    if (adminRoleId && member.roles.cache.has(adminRoleId)) return true;
     return false;
   }
 
@@ -23,7 +24,8 @@ export class PermissionService {
   static isStaff(member) {
     if (!member) return false;
     if (this.isAdmin(member)) return true;
-    if (env.STAFF_ROLE_ID && member.roles.cache.has(env.STAFF_ROLE_ID)) return true;
+    const staffRoleId = GuildConfigService.get('STAFF_ROLE_ID');
+    if (staffRoleId && member.roles.cache.has(staffRoleId)) return true;
     return false;
   }
 
@@ -35,7 +37,8 @@ export class PermissionService {
   static isTechnicalSupport(member) {
     if (!member) return false;
     if (this.isStaff(member)) return true;
-    if (env.TECHNICAL_SUPPORT_ROLE_ID && member.roles.cache.has(env.TECHNICAL_SUPPORT_ROLE_ID)) return true;
+    const techSupportRoleId = GuildConfigService.get('TECHNICAL_SUPPORT_ROLE_ID');
+    if (techSupportRoleId && member.roles.cache.has(techSupportRoleId)) return true;
     return false;
   }
 
@@ -47,7 +50,8 @@ export class PermissionService {
   static isJudge(member) {
     if (!member) return false;
     if (this.isStaff(member)) return true;
-    if (env.JUDGE_ROLE_ID && member.roles.cache.has(env.JUDGE_ROLE_ID)) return true;
+    const judgeRoleId = GuildConfigService.get('JUDGE_ROLE_ID');
+    if (judgeRoleId && member.roles.cache.has(judgeRoleId)) return true;
     return false;
   }
 

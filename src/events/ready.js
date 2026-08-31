@@ -2,6 +2,7 @@ import { ActivityType, Events } from 'discord.js';
 import { runMigrations } from '../database/migrate.js';
 import { deployCommands } from '../deploy-commands.js';
 import { InvitationService } from '../services/invitationService.js';
+import { GuildConfigService } from '../services/guildConfigService.js';
 import { markExpiredInvitations } from '../database/queries/invitationQueries.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
@@ -15,14 +16,7 @@ export default {
     logger.info(`Connected to ${client.guilds.cache.size} guild(s)`);
     logger.info(`=================================================`);
 
-    // 1. Auto-register slash commands to Discord
-    try {
-      await deployCommands();
-    } catch (err) {
-      logger.warn(`[Startup Warning] Failed to auto-deploy commands: ${err.message}`);
-    }
-
-    // 2. Run database migrations / verify connection
+    // 1. Run database migrations / verify connection
     try {
       await runMigrations();
       logger.success('[Startup] PostgreSQL connection and schema verified.');
@@ -30,7 +24,21 @@ export default {
       logger.error(`[Startup Error] Database initialization failed: ${err.message}`);
     }
 
-    // 2. Clean up expired invitations on startup
+    // 2. Preload dynamic guild configuration from database
+    try {
+      await GuildConfigService.loadAll();
+    } catch (err) {
+      logger.error(`[Startup Error] Failed to load guild configs: ${err.message}`);
+    }
+
+    // 3. Auto-register slash commands to Discord
+    try {
+      await deployCommands();
+    } catch (err) {
+      logger.warn(`[Startup Warning] Failed to auto-deploy commands: ${err.message}`);
+    }
+
+    // 4. Clean up expired invitations on startup
     try {
       const expired = await markExpiredInvitations();
       if (expired.length > 0) {
@@ -40,13 +48,13 @@ export default {
       logger.error(`[Startup Recovery Error] Failed to expire invitations: ${err.message}`);
     }
 
-    // 3. Start background invitation expiration sweeper
+    // 5. Start background invitation expiration sweeper
     InvitationService.startExpirationSweeper(client);
 
-    // 4. Set bot presence
+    // 6. Set bot presence
     client.user.setActivity('Hackathon Teams 🚀', { type: ActivityType.Watching });
 
-    // 5. Verify Guild and Key Configurations
+    // 7. Verify Guild and Key Configurations
     if (env.GUILD_ID) {
       const guild = client.guilds.cache.get(env.GUILD_ID);
       if (guild) {

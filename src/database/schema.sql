@@ -105,3 +105,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_team ON audit_logs(team_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+
+-- 7. Guild Config Table (dynamic bot configuration stored in DB)
+CREATE TABLE IF NOT EXISTS guild_config (
+    key        VARCHAR(100) PRIMARY KEY,
+    value      VARCHAR(255) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { env } from '../config/env.js';
+import { GuildConfigService } from './guildConfigService.js';
 import { AUDIT_ACTIONS, CUSTOM_IDS, TICKET_STATUS, TICKET_TYPE } from '../config/constants.js';
 import { createTicket, getTicketByChannelId, getActiveUserTicket, closeTicket } from '../database/queries/ticketQueries.js';
 import { upsertUser } from '../database/queries/userQueries.js';
@@ -41,6 +41,10 @@ export class TicketService {
 
       const channelName = `🎫・reg-${sanitizeChannelName(user.username)}`;
 
+      const staffRoleId = GuildConfigService.get('STAFF_ROLE_ID');
+      const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
+      const regCategoryId = GuildConfigService.get('REGISTRATION_CATEGORY_ID');
+
       // Overwrite permissions
       const permissionOverwrites = [
         {
@@ -68,9 +72,9 @@ export class TicketService {
         }
       ];
 
-      if (env.STAFF_ROLE_ID) {
+      if (staffRoleId) {
         permissionOverwrites.push({
-          id: env.STAFF_ROLE_ID,
+          id: staffRoleId,
           allow: [
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
@@ -80,9 +84,9 @@ export class TicketService {
         });
       }
 
-      if (env.ADMINISTRATOR_ROLE_ID) {
+      if (adminRoleId) {
         permissionOverwrites.push({
-          id: env.ADMINISTRATOR_ROLE_ID,
+          id: adminRoleId,
           allow: [
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
@@ -95,7 +99,7 @@ export class TicketService {
       const channel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
-        parent: env.REGISTRATION_CATEGORY_ID || undefined,
+        parent: regCategoryId || undefined,
         permissionOverwrites,
         topic: `Team registration ticket for ${user.tag} (${user.id})`
       });
@@ -166,6 +170,10 @@ export class TicketService {
       }
 
       const channelName = `🎫・support-${sanitizeChannelName(user.username)}`;
+      const staffRoleId = GuildConfigService.get('STAFF_ROLE_ID');
+      const techSupportRoleId = GuildConfigService.get('TECHNICAL_SUPPORT_ROLE_ID');
+      const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
+      const supportCategoryId = GuildConfigService.get('SUPPORT_CATEGORY_ID');
 
       const permissionOverwrites = [
         {
@@ -192,23 +200,23 @@ export class TicketService {
         }
       ];
 
-      if (env.STAFF_ROLE_ID) {
+      if (staffRoleId) {
         permissionOverwrites.push({
-          id: env.STAFF_ROLE_ID,
+          id: staffRoleId,
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
         });
       }
 
-      if (env.TECHNICAL_SUPPORT_ROLE_ID) {
+      if (techSupportRoleId) {
         permissionOverwrites.push({
-          id: env.TECHNICAL_SUPPORT_ROLE_ID,
+          id: techSupportRoleId,
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
         });
       }
 
-      if (env.ADMINISTRATOR_ROLE_ID) {
+      if (adminRoleId) {
         permissionOverwrites.push({
-          id: env.ADMINISTRATOR_ROLE_ID,
+          id: adminRoleId,
           allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
         });
       }
@@ -216,7 +224,7 @@ export class TicketService {
       const channel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
-        parent: env.SUPPORT_CATEGORY_ID || undefined,
+        parent: supportCategoryId || undefined,
         permissionOverwrites,
         topic: `Support ticket for ${user.tag} (${user.id})`
       });
