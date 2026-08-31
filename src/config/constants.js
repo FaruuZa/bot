@@ -75,8 +75,17 @@ export const CUSTOM_IDS = {
   BTN_DELETE_TEAM_CONFIRM: 'btn_delete_team_confirm_', // prefix + team_id
   BTN_DELETE_TEAM_CANCEL: 'btn_delete_team_cancel_', // prefix + team_id
 
+  // Staff Admin buttons
+  BTN_STAFF_ADD_TEAM: 'team_panel_staff_add_team',
+
   // Modals & Select Menus
   MODAL_REGISTER_TEAM: 'modal_register_team',
   INPUT_TEAM_NAME: 'input_team_name',
-  SELECT_TEAM_MEMBERS: 'select_team_members'
+  SELECT_TEAM_MEMBERS: 'select_team_members',
+
+  // Staff Add Team Modal
+  MODAL_STAFF_ADD_TEAM: 'modal_staff_add_team',
+  INPUT_STAFF_TEAM_NAME: 'input_staff_team_name',
+  INPUT_STAFF_LEADER_ID: 'input_staff_leader_id',
+  INPUT_STAFF_MEMBERS: 'input_staff_members'
 };

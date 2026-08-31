@@ -11,7 +11,7 @@ import {
 } from 'discord.js';
 import { PermissionService } from '../../services/permissionService.js';
 import { pool } from '../../database/pool.js';
-import { EMBED_COLORS } from '../../config/constants.js';
+import { CUSTOM_IDS, EMBED_COLORS } from '../../config/constants.js';
 import { errorEmbed } from '../../utils/embeds.js';
 
 export async function buildTeamPanelDashboard(guild) {
@@ -83,6 +83,11 @@ export async function buildTeamPanelDashboard(guild) {
 
   // Action Buttons row
   const buttonRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(CUSTOM_IDS.BTN_STAFF_ADD_TEAM)
+      .setLabel('Tambah Tim')
+      .setStyle(ButtonStyle.Success)
+      .setEmoji('➕'),
     new ButtonBuilder()
       .setCustomId('team_panel_refresh')
       .setLabel('Refresh Data')

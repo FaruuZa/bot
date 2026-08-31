@@ -97,8 +97,9 @@ export class TeamService {
 
   /**
    * Register a new team with pending invitations
+   * @param {boolean} skipInvitations - If true, members are added directly (staff override, no DM invitations)
    */
-  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null }) {
+  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null, skipInvitations = false }) {
     const validation = await this.validateRegistration({ teamName, leaderMember, memberIds, guild });
     if (!validation.valid) {
       return { success: false, error: validation.error };
@@ -123,10 +124,9 @@ export class TeamService {
         teamId: team.id,
         userId: leaderUser.id,
         role: MEMBER_ROLE.LEADER,
-        status: MEMBER_STATUS.PENDING
+        status: skipInvitations ? MEMBER_STATUS.ACTIVE : MEMBER_STATUS.PENDING
       }, dbClient);
 
-      // 4. Create invitations for members
       const expiresAt = new Date(Date.now() + env.INVITATION_EXPIRE_HOURS * 3600 * 1000);
       const invitedUsers = [];
 
@@ -135,13 +135,24 @@ export class TeamService {
         const memberUser = await upsertUser(member.id, member.user.tag || member.user.username, dbClient);
         invitedUsers.push({ user: memberUser, member });
 
-        await InvitationService.createTeamInvitation({
-          teamId: team.id,
-          invitedUserId: memberUser.id,
-          invitedBy: leaderUser.id,
-          expiresAt,
-          dbClient
-        });
+        if (skipInvitations) {
+          // Staff override: add members directly as ACTIVE (no invitation needed)
+          await addTeamMember({
+            teamId: team.id,
+            userId: memberUser.id,
+            role: MEMBER_ROLE.MEMBER,
+            status: MEMBER_STATUS.ACTIVE
+          }, dbClient);
+        } else {
+          // Normal flow: create invitations
+          await InvitationService.createTeamInvitation({
+            teamId: team.id,
+            invitedUserId: memberUser.id,
+            invitedBy: leaderUser.id,
+            expiresAt,
+            dbClient
+          });
+        }
       }
 
       return { team, leaderUser, invitedUsers, expiresAt };
@@ -149,6 +160,20 @@ export class TeamService {
 
     // If no other members needed (solo team if configured), create immediately
     if (uniqueMemberIds.length === 0) {
+      return { success: true, team, pendingInvitations: false };
+    }
+
+    if (skipInvitations) {
+      // Staff override: skip invitations entirely, go straight to finalize
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.STAFF_OVERRIDE,
+        title: 'Staff Team Creation',
+        actorId: null,
+        actorTag: 'Staff Panel',
+        teamId: team.id,
+        teamName: team.name,
+        details: `Staff directly created team "${team.name}" with ${uniqueMemberIds.length} members (no invitation flow).`
+      });
       return { success: true, team, pendingInvitations: false };
     }
 

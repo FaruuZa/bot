@@ -255,6 +255,48 @@ export default {
         }
       }
 
+      // L. Team Panel: Staff Add Team (open modal)
+      if (customId === CUSTOM_IDS.BTN_STAFF_ADD_TEAM) {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+
+        const modal = new ModalBuilder()
+          .setCustomId(CUSTOM_IDS.MODAL_STAFF_ADD_TEAM)
+          .setTitle('➕ Tambah Tim Baru (Staff)');
+
+        const teamNameInput = new TextInputBuilder()
+          .setCustomId(CUSTOM_IDS.INPUT_STAFF_TEAM_NAME)
+          .setLabel('Nama Tim')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Contoh: Tim Jember Alpha')
+          .setRequired(true)
+          .setMinLength(3)
+          .setMaxLength(32);
+
+        const leaderIdInput = new TextInputBuilder()
+          .setCustomId(CUSTOM_IDS.INPUT_STAFF_LEADER_ID)
+          .setLabel('User ID Leader')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Contoh: 123456789012345678')
+          .setRequired(true);
+
+        const membersInput = new TextInputBuilder()
+          .setCustomId(CUSTOM_IDS.INPUT_STAFF_MEMBERS)
+          .setLabel('User ID Anggota (pisah baris, maks 4)')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Satu User ID per baris:\n111222333444555666\n777888999000111222\n...')
+          .setRequired(false);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(teamNameInput),
+          new ActionRowBuilder().addComponents(leaderIdInput),
+          new ActionRowBuilder().addComponents(membersInput)
+        );
+
+        return await interaction.showModal(modal);
+      }
+
       return;
     }
 
@@ -380,6 +422,116 @@ export default {
           });
         }
       }
+
+      // Staff Add Team Modal submit
+      if (interaction.customId === CUSTOM_IDS.MODAL_STAFF_ADD_TEAM) {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+
+        const teamName = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_TEAM_NAME).trim();
+        const leaderIdRaw = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_LEADER_ID).trim();
+        const membersRaw = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_MEMBERS).trim();
+
+        // Defer immediately — this will take a while
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        try {
+          // Parse leader ID (strip mention format if pasted as <@id>)
+          const leaderId = leaderIdRaw.replace(/[<@!>]/g, '').trim();
+
+          // Parse member IDs (one per line, strip mentions)
+          const memberIds = membersRaw
+            ? membersRaw
+                .split(/[\n,\s]+/)
+                .map((s) => s.replace(/[<@!>]/g, '').trim())
+                .filter((s) => /^\d{17,20}$/.test(s))
+                .slice(0, 4)
+            : [];
+
+          // Validate leader ID format
+          if (!/^\d{17,20}$/.test(leaderId)) {
+            return await interaction.editReply({
+              embeds: [errorEmbed('User ID Tidak Valid', `User ID Leader \`${leaderIdRaw}\` tidak valid. Gunakan numeric User ID (17-20 digit).`)]
+            });
+          }
+
+          // Fetch leader guild member
+          const leaderMember = await interaction.guild.members.fetch(leaderId).catch(() => null);
+          if (!leaderMember) {
+            return await interaction.editReply({
+              embeds: [errorEmbed('Leader Tidak Ditemukan', `User ID \`${leaderId}\` tidak ditemukan di server ini. Pastikan user sudah join server.`)]
+            });
+          }
+
+          // Validate team name
+          const nameValidation = validateTeamName(teamName);
+          if (!nameValidation.valid) {
+            return await interaction.editReply({
+              embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)]
+            });
+          }
+
+          // Validate & resolve member IDs (skip invalid ones, warn user)
+          const resolvedMemberIds = [];
+          const failedIds = [];
+          for (const mid of memberIds) {
+            if (mid === leaderId) continue; // skip if same as leader
+            const m = await interaction.guild.members.fetch(mid).catch(() => null);
+            if (m) {
+              resolvedMemberIds.push(mid);
+            } else {
+              failedIds.push(mid);
+            }
+          }
+
+          // Start registration (no invitation flow — staff override)
+          const result = await TeamService.startRegistration({
+            teamName,
+            leaderMember,
+            memberIds: resolvedMemberIds,
+            guild: interaction.guild,
+            client: interaction.client,
+            ticketChannel: null,
+            skipInvitations: true // staff bypass
+          });
+
+          if (!result.success) {
+            return await interaction.editReply({
+              embeds: [errorEmbed('Gagal Membuat Tim', result.error)]
+            });
+          }
+
+          // Immediately finalize — create channels, roles, etc.
+          await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
+
+          const memberMentions = resolvedMemberIds.length > 0
+            ? resolvedMemberIds.map((id) => `<@${id}>`).join(', ')
+            : '*(tidak ada)*';
+
+          const warningText = failedIds.length > 0
+            ? `\n\n⚠️ **User ID Tidak Ditemukan (dilewati):** ${failedIds.map((id) => `\`${id}\``).join(', ')}`
+            : '';
+
+          return await interaction.editReply({
+            embeds: [
+              successEmbed(
+                '✅ Tim Berhasil Dibuat!',
+                `Tim **${teamName}** telah berhasil dibuat oleh staff dan channel telah disiapkan!\n\n` +
+                `👑 **Leader:** <@${leaderId}>\n` +
+                `👥 **Anggota:** ${memberMentions}` +
+                warningText
+              )
+            ]
+          });
+        } catch (err) {
+          logger.error(`[Staff Add Team] ${err.stack || err.message}`);
+          return await interaction.editReply({
+            embeds: [errorEmbed('Error', `Gagal membuat tim: ${err.message}`)]
+          });
+        }
+      }
+
       return;
     }
 

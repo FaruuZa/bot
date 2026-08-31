@@ -12,7 +12,8 @@ import { logger } from '../utils/logger.js';
 
 export class FAQService {
   /**
-   * Build the Discord embed object from DB record
+   * Build the Discord embed object formatted as clean continuous Markdown
+   * (matching the beautiful rules/announcement style with ### headers and bullet points)
    * @param {object} data 
    * @returns {EmbedBuilder}
    */
@@ -20,24 +21,35 @@ export class FAQService {
     const colorHex = EMBED_COLORS[data.color] || EMBED_COLORS.PRIMARY;
     const embed = new EmbedBuilder()
       .setTitle(data.title)
-      .setColor(colorHex)
-      .setFooter({ text: `ID: ${data.id} • Last Updated` })
-      .setTimestamp(new Date(data.updated_at || Date.now()));
+      .setColor(colorHex);
 
+    const bodyParts = [];
+
+    // 1. Opening description / intro
     if (data.description) {
-      embed.setDescription(data.description.replace(/\\n/g, '\n'));
+      bodyParts.push(data.description.replace(/\\n/g, '\n'));
     }
 
+    // 2. Sections / Rules / Items
     const fields = Array.isArray(data.fields) ? data.fields : (typeof data.fields === 'string' ? JSON.parse(data.fields) : []);
 
     if (fields.length > 0) {
       for (const f of fields) {
-        embed.addFields({
-          name: f.name,
-          value: f.value.replace(/\\n/g, '\n'),
-          inline: f.inline || false
-        });
+        if (f.name && f.value) {
+          const sectionTitle = f.name.startsWith('###') || f.name.startsWith('##') || f.name.startsWith('#')
+            ? f.name
+            : `### ${f.name}`;
+          const sectionBody = f.value.replace(/\\n/g, '\n');
+          bodyParts.push(`${sectionTitle}\n${sectionBody}`);
+        } else if (f.value) {
+          bodyParts.push(f.value.replace(/\\n/g, '\n'));
+        }
       }
+    }
+
+    const fullDescription = bodyParts.join('\n\n');
+    if (fullDescription) {
+      embed.setDescription(fullDescription);
     }
 
     return embed;
@@ -74,13 +86,17 @@ export class FAQService {
    * Create and post a new dynamic embed
    */
   static async create({ client, id, channel, title, description, color }) {
-    const embedObj = new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(description ? description.replace(/\\n/g, '\n') : null)
-      .setColor(EMBED_COLORS[color] || EMBED_COLORS.PRIMARY)
-      .setFooter({ text: `ID: ${id} • Created` })
-      .setTimestamp();
+    const recordData = {
+      id,
+      channel_id: channel.id,
+      message_id: 'pending',
+      title,
+      description: description || '',
+      color: color || 'PRIMARY',
+      fields: []
+    };
 
+    const embedObj = this.buildEmbed(recordData);
     const sentMessage = await channel.send({ embeds: [embedObj] });
 
     const record = await createDynamicEmbed({
@@ -97,14 +113,14 @@ export class FAQService {
   }
 
   /**
-   * Add a new item / question-answer to an existing embed
+   * Add a new section / rule / question-answer to an existing embed
    */
-  static async addItem({ client, id, name, value, inline = false }) {
+  static async addSection({ client, id, title, content }) {
     const record = await getDynamicEmbedById(id);
     if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
 
     const fields = Array.isArray(record.fields) ? [...record.fields] : JSON.parse(record.fields || '[]');
-    fields.push({ name, value, inline });
+    fields.push({ name: title, value: content });
 
     const updated = await updateDynamicEmbedFields(id, fields);
     await this.syncDiscordMessage(client, updated);
@@ -112,32 +128,9 @@ export class FAQService {
   }
 
   /**
-   * Edit an existing item / question-answer by 1-based index
+   * Edit an existing section by 1-based index
    */
-  static async editItem({ client, id, index, name, value, inline }) {
-    const record = await getDynamicEmbedById(id);
-    if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
-
-    const fields = Array.isArray(record.fields) ? [...record.fields] : JSON.parse(record.fields || '[]');
-    const targetIdx = index - 1; // 1-based to 0-based
-
-    if (targetIdx < 0 || targetIdx >= fields.length) {
-      throw new Error(`Invalid index #${index}. Current items count: ${fields.length}.`);
-    }
-
-    if (name) fields[targetIdx].name = name;
-    if (value) fields[targetIdx].value = value;
-    if (inline !== undefined && inline !== null) fields[targetIdx].inline = inline;
-
-    const updated = await updateDynamicEmbedFields(id, fields);
-    await this.syncDiscordMessage(client, updated);
-    return updated;
-  }
-
-  /**
-   * Remove an item by 1-based index
-   */
-  static async removeItem({ client, id, index }) {
+  static async editSection({ client, id, index, title, content }) {
     const record = await getDynamicEmbedById(id);
     if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
 
@@ -145,13 +138,64 @@ export class FAQService {
     const targetIdx = index - 1;
 
     if (targetIdx < 0 || targetIdx >= fields.length) {
-      throw new Error(`Invalid index #${index}. Current items count: ${fields.length}.`);
+      throw new Error(`Invalid index #${index}. Current sections count: ${fields.length}.`);
+    }
+
+    if (title) fields[targetIdx].name = title;
+    if (content) fields[targetIdx].value = content;
+
+    const updated = await updateDynamicEmbedFields(id, fields);
+    await this.syncDiscordMessage(client, updated);
+    return updated;
+  }
+
+  /**
+   * Remove a section by 1-based index
+   */
+  static async removeSection({ client, id, index }) {
+    const record = await getDynamicEmbedById(id);
+    if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
+
+    const fields = Array.isArray(record.fields) ? [...record.fields] : JSON.parse(record.fields || '[]');
+    const targetIdx = index - 1;
+
+    if (targetIdx < 0 || targetIdx >= fields.length) {
+      throw new Error(`Invalid index #${index}. Current sections count: ${fields.length}.`);
     }
 
     const removedItem = fields.splice(targetIdx, 1)[0];
     const updated = await updateDynamicEmbedFields(id, fields);
     await this.syncDiscordMessage(client, updated);
     return { updated, removedItem };
+  }
+
+  /**
+   * Set raw markdown directly as the body
+   */
+  static async setMarkdown({ client, id, content }) {
+    const record = await getDynamicEmbedById(id);
+    if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
+
+    // Clear fields and put everything in description
+    await updateDynamicEmbedFields(id, []);
+    const updated = await updateDynamicEmbedHeader(id, { description: content });
+    await this.syncDiscordMessage(client, updated);
+    return updated;
+  }
+
+  /**
+   * Append markdown to the end of the existing embed
+   */
+  static async appendMarkdown({ client, id, content }) {
+    const record = await getDynamicEmbedById(id);
+    if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
+
+    const fields = Array.isArray(record.fields) ? [...record.fields] : JSON.parse(record.fields || '[]');
+    fields.push({ name: '', value: content });
+
+    const updated = await updateDynamicEmbedFields(id, fields);
+    await this.syncDiscordMessage(client, updated);
+    return updated;
   }
 
   /**

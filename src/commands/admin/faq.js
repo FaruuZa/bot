@@ -14,17 +14,17 @@ import { EMBED_COLORS } from '../../config/constants.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('faq')
-    .setDescription('[Staff] Manage dynamic, editable Rules / FAQ / Info embeds')
+    .setDescription('[Staff] Manage clean Markdown Rules / FAQ / Announcements with in-place live editing')
     .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageMessages)
     // --- Subcommand: create ---
     .addSubcommand((sub) =>
       sub
         .setName('create')
-        .setDescription('Create a new dynamic FAQ/Rules embed in a channel')
+        .setDescription('Create a new live-editable Rules / FAQ embed in a channel')
         .addStringOption((opt) =>
           opt
             .setName('id')
-            .setDescription('Unique identifier for this embed (e.g., rules-hackathon, faq-general)')
+            .setDescription('Unique ID for this embed (e.g. rules, faq, guidelines)')
             .setRequired(true)
         )
         .addChannelOption((opt) =>
@@ -37,19 +37,19 @@ export default {
         .addStringOption((opt) =>
           opt
             .setName('title')
-            .setDescription('Embed title (e.g., 📜 Peraturan Hackathon 2026)')
+            .setDescription('Embed title (e.g. 📜 Rules & Guidelines)')
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
             .setName('description')
-            .setDescription('Optional description / opening text (supports markdown & \n)')
+            .setDescription('Opening text / intro (supports markdown and \n)')
             .setRequired(false)
         )
         .addStringOption((opt) =>
           opt
             .setName('color')
-            .setDescription('Embed color')
+            .setDescription('Embed border color')
             .setRequired(false)
             .addChoices(
               { name: 'Blurple (Default)', value: 'PRIMARY' },
@@ -60,119 +60,143 @@ export default {
             )
         )
     )
-    // --- Subcommand: add-item ---
+    // --- Subcommand: add-section ---
     .addSubcommand((sub) =>
       sub
-        .setName('add-item')
-        .setDescription('Add a new section / rule / question-answer to an existing embed')
+        .setName('add-section')
+        .setDescription('Add a new section / rule / question to the embed')
         .addStringOption((opt) =>
           opt
             .setName('id')
-            .setDescription('ID of the dynamic embed')
+            .setDescription('ID of the embed')
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
-            .setName('question')
-            .setDescription('Rule title or Question (Field Name)')
+            .setName('title')
+            .setDescription('Section heading (e.g. 1. 🤝 Saling Menghormati)')
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
-            .setName('answer')
-            .setDescription('Rule details or Answer content (supports \n and markdown)')
+            .setName('content')
+            .setDescription('Section content/bullets (supports \n and - bullets)')
             .setRequired(true)
-        )
-        .addBooleanOption((opt) =>
-          opt
-            .setName('inline')
-            .setDescription('Display side-by-side (inline)?')
-            .setRequired(false)
         )
     )
-    // --- Subcommand: edit-item ---
+    // --- Subcommand: edit-section ---
     .addSubcommand((sub) =>
       sub
-        .setName('edit-item')
-        .setDescription('Edit an existing rule / question-answer by its item number')
+        .setName('edit-section')
+        .setDescription('Edit an existing section by its item number')
         .addStringOption((opt) =>
           opt
             .setName('id')
-            .setDescription('ID of the dynamic embed')
+            .setDescription('ID of the embed')
             .setRequired(true)
         )
         .addIntegerOption((opt) =>
           opt
             .setName('index')
-            .setDescription('Item number to edit (1, 2, 3...)')
+            .setDescription('Section number (1, 2, 3...)')
             .setRequired(true)
             .setMinValue(1)
         )
         .addStringOption((opt) =>
           opt
-            .setName('question')
-            .setDescription('New question / rule title (leave empty to keep current)')
+            .setName('title')
+            .setDescription('New section heading (leave empty to keep current)')
             .setRequired(false)
         )
         .addStringOption((opt) =>
           opt
-            .setName('answer')
-            .setDescription('New answer / details (leave empty to keep current)')
-            .setRequired(false)
-        )
-        .addBooleanOption((opt) =>
-          opt
-            .setName('inline')
-            .setDescription('Set inline mode')
+            .setName('content')
+            .setDescription('New section content (leave empty to keep current)')
             .setRequired(false)
         )
     )
-    // --- Subcommand: remove-item ---
+    // --- Subcommand: remove-section ---
     .addSubcommand((sub) =>
       sub
-        .setName('remove-item')
-        .setDescription('Remove a rule / question-answer by its item number')
+        .setName('remove-section')
+        .setDescription('Remove a section by its item number')
         .addStringOption((opt) =>
           opt
             .setName('id')
-            .setDescription('ID of the dynamic embed')
+            .setDescription('ID of the embed')
             .setRequired(true)
         )
         .addIntegerOption((opt) =>
           opt
             .setName('index')
-            .setDescription('Item number to remove (1, 2, 3...)')
+            .setDescription('Section number to delete (1, 2, 3...)')
             .setRequired(true)
             .setMinValue(1)
+        )
+    )
+    // --- Subcommand: append ---
+    .addSubcommand((sub) =>
+      sub
+        .setName('append')
+        .setDescription('Append raw markdown text directly to the end of the embed')
+        .addStringOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('ID of the embed')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('text')
+            .setDescription('Markdown text to append (supports \n, ###, - bullets)')
+            .setRequired(true)
+        )
+    )
+    // --- Subcommand: set-content ---
+    .addSubcommand((sub) =>
+      sub
+        .setName('set-content')
+        .setDescription('Overwrite entire body with custom markdown text')
+        .addStringOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('ID of the embed')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('text')
+            .setDescription('Full markdown text (supports \n, ###, - bullets)')
+            .setRequired(true)
         )
     )
     // --- Subcommand: update-header ---
     .addSubcommand((sub) =>
       sub
         .setName('update-header')
-        .setDescription('Update the title, description, or color of an existing embed')
+        .setDescription('Update embed title, opening intro, or border color')
         .addStringOption((opt) =>
           opt
             .setName('id')
-            .setDescription('ID of the dynamic embed')
+            .setDescription('ID of the embed')
             .setRequired(true)
         )
         .addStringOption((opt) =>
           opt
             .setName('title')
-            .setDescription('New title (leave empty to keep current)')
+            .setDescription('New title')
             .setRequired(false)
         )
         .addStringOption((opt) =>
           opt
             .setName('description')
-            .setDescription('New description (leave empty to keep current)')
+            .setDescription('New opening intro')
             .setRequired(false)
         )
         .addStringOption((opt) =>
           opt
             .setName('color')
-            .setDescription('New color')
+            .setDescription('New border color')
             .setRequired(false)
             .addChoices(
               { name: 'Blurple (Default)', value: 'PRIMARY' },
@@ -187,7 +211,7 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('list')
-        .setDescription('List all dynamic FAQ / Rules embeds currently managed by the bot')
+        .setDescription('List all dynamic live-editable embeds')
     ),
 
   async execute(interaction) {
@@ -222,8 +246,8 @@ export default {
         return await interaction.editReply({
           embeds: [
             successEmbed(
-              'Dynamic Embed Created ✅',
-              `Embed berhasil diposting ke <#${channel.id}>!
+              'Embed Berhasil Dibuat ✅',
+              `Embed telah diposting ke <#${channel.id}>!
 
 ` +
               `**ID Embed:** \`${record.id}\`
@@ -231,25 +255,23 @@ export default {
               `**Judul:** ${record.title}
 
 ` +
-              `💡 *Gunakan \`/faq add-item id:${record.id} question:... answer:...\` untuk menambahkan isi poin/tanya-jawab kapan saja.*`
+              `💡 *Gunakan \`/faq add-section id:${record.id} title:... content:...\` untuk menambah aturan/poin baru kapan saja.*`
             )
           ]
         });
       }
 
-      // 2. ADD ITEM
-      if (subcommand === 'add-item') {
+      // 2. ADD SECTION
+      if (subcommand === 'add-section') {
         const id = interaction.options.getString('id').trim().toLowerCase();
-        const question = interaction.options.getString('question');
-        const answer = interaction.options.getString('answer');
-        const inline = interaction.options.getBoolean('inline') || false;
+        const title = interaction.options.getString('title');
+        const content = interaction.options.getString('content');
 
-        const updated = await FAQService.addItem({
+        const updated = await FAQService.addSection({
           client: interaction.client,
           id,
-          name: question,
-          value: answer,
-          inline
+          title,
+          content
         });
 
         const fields = Array.isArray(updated.fields) ? updated.fields : JSON.parse(updated.fields || '[]');
@@ -257,43 +279,41 @@ export default {
         return await interaction.editReply({
           embeds: [
             successEmbed(
-              'Item Ditambahkan ✅',
-              `Poin/Pertanyaan baru berhasil ditambahkan ke embed \`${id}\` di <#${updated.channel_id}>!
+              'Section Ditambahkan ✅',
+              `Section baru berhasil ditambahkan ke embed \`${id}\` di <#${updated.channel_id}>!
 
 ` +
-              `**Total Poin Saat Ini:** ${fields.length}
+              `**Total Section:** ${fields.length}
 ` +
-              `**Poin Terbaru (#${fields.length}):** ${question}
+              `**Section Terbaru (#${fields.length}):** ${title}
 
 ` +
-              `*Pesan di channel telah otomatis diperbarui tanpa kirim ulang.*`
+              `*Pesan di channel telah otomatis diperbarui secara rapi.*`
             )
           ]
         });
       }
 
-      // 3. EDIT ITEM
-      if (subcommand === 'edit-item') {
+      // 3. EDIT SECTION
+      if (subcommand === 'edit-section') {
         const id = interaction.options.getString('id').trim().toLowerCase();
         const index = interaction.options.getInteger('index');
-        const question = interaction.options.getString('question');
-        const answer = interaction.options.getString('answer');
-        const inline = interaction.options.getBoolean('inline');
+        const title = interaction.options.getString('title');
+        const content = interaction.options.getString('content');
 
-        const updated = await FAQService.editItem({
+        const updated = await FAQService.editSection({
           client: interaction.client,
           id,
           index,
-          name: question,
-          value: answer,
-          inline
+          title,
+          content
         });
 
         return await interaction.editReply({
           embeds: [
             successEmbed(
-              'Item Diperbarui ✅',
-              `Poin #${index} pada embed \`${id}\` di <#${updated.channel_id}> berhasil diperbarui!
+              'Section Diperbarui ✅',
+              `Section #${index} pada embed \`${id}\` di <#${updated.channel_id}> berhasil diperbarui!
 
 ` +
               `*Pesan di channel telah otomatis tersinkronisasi.*`
@@ -302,12 +322,12 @@ export default {
         });
       }
 
-      // 4. REMOVE ITEM
-      if (subcommand === 'remove-item') {
+      // 4. REMOVE SECTION
+      if (subcommand === 'remove-section') {
         const id = interaction.options.getString('id').trim().toLowerCase();
         const index = interaction.options.getInteger('index');
 
-        const { updated, removedItem } = await FAQService.removeItem({
+        const { updated, removedItem } = await FAQService.removeSection({
           client: interaction.client,
           id,
           index
@@ -316,17 +336,65 @@ export default {
         return await interaction.editReply({
           embeds: [
             successEmbed(
-              'Item Dihapus 🗑️',
-              `Poin #${index} (**${removedItem.name}**) telah dihapus dari embed \`${id}\` di <#${updated.channel_id}>.
+              'Section Dihapus 🗑️',
+              `Section #${index} (**${removedItem.name}**) telah dihapus dari embed \`${id}\` di <#${updated.channel_id}>.
 
 ` +
-              `*Pesan di channel telah otomatis diperbarui.*`
+              `*Pesan di channel telah otomatis tersinkronisasi.*`
             )
           ]
         });
       }
 
-      // 5. UPDATE HEADER
+      // 5. APPEND RAW MARKDOWN
+      if (subcommand === 'append') {
+        const id = interaction.options.getString('id').trim().toLowerCase();
+        const text = interaction.options.getString('text');
+
+        const updated = await FAQService.appendMarkdown({
+          client: interaction.client,
+          id,
+          content: text
+        });
+
+        return await interaction.editReply({
+          embeds: [
+            successEmbed(
+              'Teks Ditambahkan ✅',
+              `Teks markdown berhasil ditambahkan di akhir embed \`${id}\` di <#${updated.channel_id}>!
+
+` +
+              `*Pesan di channel telah otomatis tersinkronisasi.*`
+            )
+          ]
+        });
+      }
+
+      // 6. SET FULL CONTENT
+      if (subcommand === 'set-content') {
+        const id = interaction.options.getString('id').trim().toLowerCase();
+        const text = interaction.options.getString('text');
+
+        const updated = await FAQService.setMarkdown({
+          client: interaction.client,
+          id,
+          content: text
+        });
+
+        return await interaction.editReply({
+          embeds: [
+            successEmbed(
+              'Isi Embed Diperbarui ✅',
+              `Seluruh isi markdown embed \`${id}\` di <#${updated.channel_id}> berhasil diperbarui!
+
+` +
+              `*Pesan di channel telah otomatis tersinkronisasi.*`
+            )
+          ]
+        });
+      }
+
+      // 7. UPDATE HEADER
       if (subcommand === 'update-header') {
         const id = interaction.options.getString('id').trim().toLowerCase();
         const title = interaction.options.getString('title');
@@ -345,7 +413,7 @@ export default {
           embeds: [
             successEmbed(
               'Header Diperbarui ✅',
-              `Judul/Deskripsi embed \`${id}\` di <#${updated.channel_id}> berhasil diperbarui!
+              `Judul/Intro embed \`${id}\` di <#${updated.channel_id}> berhasil diperbarui!
 
 ` +
               `*Pesan di channel telah otomatis tersinkronisasi.*`
@@ -354,7 +422,7 @@ export default {
         });
       }
 
-      // 6. LIST
+      // 8. LIST
       if (subcommand === 'list') {
         const embeds = await getAllDynamicEmbeds();
 
@@ -368,7 +436,7 @@ export default {
           const fields = Array.isArray(e.fields) ? e.fields : JSON.parse(e.fields || '[]');
           return `**${idx + 1}. \`${e.id}\`** — ${e.title}
 ` +
-                 `   • Channel: <#${e.channel_id}> | Items: **${fields.length}** | Color: \`${e.color}\``;
+                 `   • Channel: <#${e.channel_id}> | Sections: **${fields.length}** | Color: \`${e.color}\``;
         });
 
         return await interaction.editReply({
