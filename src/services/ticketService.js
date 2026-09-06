@@ -20,6 +20,14 @@ export class TicketService {
     const { user, guild } = interaction;
 
     try {
+      // Check if registration is open
+      const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
+      if (!regOpen) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Pendaftaran Ditutup', '❌ Pendaftaran tim saat ini sedang ditutup oleh panitia.')]
+        });
+      }
+
       // 2. Check anti-double-team
       const activeTeam = await getUserActiveTeamByDiscordId(user.id);
       if (activeTeam) {

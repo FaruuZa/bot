@@ -30,7 +30,14 @@ export const CONFIG_DEFINITIONS = {
 
   // Categories
   REGISTRATION_CATEGORY_ID: { key: 'REGISTRATION_CATEGORY_ID', type: 'CATEGORY', label: 'Registration Category', description: 'Category for team registration tickets' },
-  SUPPORT_CATEGORY_ID: { key: 'SUPPORT_CATEGORY_ID', type: 'CATEGORY', label: 'Support Category', description: 'Category for support tickets' }
+  SUPPORT_CATEGORY_ID: { key: 'SUPPORT_CATEGORY_ID', type: 'CATEGORY', label: 'Support Category', description: 'Category for support tickets' },
+
+  // System & Dashboard Controls
+  PARTICIPANT_INVITE_CODE: { key: 'PARTICIPANT_INVITE_CODE', type: 'TEXT', label: 'Participant Invite Code', description: 'Invite code that automatically grants Participant role on join' },
+  REGISTRATION_OPEN: { key: 'REGISTRATION_OPEN', type: 'TEXT', label: 'Registration Status', description: 'Whether team registration is open ("true" or "false")' },
+  TEAM_MEMBER_SELECT_ROLE_ID: { key: 'TEAM_MEMBER_SELECT_ROLE_ID', type: 'ROLE', label: 'Team Select Role Filter', description: 'Role required for users to appear in the team member invite dropdown' },
+  DASHBOARD_CHANNEL_ID: { key: 'DASHBOARD_CHANNEL_ID', type: 'CHANNEL', label: 'Dashboard Channel', description: 'Channel where the Admin Control Panel is deployed' },
+  DASHBOARD_MESSAGE_ID: { key: 'DASHBOARD_MESSAGE_ID', type: 'TEXT', label: 'Dashboard Message ID', description: 'Discord Message ID for live dashboard updates' }
 };
 
 export class GuildConfigService {

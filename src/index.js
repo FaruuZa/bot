@@ -13,6 +13,7 @@ import teamPanelCmd from './commands/admin/teamPanel.js';
 import faqCmd from './commands/admin/faq.js';
 import announceCmd from './commands/admin/announce.js';
 import purgeCmd from './commands/admin/purge.js';
+import setupDashboardCmd from './commands/admin/setupDashboard.js';
 
 // Import Events
 import readyEvent from './events/ready.js';
@@ -26,7 +27,8 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.GuildVoiceStates
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildInvites
   ],
   partials: [
     Partials.Channel,
@@ -44,6 +46,7 @@ const commandList = [
   ticketCmd,
   setupPanelsCmd,
   setupConfigCmd,
+  setupDashboardCmd,
   teamPanelCmd,
   faqCmd,
   announceCmd,

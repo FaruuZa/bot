@@ -23,6 +23,9 @@ import { getTeamById } from '../database/queries/teamQueries.js';
 import { buildTeamPanelDashboard } from '../commands/admin/teamPanel.js';
 import { validateTeamName } from '../utils/validators.js';
 import { errorEmbed, successEmbed, infoEmbed, warningEmbed, teamInfoEmbed } from '../utils/embeds.js';
+import { DashboardService } from '../services/dashboardService.js';
+import { InviteService } from '../services/inviteService.js';
+import { replyAutoDismiss } from '../utils/interactionUtils.js';
 import { logger } from '../utils/logger.js';
 import { pool } from '../database/pool.js';
 
@@ -95,6 +98,14 @@ export default {
 
       // D. Open Team Registration Modal
       if (customId === CUSTOM_IDS.BTN_OPEN_REG_MODAL) {
+        const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
+        if (!regOpen) {
+          return await interaction.reply({
+            embeds: [errorEmbed('Pendaftaran Ditutup', '❌ Pendaftaran tim saat ini sedang ditutup oleh panitia.')],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (activeTeam) {
           return await interaction.reply({
@@ -297,6 +308,65 @@ export default {
         return await interaction.showModal(modal);
       }
 
+      // M. Admin Dashboard Buttons
+      if (customId === 'dashboard_toggle_reg') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyAutoDismiss(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah status pendaftaran.')]
+          }, 5000);
+        }
+
+        const current = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
+        const nextState = current ? 'false' : 'true';
+        await GuildConfigService.set('REGISTRATION_OPEN', nextState);
+
+        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+        await interaction.update(payload);
+
+        return await replyAutoDismiss(interaction, {
+          embeds: [successEmbed('Status Pendaftaran Diubah 📢', `Pendaftaran tim sekarang: **${nextState === 'true' ? 'DIBUKA 🟢' : 'DITUTUP 🔴'}**`)]
+        }, 6000);
+      }
+
+      if (customId === 'dashboard_gen_invite') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyAutoDismiss(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')]
+          }, 5000);
+        }
+
+        try {
+          const invite = await InviteService.createParticipantInvite(interaction.guild);
+          const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+          await interaction.update(payload);
+
+          return await replyAutoDismiss(interaction, {
+            embeds: [successEmbed(
+              'Link Invite Peserta Dibuat 🎟️',
+              `Link invite khusus peserta berhasil dibuat:\n**${invite.url}**\n\n` +
+              `• Kode: \`${invite.code}\`\n` +
+              `• *Setiap anggota baru yang join melalui link ini akan otomatis mendapatkan role @Participant.*`
+            )]
+          }, 10000);
+        } catch (err) {
+          return await replyAutoDismiss(interaction, {
+            embeds: [errorEmbed('Gagal Membuat Invite', err.message)]
+          }, 7000);
+        }
+      }
+
+      if (customId === 'dashboard_refresh') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyAutoDismiss(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat merefresh dashboard.')]
+          }, 5000);
+        }
+
+        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+        await interaction.update(payload);
+        return;
+      }
+
       return;
     }
 
@@ -335,12 +405,12 @@ export default {
         }
 
         await interaction.guild.members.fetch().catch(() => {});
-        const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('UNREGISTERED_ROLE_ID');
 
         const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
           if (m.user.bot) return false;
           if (m.id === interaction.user.id) return false;
-          if (unregisteredRoleId && !m.roles.cache.has(unregisteredRoleId)) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
           return true;
         });
 
@@ -353,8 +423,8 @@ export default {
               errorEmbed(
                 'Tidak Ada Anggota Tersedia',
                 `❌ Tidak ditemukan anggota yang memenuhi syarat di server untuk diundang ke tim **${teamName}**.\n\n` +
-                (unregisteredRoleId
-                  ? 'Pastikan rekan tim Anda sudah bergabung ke server Discord ini dan memiliki role `@Unregistered`.'
+                (filterRoleId
+                  ? `Pastikan rekan tim Anda sudah bergabung ke server Discord ini dan memiliki role <@&${filterRoleId}>.`
                   : 'Pastikan rekan tim Anda sudah bergabung ke server Discord ini.')
               )
             ],
@@ -394,7 +464,7 @@ export default {
                 `**Nama Tim:** \`${teamName}\`\n` +
                 `**Team Leader:** <@${interaction.user.id}>\n\n` +
                 `👉 Pilih antara **${actualMin} sampai ${actualMax}** anggota dari menu dropdown di bawah.\n` +
-                (unregisteredRoleId ? `*(Hanya anggota berstatus **@Unregistered** yang ditampilkan)*` : '')
+                (filterRoleId ? `*(Hanya anggota dengan role <@&${filterRoleId}> yang ditampilkan)*` : '')
               )
             ],
             components: [row]
@@ -538,7 +608,26 @@ export default {
     // ========================================================
     // 4. SELECT MENU ROUTER
     // ========================================================
-    if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
+    if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu() || interaction.isRoleSelectMenu()) {
+      // 0. Dashboard: Select Team Member Filter Role
+      if (interaction.customId === 'dashboard_select_member_role') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyAutoDismiss(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah filter role tim.')]
+          }, 5000);
+        }
+
+        const selectedRoleId = interaction.values[0];
+        await GuildConfigService.set('TEAM_MEMBER_SELECT_ROLE_ID', selectedRoleId);
+
+        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+        await interaction.update(payload);
+
+        return await replyAutoDismiss(interaction, {
+          embeds: [successEmbed('Filter Role Diperbarui 🎯', `Anggota tim di dropdown pendaftaran sekarang difilter berdasarkan role <@&${selectedRoleId}>.`)]
+        }, 6000);
+      }
+
       // A. Team Panel: Select Team Details
       if (interaction.customId === 'team_panel_select_team') {
         const teamId = parseInt(interaction.values[0], 10);

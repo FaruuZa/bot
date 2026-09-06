@@ -10,6 +10,7 @@ import { PermissionService } from '../../services/permissionService.js';
 import { getAllDynamicEmbeds } from '../../database/queries/faqQueries.js';
 import { errorEmbed, successEmbed, infoEmbed } from '../../utils/embeds.js';
 import { EMBED_COLORS } from '../../config/constants.js';
+import { replyAutoDismiss } from '../../utils/interactionUtils.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -312,7 +313,7 @@ export default {
           color
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Embed Berhasil Dibuat ✅',
@@ -327,7 +328,7 @@ export default {
               `💡 *Gunakan \`/faq add-section id:${record.id} title:... content:...\` untuk menambah aturan/poin baru kapan saja.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 2. ADD SECTION
@@ -345,7 +346,7 @@ export default {
 
         const fields = Array.isArray(updated.fields) ? updated.fields : JSON.parse(updated.fields || '[]');
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Section Ditambahkan ✅',
@@ -360,7 +361,7 @@ export default {
               `*Pesan di channel telah otomatis diperbarui secara rapi.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 3. EDIT SECTION
@@ -378,7 +379,7 @@ export default {
           content
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Section Diperbarui ✅',
@@ -388,7 +389,7 @@ export default {
               `*Pesan di channel telah otomatis tersinkronisasi.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 4. REMOVE SECTION
@@ -402,7 +403,7 @@ export default {
           index
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Section Dihapus 🗑️',
@@ -412,7 +413,7 @@ export default {
               `*Pesan di channel telah otomatis tersinkronisasi.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 5. APPEND RAW MARKDOWN
@@ -426,7 +427,7 @@ export default {
           content: text
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Teks Ditambahkan ✅',
@@ -436,7 +437,7 @@ export default {
               `*Pesan di channel telah otomatis tersinkronisasi.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 6. SET FULL CONTENT
@@ -450,7 +451,7 @@ export default {
           content: text
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Isi Embed Diperbarui ✅',
@@ -460,7 +461,7 @@ export default {
               `*Pesan di channel telah otomatis tersinkronisasi.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 7. UPDATE HEADER
@@ -478,7 +479,7 @@ export default {
           color
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Header Diperbarui ✅',
@@ -488,7 +489,7 @@ export default {
               `*Pesan di channel telah otomatis tersinkronisasi.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 8. LIST
@@ -532,7 +533,7 @@ export default {
           deleteOldMessage: deleteOld
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Embed Berhasil Dipindahkan 🚀',
@@ -543,7 +544,7 @@ export default {
               `💡 *Command edit/update untuk ID \`${id}\` sekarang akan otomatis memperbarui pesan di <#${targetChannel.id}>.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 10. COPY
@@ -561,7 +562,7 @@ export default {
 
         const fields = Array.isArray(created.fields) ? created.fields : JSON.parse(created.fields || '[]');
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Embed Berhasil Disalin 📋',
@@ -573,7 +574,7 @@ export default {
               `*Embed sumber \`${sourceId}\` tetap utuh dan tidak terpengaruh.*`
             )
           ]
-        });
+        }, 7000);
       }
 
       // 11. DELETE
@@ -587,7 +588,7 @@ export default {
           deleteDiscordMessage: deleteMsg
         });
 
-        return await interaction.editReply({
+        return await replyAutoDismiss(interaction, {
           embeds: [
             successEmbed(
               'Embed Dihapus 🗑️',
@@ -595,12 +596,12 @@ export default {
               (deleteMsg ? ` dan pesannya di <#${deleted.channel_id}> telah dibersihkan.` : '.')
             )
           ]
-        });
+        }, 7000);
       }
     } catch (err) {
-      return await interaction.editReply({
+      return await replyAutoDismiss(interaction, {
         embeds: [errorEmbed('FAQ Error', err.message)]
-      });
+      }, 10000);
     }
   }
 };

@@ -3,6 +3,7 @@ import { runMigrations } from '../database/migrate.js';
 import { deployCommands } from '../deploy-commands.js';
 import { InvitationService } from '../services/invitationService.js';
 import { GuildConfigService } from '../services/guildConfigService.js';
+import { InviteService } from '../services/inviteService.js';
 import { markExpiredInvitations } from '../database/queries/invitationQueries.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
@@ -51,10 +52,17 @@ export default {
     // 5. Start background invitation expiration sweeper
     InvitationService.startExpirationSweeper(client);
 
-    // 6. Set bot presence
+    // 6. Cache guild invites for participant auto-role tracking
+    try {
+      await InviteService.initInvitesCache(client);
+    } catch (err) {
+      logger.warn(`[Startup Warning] Failed to initialize invites cache: ${err.message}`);
+    }
+
+    // 7. Set bot presence
     client.user.setActivity('Hackathon Teams 🚀', { type: ActivityType.Watching });
 
-    // 7. Verify Guild and Key Configurations
+    // 8. Verify Guild and Key Configurations
     if (env.GUILD_ID) {
       const guild = client.guilds.cache.get(env.GUILD_ID);
       if (guild) {
