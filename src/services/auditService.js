@@ -29,13 +29,15 @@ export class AuditService {
     teamName = null,
     details = {}
   }) {
+    const safeAction = action || 'GENERAL_LOG';
+
     // 1. Console Log
-    logger.info(`[AUDIT: ${action}] ${title || ''} Team: ${teamName || 'N/A'}, Actor: ${actorTag || 'N/A'}`);
+    logger.info(`[AUDIT: ${safeAction}] ${title || ''} Team: ${teamName || 'N/A'}, Actor: ${actorTag || 'N/A'}`);
 
     // 2. PostgreSQL Insert
     try {
       await createAuditLog({
-        action,
+        action: safeAction,
         actorId,
         targetUserId,
         teamId,

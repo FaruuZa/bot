@@ -311,9 +311,10 @@ export default {
       // M. Admin Dashboard Buttons
       if (customId === 'dashboard_toggle_reg') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await replyAutoDismiss(interaction, {
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah status pendaftaran.')]
-          }, 5000);
+          return await interaction.reply({
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah status pendaftaran.')],
+            flags: MessageFlags.Ephemeral
+          });
         }
 
         const current = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
@@ -321,49 +322,62 @@ export default {
         await GuildConfigService.set('REGISTRATION_OPEN', nextState);
 
         const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-        await interaction.update(payload);
-
-        return await replyAutoDismiss(interaction, {
-          embeds: [successEmbed('Status Pendaftaran Diubah 📢', `Pendaftaran tim sekarang: **${nextState === 'true' ? 'DIBUKA 🟢' : 'DITUTUP 🔴'}**`)]
-        }, 6000);
+        try {
+          await interaction.update(payload);
+        } catch {
+          await DashboardService.setupDashboard(interaction.guild, interaction.client);
+        }
+        return;
       }
 
       if (customId === 'dashboard_gen_invite') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await replyAutoDismiss(interaction, {
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')]
-          }, 5000);
+          return await interaction.reply({
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')],
+            flags: MessageFlags.Ephemeral
+          });
         }
 
         try {
           const invite = await InviteService.createParticipantInvite(interaction.guild);
           const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-          await interaction.update(payload);
+          try {
+            await interaction.update(payload);
+          } catch {
+            await DashboardService.setupDashboard(interaction.guild, interaction.client);
+          }
 
-          return await replyAutoDismiss(interaction, {
+          return await interaction.followUp({
             embeds: [successEmbed(
               'Link Invite Peserta Dibuat 🎟️',
-              `Link invite khusus peserta berhasil dibuat:\n**${invite.url}**\n\n` +
+              `Link invite khusus peserta berhasil dibuat dan tersimpan:\n**${invite.url}**\n\n` +
               `• Kode: \`${invite.code}\`\n` +
               `• *Setiap anggota baru yang join melalui link ini akan otomatis mendapatkan role @Participant.*`
-            )]
-          }, 10000);
+            )],
+            flags: MessageFlags.Ephemeral
+          });
         } catch (err) {
-          return await replyAutoDismiss(interaction, {
-            embeds: [errorEmbed('Gagal Membuat Invite', err.message)]
-          }, 7000);
+          return await interaction.followUp({
+            embeds: [errorEmbed('Gagal Membuat Invite', err.message)],
+            flags: MessageFlags.Ephemeral
+          });
         }
       }
 
       if (customId === 'dashboard_refresh') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await replyAutoDismiss(interaction, {
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat merefresh dashboard.')]
-          }, 5000);
+          return await interaction.reply({
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat merefresh dashboard.')],
+            flags: MessageFlags.Ephemeral
+          });
         }
 
         const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-        await interaction.update(payload);
+        try {
+          await interaction.update(payload);
+        } catch {
+          await DashboardService.setupDashboard(interaction.guild, interaction.client);
+        }
         return;
       }
 
@@ -612,20 +626,22 @@ export default {
       // 0. Dashboard: Select Team Member Filter Role
       if (interaction.customId === 'dashboard_select_member_role') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await replyAutoDismiss(interaction, {
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah filter role tim.')]
-          }, 5000);
+          return await interaction.reply({
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah filter role tim.')],
+            flags: MessageFlags.Ephemeral
+          });
         }
 
         const selectedRoleId = interaction.values[0];
         await GuildConfigService.set('TEAM_MEMBER_SELECT_ROLE_ID', selectedRoleId);
 
         const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-        await interaction.update(payload);
-
-        return await replyAutoDismiss(interaction, {
-          embeds: [successEmbed('Filter Role Diperbarui 🎯', `Anggota tim di dropdown pendaftaran sekarang difilter berdasarkan role <@&${selectedRoleId}>.`)]
-        }, 6000);
+        try {
+          await interaction.update(payload);
+        } catch {
+          await DashboardService.setupDashboard(interaction.guild, interaction.client);
+        }
+        return;
       }
 
       // A. Team Panel: Select Team Details

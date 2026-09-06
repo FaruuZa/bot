@@ -137,9 +137,11 @@ export function invitationEmbed(teamName, leaderTag, expiresAt) {
 }
 
 export function auditLogEmbed({ title, action, actor, target, team, details }) {
+  const safeAction = String(action || 'LOG').toUpperCase();
+  const isDanger = safeAction.includes('DELETED') || safeAction.includes('REMOVED') || safeAction.includes('REJECTED');
   const embed = new EmbedBuilder()
-    .setColor(action.includes('DELETED') || action.includes('REMOVED') || action.includes('REJECTED') ? EMBED_COLORS.DANGER : EMBED_COLORS.SUCCESS)
-    .setTitle(`📋 [LOG] ${title || action}`)
+    .setColor(isDanger ? EMBED_COLORS.DANGER : EMBED_COLORS.SUCCESS)
+    .setTitle(`📋 [LOG] ${title || safeAction}`)
     .setTimestamp();
 
   if (team) {
