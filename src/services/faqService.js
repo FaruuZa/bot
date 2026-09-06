@@ -6,6 +6,7 @@ import {
   getAllDynamicEmbeds,
   updateDynamicEmbedHeader,
   updateDynamicEmbedFields,
+  updateDynamicEmbedLocation,
   deleteDynamicEmbed
 } from '../database/queries/faqQueries.js';
 import { logger } from '../utils/logger.js';
@@ -209,4 +210,126 @@ export class FAQService {
     await this.syncDiscordMessage(client, updated);
     return updated;
   }
+
+  /**
+   * Move an existing dynamic embed to a new channel.
+   * Posts to target channel, updates DB location, and optionally deletes the old message.
+   * @param {object} param0
+   * @param {import('discord.js').Client} param0.client
+   * @param {string} param0.id
+   * @param {import('discord.js').TextChannel} param0.targetChannel
+   * @param {boolean} [param0.deleteOldMessage=true]
+   */
+  static async move({ client, id, targetChannel, deleteOldMessage = true }) {
+    const record = await getDynamicEmbedById(id);
+    if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
+
+    if (record.channel_id === targetChannel.id) {
+      throw new Error(`Embed "${id}" is already in <#${targetChannel.id}>.`);
+    }
+
+    // 1. Build and post to new channel
+    const embedObj = this.buildEmbed(record);
+    const sentMessage = await targetChannel.send({ embeds: [embedObj] });
+
+    // 2. Try to delete old message if requested
+    const oldChannelId = record.channel_id;
+    const oldMessageId = record.message_id;
+
+    if (deleteOldMessage) {
+      try {
+        const oldChannel = await client.channels.fetch(oldChannelId).catch(() => null);
+        if (oldChannel && oldChannel.isTextBased()) {
+          const oldMsg = await oldChannel.messages.fetch(oldMessageId).catch(() => null);
+          if (oldMsg && oldMsg.deletable) {
+            await oldMsg.delete().catch(() => null);
+          }
+        }
+      } catch (err) {
+        logger.warn(`[FAQService] Failed to delete old message ${oldMessageId} in channel ${oldChannelId}: ${err.message}`);
+      }
+    }
+
+    // 3. Update database record location
+    const updated = await updateDynamicEmbedLocation(id, targetChannel.id, sentMessage.id);
+    logger.info(`[FAQService] Moved dynamic embed "${id}" from <#${oldChannelId}> to <#${targetChannel.id}>.`);
+    return { updated, oldChannelId };
+  }
+
+  /**
+   * Copy/clone an existing dynamic embed to another channel with a new ID.
+   * @param {object} param0
+   * @param {import('discord.js').Client} param0.client
+   * @param {string} param0.sourceId
+   * @param {string} param0.newId
+   * @param {import('discord.js').TextChannel} param0.targetChannel
+   */
+  static async copy({ client, sourceId, newId, targetChannel }) {
+    const sourceRecord = await getDynamicEmbedById(sourceId);
+    if (!sourceRecord) throw new Error(`Dynamic embed with ID "${sourceId}" was not found.`);
+
+    const existingNew = await getDynamicEmbedById(newId);
+    if (existingNew) throw new Error(`An embed with ID "${newId}" already exists. Please choose a different ID.`);
+
+    const fields = Array.isArray(sourceRecord.fields)
+      ? sourceRecord.fields
+      : (typeof sourceRecord.fields === 'string' ? JSON.parse(sourceRecord.fields || '[]') : []);
+
+    const newRecordData = {
+      id: newId,
+      channel_id: targetChannel.id,
+      message_id: 'pending',
+      title: sourceRecord.title,
+      description: sourceRecord.description,
+      color: sourceRecord.color,
+      fields
+    };
+
+    const embedObj = this.buildEmbed(newRecordData);
+    const sentMessage = await targetChannel.send({ embeds: [embedObj] });
+
+    const created = await createDynamicEmbed({
+      id: newId,
+      channelId: targetChannel.id,
+      messageId: sentMessage.id,
+      title: sourceRecord.title,
+      description: sourceRecord.description,
+      color: sourceRecord.color,
+      fields
+    });
+
+    logger.info(`[FAQService] Copied dynamic embed "${sourceId}" to "${newId}" in <#${targetChannel.id}>.`);
+    return created;
+  }
+
+  /**
+   * Delete a dynamic embed and optionally delete its Discord message.
+   * @param {object} param0
+   * @param {import('discord.js').Client} param0.client
+   * @param {string} param0.id
+   * @param {boolean} [param0.deleteDiscordMessage=true]
+   */
+  static async delete({ client, id, deleteDiscordMessage = true }) {
+    const record = await getDynamicEmbedById(id);
+    if (!record) throw new Error(`Dynamic embed with ID "${id}" was not found.`);
+
+    if (deleteDiscordMessage) {
+      try {
+        const channel = await client.channels.fetch(record.channel_id).catch(() => null);
+        if (channel && channel.isTextBased()) {
+          const msg = await channel.messages.fetch(record.message_id).catch(() => null);
+          if (msg && msg.deletable) {
+            await msg.delete().catch(() => null);
+          }
+        }
+      } catch (err) {
+        logger.warn(`[FAQService] Failed to delete Discord message for embed ${id}: ${err.message}`);
+      }
+    }
+
+    await deleteDynamicEmbed(id);
+    logger.info(`[FAQService] Deleted dynamic embed "${id}".`);
+    return record;
+  }
 }
+

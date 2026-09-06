@@ -80,9 +80,29 @@ export async function updateDynamicEmbedFields(id, fields) {
 }
 
 /**
+ * Update the channel and message ID of a dynamic embed (when moved).
+ * @param {string} id
+ * @param {string} channelId
+ * @param {string} messageId
+ */
+export async function updateDynamicEmbedLocation(id, channelId, messageId) {
+  const { rows } = await pool.query(
+    `UPDATE dynamic_embeds
+     SET channel_id = $2,
+         message_id = $3,
+         updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [id, channelId, messageId]
+  );
+  return rows[0] || null;
+}
+
+/**
  * Delete a dynamic embed record from DB.
  * @param {string} id
  */
 export async function deleteDynamicEmbed(id) {
   await pool.query('DELETE FROM dynamic_embeds WHERE id = $1', [id]);
 }
+

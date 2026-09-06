@@ -212,7 +212,76 @@ export default {
       sub
         .setName('list')
         .setDescription('List all dynamic live-editable embeds')
+    )
+    // --- Subcommand: move ---
+    .addSubcommand((sub) =>
+      sub
+        .setName('move')
+        .setDescription('Pindahkan embed ke channel lain (otomatis sync pesan & DB ke lokasi baru)')
+        .addStringOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('ID embed yang ingin dipindahkan')
+            .setRequired(true)
+        )
+        .addChannelOption((opt) =>
+          opt
+            .setName('channel')
+            .setDescription('Channel tujuan pemindahan')
+            .setRequired(true)
+            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+        )
+        .addBooleanOption((opt) =>
+          opt
+            .setName('delete_old')
+            .setDescription('Hapus pesan lama di channel sebelumnya? (Default: True)')
+            .setRequired(false)
+        )
+    )
+    // --- Subcommand: copy ---
+    .addSubcommand((sub) =>
+      sub
+        .setName('copy')
+        .setDescription('Salin / duplikasi isi embed ke channel lain dengan ID baru')
+        .addStringOption((opt) =>
+          opt
+            .setName('source_id')
+            .setDescription('ID embed sumber yang ingin disalin')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('new_id')
+            .setDescription('ID unik baru untuk embed salinan')
+            .setRequired(true)
+        )
+        .addChannelOption((opt) =>
+          opt
+            .setName('channel')
+            .setDescription('Channel tujuan untuk embed baru')
+            .setRequired(true)
+            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+        )
+    )
+    // --- Subcommand: delete ---
+    .addSubcommand((sub) =>
+      sub
+        .setName('delete')
+        .setDescription('Hapus embed dari database dan Discord')
+        .addStringOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('ID embed yang ingin dihapus')
+            .setRequired(true)
+        )
+        .addBooleanOption((opt) =>
+          opt
+            .setName('delete_message')
+            .setDescription('Hapus pesan di Discord juga? (Default: True)')
+            .setRequired(false)
+        )
     ),
+
 
   async execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -446,6 +515,85 @@ export default {
               .setDescription(lines.join('\n\n'))
               .setColor(EMBED_COLORS.PRIMARY)
               .setFooter({ text: 'NSAC Hackathon Bot FAQ System' })
+          ]
+        });
+      }
+
+      // 9. MOVE
+      if (subcommand === 'move') {
+        const id = interaction.options.getString('id').trim().toLowerCase();
+        const targetChannel = interaction.options.getChannel('channel');
+        const deleteOld = interaction.options.getBoolean('delete_old') ?? true;
+
+        const { updated, oldChannelId } = await FAQService.move({
+          client: interaction.client,
+          id,
+          targetChannel,
+          deleteOldMessage: deleteOld
+        });
+
+        return await interaction.editReply({
+          embeds: [
+            successEmbed(
+              'Embed Berhasil Dipindahkan 🚀',
+              `Embed \`${id}\` berhasil dipindahkan ke channel baru!\n\n` +
+              `• **Dari Channel:** <#${oldChannelId}>\n` +
+              `• **Ke Channel:** <#${targetChannel.id}>\n` +
+              `• **Pesan Lama:** ${deleteOld ? 'Otomatis dihapus dari channel asal ✅' : 'Dibiarkan di channel asal'}\n\n` +
+              `💡 *Command edit/update untuk ID \`${id}\` sekarang akan otomatis memperbarui pesan di <#${targetChannel.id}>.*`
+            )
+          ]
+        });
+      }
+
+      // 10. COPY
+      if (subcommand === 'copy') {
+        const sourceId = interaction.options.getString('source_id').trim().toLowerCase();
+        const newId = interaction.options.getString('new_id').trim().toLowerCase();
+        const targetChannel = interaction.options.getChannel('channel');
+
+        const created = await FAQService.copy({
+          client: interaction.client,
+          sourceId,
+          newId,
+          targetChannel
+        });
+
+        const fields = Array.isArray(created.fields) ? created.fields : JSON.parse(created.fields || '[]');
+
+        return await interaction.editReply({
+          embeds: [
+            successEmbed(
+              'Embed Berhasil Disalin 📋',
+              `Embed \`${sourceId}\` berhasil disalin menjadi embed baru dengan ID \`${newId}\`!\n\n` +
+              `• **Channel Tujuan:** <#${targetChannel.id}>\n` +
+              `• **ID Baru:** \`${newId}\`\n` +
+              `• **Judul:** ${created.title}\n` +
+              `• **Total Section:** ${fields.length}\n\n` +
+              `*Embed sumber \`${sourceId}\` tetap utuh dan tidak terpengaruh.*`
+            )
+          ]
+        });
+      }
+
+      // 11. DELETE
+      if (subcommand === 'delete') {
+        const id = interaction.options.getString('id').trim().toLowerCase();
+        const deleteMsg = interaction.options.getBoolean('delete_message') ?? true;
+
+        const deleted = await FAQService.delete({
+          client: interaction.client,
+          id,
+          deleteDiscordMessage: deleteMsg
+        });
+
+        return await interaction.editReply({
+          embeds: [
+            successEmbed(
+              'Embed Dihapus 🗑️',
+              `Embed \`${id}\` (**${deleted.title}**) telah berhasil dihapus dari database` +
+              (deleteMsg ? ` dan pesannya di <#${deleted.channel_id}> telah dibersihkan.` : '.')
+            )
           ]
         });
       }
