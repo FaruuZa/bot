@@ -20,8 +20,9 @@ export const CONFIG_DEFINITIONS = {
   STAFF_ROLE_ID: { key: 'STAFF_ROLE_ID', type: 'ROLE', label: 'Staff Role', description: 'General staff/committee role' },
   TECHNICAL_SUPPORT_ROLE_ID: { key: 'TECHNICAL_SUPPORT_ROLE_ID', type: 'ROLE', label: 'Tech Support Role', description: 'Technical assistance role' },
   JUDGE_ROLE_ID: { key: 'JUDGE_ROLE_ID', type: 'ROLE', label: 'Judge Role', description: 'Hackathon judge role' },
-  PARTICIPANT_ROLE_ID: { key: 'PARTICIPANT_ROLE_ID', type: 'ROLE', label: 'Participant Role', description: 'Assigned to active team members' },
-  UNREGISTERED_ROLE_ID: { key: 'UNREGISTERED_ROLE_ID', type: 'ROLE', label: 'Unregistered Role', description: 'Assigned to members without a team' },
+  PARTICIPANT_ROLE_ID: { key: 'PARTICIPANT_ROLE_ID', type: 'ROLE', label: 'Participant Role', description: 'Identitas peserta resmi (tidak dihapus saat masuk/keluar tim)' },
+  UNREGISTERED_ROLE_ID: { key: 'UNREGISTERED_ROLE_ID', type: 'ROLE', label: 'Unregistered Role', description: 'Diberikan ke member yang join bukan via link peserta' },
+  NO_TEAM_ROLE_ID: { key: 'NO_TEAM_ROLE_ID', type: 'ROLE', label: 'No-Team Status Role', description: 'Status role untuk Participant yang belum punya tim (dihapus saat masuk tim, dikembalikan saat keluar/tim dihapus)' },
 
   // Channels
   LOG_CHANNEL_ID: { key: 'LOG_CHANNEL_ID', type: 'CHANNEL', label: 'Audit Log Channel', description: 'Channel for audit and system logs' },

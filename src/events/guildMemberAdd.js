@@ -38,6 +38,7 @@ export default {
         const usedInvite = await InviteService.findUsedInvite(member);
         const participantInviteCode = GuildConfigService.get('PARTICIPANT_INVITE_CODE');
         const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+        const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
         const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
 
         const isParticipantInvite = Boolean(
@@ -47,24 +48,27 @@ export default {
         );
 
         if (isParticipantInvite && participantRoleId) {
-          await member.roles.add(participantRoleId, 'Auto-assigned Participant role via Participant Invite Link').catch((err) => {
-            logger.warn(`[Member Join Warning] Could not assign Participant role: ${err.message}`);
-          });
-          logger.info(`[Member Join] Assigned @Participant to ${member.user.tag} (Invite: ${usedInvite.code})`);
+          // Participant join: assign identity role (@Participant) + status role (@No-Team)
+          const rolesToAdd = [];
+          if (!member.roles.cache.has(participantRoleId)) rolesToAdd.push(participantRoleId);
+          if (noTeamRoleId && !member.roles.cache.has(noTeamRoleId)) rolesToAdd.push(noTeamRoleId);
 
-          // Also assign Unregistered role if they still need to register into a team
-          if (unregisteredRoleId && !member.roles.cache.has(unregisteredRoleId)) {
-            await member.roles.add(unregisteredRoleId, 'Assigned Unregistered role on join').catch(() => {});
+          if (rolesToAdd.length > 0) {
+            await member.roles.add(rolesToAdd, 'Auto-assigned @Participant + @No-Team via Participant Invite Link').catch((err) => {
+              logger.warn(`[Member Join Warning] Could not assign Participant/No-Team roles: ${err.message}`);
+            });
           }
+          logger.info(`[Member Join] Assigned @Participant + @No-Team to ${member.user.tag} (Invite: ${usedInvite.code})`);
 
           await AuditService.log(member.client, {
             action: AUDIT_ACTIONS.ROLE_ASSIGNED,
             title: 'Participant Role Assigned via Invite Link',
             targetUserId: user.id,
             targetTag: member.user.tag,
-            details: `User joined using participant invite link (\`${usedInvite.code}\`) and was automatically assigned the Participant role.`
+            details: `User joined using participant invite link (\`${usedInvite.code}\`) and was automatically assigned @Participant + @No-Team.`
           });
         } else if (unregisteredRoleId) {
+          // Non-participant join: assign @Unregistered
           await member.roles.add(unregisteredRoleId, 'Assigned Unregistered role on join').catch((err) => {
             logger.warn(`[Member Join Warning] Could not assign Unregistered role: ${err.message}`);
           });

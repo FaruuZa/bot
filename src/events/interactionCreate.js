@@ -29,6 +29,169 @@ import { replyAutoDismiss } from '../utils/interactionUtils.js';
 import { logger } from '../utils/logger.js';
 import { pool } from '../database/pool.js';
 
+// ============================================================
+// REGISTRATION SESSION STORE
+// In-memory, keyed by `member_${userId}` or `staff_${userId}`
+// Value: { teamName, memberIds, channelId, messageId, expiresAt }
+// TTL: 10 minutes
+// ============================================================
+const registrationSessions = new Map();
+
+function setSession(key, data) {
+  registrationSessions.set(key, {
+    ...data,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  });
+}
+
+function getSession(key) {
+  const session = registrationSessions.get(key);
+  if (!session) return null;
+  if (session.expiresAt < Date.now()) {
+    registrationSessions.delete(key);
+    return null;
+  }
+  return session;
+}
+
+function deleteSession(key) {
+  registrationSessions.delete(key);
+}
+
+/**
+ * Build the single registration embed for member flow.
+ */
+function buildMemberRegEmbed({ userId, teamName, memberIds = [], step }) {
+  const memberList = memberIds.length > 0
+    ? memberIds.map((id) => `<@${id}>`).join(', ')
+    : '*(Belum dipilih)*';
+
+  let statusText, color;
+  switch (step) {
+    case 'select_members':
+      statusText = '⏳ Pilih anggota tim dari dropdown di bawah.';
+      color = EMBED_COLORS.INFO;
+      break;
+    case 'confirm':
+      statusText = '✅ Semua data siap! Tekan **Konfirmasi** untuk mendaftar, atau **Pilih Ulang** untuk mengubah anggota.';
+      color = EMBED_COLORS.SUCCESS;
+      break;
+    case 'processing':
+      statusText = '⏳ Sedang memproses pendaftaran tim...';
+      color = EMBED_COLORS.WARNING;
+      break;
+    case 'cancelled':
+      statusText = '❌ Pendaftaran dibatalkan.';
+      color = EMBED_COLORS.DANGER;
+      break;
+    default:
+      statusText = '⏳ Memulai pendaftaran...';
+      color = EMBED_COLORS.INFO;
+  }
+
+  return new EmbedBuilder()
+    .setTitle('📝 Pendaftaran Tim Baru')
+    .setColor(color)
+    .addFields(
+      { name: '👑 Team Leader', value: `<@${userId}>`, inline: true },
+      { name: '📛 Nama Tim', value: `**${teamName}**`, inline: true },
+      { name: '\u200B', value: '\u200B', inline: true },
+      { name: '👥 Anggota', value: memberList, inline: false },
+      { name: '📊 Status', value: statusText, inline: false }
+    )
+    .setFooter({ text: 'NSAC Hackathon • Pendaftaran Tim' })
+    .setTimestamp();
+}
+
+/**
+ * Build the single registration embed for staff flow.
+ * First member selected = leader.
+ */
+function buildStaffRegEmbed({ teamName, memberIds = [], step }) {
+  let leaderDisplay, otherMembers;
+  if (memberIds.length > 0) {
+    leaderDisplay = `<@${memberIds[0]}> *(Leader — anggota pertama)*`;
+    otherMembers = memberIds.length > 1
+      ? memberIds.slice(1).map((id) => `<@${id}>`).join(', ')
+      : '*(Tidak ada)*';
+  } else {
+    leaderDisplay = '*(Orang pertama yang dipilih = Leader)*';
+    otherMembers = '*(Belum dipilih)*';
+  }
+
+  let statusText, color;
+  switch (step) {
+    case 'select_members':
+      statusText = '⏳ Pilih 1–4 anggota. **Anggota pertama otomatis menjadi Leader.**';
+      color = EMBED_COLORS.INFO;
+      break;
+    case 'confirm':
+      statusText = '✅ Semua data siap! Tim akan langsung aktif tanpa undangan. Tekan **Konfirmasi** untuk membuat.';
+      color = EMBED_COLORS.SUCCESS;
+      break;
+    case 'processing':
+      statusText = '⏳ Sedang membuat tim dan menyiapkan channel...';
+      color = EMBED_COLORS.WARNING;
+      break;
+    case 'cancelled':
+      statusText = '❌ Pembuatan tim dibatalkan.';
+      color = EMBED_COLORS.DANGER;
+      break;
+    default:
+      statusText = '⏳ Memulai...';
+      color = EMBED_COLORS.INFO;
+  }
+
+  return new EmbedBuilder()
+    .setTitle('➕ Buat Tim Baru (Staff)')
+    .setColor(color)
+    .addFields(
+      { name: '📛 Nama Tim', value: `**${teamName}**`, inline: true },
+      { name: '🏅 Mode', value: 'Staff Override (No Invite)', inline: true },
+      { name: '\u200B', value: '\u200B', inline: true },
+      { name: '👑 Leader', value: leaderDisplay, inline: false },
+      { name: '👥 Anggota Lain', value: otherMembers, inline: false },
+      { name: '📊 Status', value: statusText, inline: false }
+    )
+    .setFooter({ text: 'NSAC Hackathon • Staff Team Creation' })
+    .setTimestamp();
+}
+
+/**
+ * Build member select dropdown for a given eligible members list and team name.
+ */
+function buildMemberSelectRow({ eligibleMembers, encodedName, min, max, isStaff = false }) {
+  const selectOptions = eligibleMembers.slice(0, 25).map((m) => {
+    const displayName = (m.displayName || m.user.username).substring(0, 100);
+    const tag = `@${m.user.username}`.substring(0, 100);
+    return new StringSelectMenuOptionBuilder()
+      .setLabel(displayName)
+      .setDescription(tag)
+      .setValue(m.id)
+      .setEmoji('👤');
+  });
+
+  const actualMax = Math.min(max, selectOptions.length);
+  const actualMin = Math.min(min, actualMax);
+
+  const customId = isStaff
+    ? `select_staff_reg_members_${encodedName}`
+    : `select_unreg_members_${encodedName}`;
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(customId)
+    .setPlaceholder(isStaff
+      ? 'Pilih anggota (orang pertama = Leader)'
+      : 'Pilih anggota tim dari daftar di bawah')
+    .setMinValues(actualMin === 0 ? 0 : 1)
+    .setMaxValues(actualMax)
+    .addOptions(selectOptions);
+
+  return new ActionRowBuilder().addComponents(select);
+}
+
+
+
 export default {
   name: Events.InteractionCreate,
   async execute(interaction) {
@@ -266,7 +429,7 @@ export default {
         }
       }
 
-      // L. Team Panel: Staff Add Team (open modal)
+      // L. Team Panel: Staff Add Team — show modal for team name (new single-embed flow)
       if (customId === CUSTOM_IDS.BTN_STAFF_ADD_TEAM) {
         if (!PermissionService.isStaff(interaction.member)) {
           return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
@@ -274,7 +437,7 @@ export default {
 
         const modal = new ModalBuilder()
           .setCustomId(CUSTOM_IDS.MODAL_STAFF_ADD_TEAM)
-          .setTitle('➕ Tambah Tim Baru (Staff)');
+          .setTitle('➕ Buat Tim Baru (Staff)');
 
         const teamNameInput = new TextInputBuilder()
           .setCustomId(CUSTOM_IDS.INPUT_STAFF_TEAM_NAME)
@@ -285,26 +448,252 @@ export default {
           .setMinLength(3)
           .setMaxLength(32);
 
-        const leaderIdInput = new TextInputBuilder()
-          .setCustomId(CUSTOM_IDS.INPUT_STAFF_LEADER_ID)
-          .setLabel('User ID Leader')
-          .setStyle(TextInputStyle.Short)
-          .setPlaceholder('Contoh: 123456789012345678')
-          .setRequired(true);
+        modal.addComponents(new ActionRowBuilder().addComponents(teamNameInput));
+        return await interaction.showModal(modal);
+      }
 
-        const membersInput = new TextInputBuilder()
-          .setCustomId(CUSTOM_IDS.INPUT_STAFF_MEMBERS)
-          .setLabel('User ID Anggota (pisah baris, maks 4)')
-          .setStyle(TextInputStyle.Paragraph)
-          .setPlaceholder('Satu User ID per baris:\n111222333444555666\n777888999000111222\n...')
-          .setRequired(false);
+      // === MEMBER Registration Flow Buttons ===
 
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(teamNameInput),
-          new ActionRowBuilder().addComponents(leaderIdInput),
-          new ActionRowBuilder().addComponents(membersInput)
+      // M. Confirm Registration (member)
+      if (customId === CUSTOM_IDS.BTN_REG_CONFIRM) {
+        const sessionKey = `member_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({
+            embeds: [errorEmbed('Sesi Kadaluarsa', '⏰ Sesi pendaftaran telah habis. Silakan mulai ulang dari awal.')],
+            components: []
+          });
+        }
+
+        await interaction.update({
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: session.memberIds, step: 'processing' })],
+          components: []
+        });
+
+        try {
+          const result = await TeamService.startRegistration({
+            teamName: session.teamName,
+            leaderMember: interaction.member,
+            memberIds: session.memberIds,
+            guild: interaction.guild,
+            client: interaction.client,
+            ticketChannel: interaction.channel
+          });
+
+          deleteSession(sessionKey);
+
+          if (!result.success) {
+            return await interaction.editReply({
+              embeds: [errorEmbed('Pendaftaran Gagal', result.error)],
+              components: []
+            });
+          }
+
+          if (result.pendingInvitations) {
+            const unixExpiry = Math.floor(new Date(result.expiresAt).getTime() / 1000);
+            const memberMentions = session.memberIds.map((id) => `<@${id}>`).join(', ');
+            return await interaction.editReply({
+              embeds: [successEmbed(
+                '📨 Undangan Tim Terkirim!',
+                `Tim **${session.teamName}** berhasil didaftarkan!\n\n` +
+                `📨 **Undangan dikirim ke:** ${memberMentions}\n` +
+                `⏱️ **Batas Waktu:** <t:${unixExpiry}:R>\n\n` +
+                `Setelah semua rekan menekan **Accept**, role dan channel tim akan otomatis dibuat.`
+              )],
+              components: []
+            });
+          } else {
+            await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
+            return await interaction.editReply({
+              embeds: [successEmbed('🎉 Tim Berhasil Dibuat!', `Tim **${session.teamName}** telah dibuat dan channel telah siap!`)],
+              components: []
+            });
+          }
+        } catch (err) {
+          logger.error(`[Reg Confirm Error] ${err.message}`);
+          return await interaction.editReply({
+            embeds: [errorEmbed('Error', `Gagal memproses pendaftaran: ${err.message}`)],
+            components: []
+          });
+        }
+      }
+
+      // N. Cancel Registration (member)
+      if (customId === CUSTOM_IDS.BTN_REG_CANCEL) {
+        deleteSession(`member_${interaction.user.id}`);
+        return await interaction.update({
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: '—', memberIds: [], step: 'cancelled' })],
+          components: []
+        });
+      }
+
+      // O. Reselect Members (member) — go back to dropdown state
+      if (customId === CUSTOM_IDS.BTN_REG_RESELECT) {
+        const sessionKey = `member_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang dari awal.')], components: [] });
+        }
+
+        await interaction.guild.members.fetch().catch(() => {});
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+          if (m.user.bot || m.id === interaction.user.id) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+          return true;
+        });
+
+        const encodedName = encodeURIComponent(session.teamName);
+        const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
+        const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
+        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minSelect, max: maxSelect });
+
+        const cancelRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
+        return await interaction.update({
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: [], step: 'select_members' })],
+          components: [selectRow, cancelRow]
+        });
+      }
+
+      // P. Change Team Name (member) — show modal, store message ref in session
+      if (customId === CUSTOM_IDS.BTN_REG_CHANGE_NAME) {
+        const sessionKey = `member_${interaction.user.id}`;
+        const session = getSession(sessionKey) || {};
+        session.messageId = interaction.message.id;
+        session.channelId = interaction.channelId;
+        setSession(sessionKey, session);
+
+        const modal = new ModalBuilder().setCustomId(CUSTOM_IDS.MODAL_REG_CHANGE_NAME).setTitle('✏️ Ubah Nama Tim');
+        modal.addComponents(new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId(CUSTOM_IDS.INPUT_REG_NEW_NAME)
+            .setLabel('Nama Tim Baru')
+            .setStyle(TextInputStyle.Short)
+            .setValue(session.teamName || '')
+            .setMinLength(3).setMaxLength(32).setRequired(true)
+        ));
+        return await interaction.showModal(modal);
+      }
+
+      // === STAFF Registration Flow Buttons ===
+
+      // Q. Confirm Staff Registration
+      if (customId === CUSTOM_IDS.BTN_STAFF_REG_CONFIRM) {
+        const sessionKey = `staff_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang.')], components: [] });
+        }
+
+        await interaction.update({
+          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: session.memberIds, step: 'processing' })],
+          components: []
+        });
+
+        try {
+          const leaderId = session.memberIds[0];
+          const leaderMember = await interaction.guild.members.fetch(leaderId).catch(() => null);
+          if (!leaderMember) {
+            return await interaction.editReply({ embeds: [errorEmbed('Leader Tidak Ditemukan', `<@${leaderId}> tidak ditemukan di server.`)], components: [] });
+          }
+
+          const result = await TeamService.startRegistration({
+            teamName: session.teamName,
+            leaderMember,
+            memberIds: session.memberIds.slice(1),
+            guild: interaction.guild,
+            client: interaction.client,
+            ticketChannel: null,
+            skipInvitations: true
+          });
+
+          deleteSession(sessionKey);
+
+          if (!result.success) {
+            return await interaction.editReply({ embeds: [errorEmbed('Gagal Membuat Tim', result.error)], components: [] });
+          }
+
+          await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
+
+          const memberMentions = session.memberIds.length > 0
+            ? session.memberIds.map((id) => `<@${id}>`).join(', ')
+            : '*(tidak ada)*';
+
+          return await interaction.editReply({
+            embeds: [successEmbed(
+              '✅ Tim Berhasil Dibuat!',
+              `Tim **${session.teamName}** berhasil dibuat dan channel telah disiapkan!\n\n` +
+              `👑 **Leader:** <@${leaderId}>\n` +
+              `👥 **Seluruh Anggota:** ${memberMentions}`
+            )],
+            components: []
+          });
+        } catch (err) {
+          logger.error(`[Staff Reg Confirm] ${err.message}`);
+          return await interaction.editReply({ embeds: [errorEmbed('Error', err.message)], components: [] });
+        }
+      }
+
+      // R. Cancel Staff Registration
+      if (customId === CUSTOM_IDS.BTN_STAFF_REG_CANCEL) {
+        deleteSession(`staff_${interaction.user.id}`);
+        return await interaction.update({
+          embeds: [buildStaffRegEmbed({ teamName: '—', memberIds: [], step: 'cancelled' })],
+          components: []
+        });
+      }
+
+      // S. Reselect Members (staff) — go back to dropdown
+      if (customId === CUSTOM_IDS.BTN_STAFF_REG_RESELECT) {
+        const sessionKey = `staff_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang.')], components: [] });
+        }
+
+        await interaction.guild.members.fetch().catch(() => {});
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+          if (m.user.bot) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+          return true;
+        });
+
+        const encodedName = encodeURIComponent(session.teamName);
+        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+
+        const cancelRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+        );
+
+        return await interaction.update({
+          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: [], step: 'select_members' })],
+          components: [selectRow, cancelRow]
+        });
+      }
+
+      // T. Change Team Name (staff)
+      if (customId === CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME) {
+        const sessionKey = `staff_${interaction.user.id}`;
+        const session = getSession(sessionKey) || {};
+        session.messageId = interaction.message.id;
+        session.channelId = interaction.channelId;
+        setSession(sessionKey, session);
+
+        const modal = new ModalBuilder().setCustomId(CUSTOM_IDS.MODAL_STAFF_REG_CHANGE_NAME).setTitle('✏️ Ubah Nama Tim (Staff)');
+        modal.addComponents(new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId(CUSTOM_IDS.INPUT_STAFF_REG_NEW_NAME)
+            .setLabel('Nama Tim Baru')
+            .setStyle(TextInputStyle.Short)
+            .setValue(session.teamName || '')
+            .setMinLength(3).setMaxLength(32).setRequired(true)
+        ));
         return await interaction.showModal(modal);
       }
 
@@ -350,9 +739,9 @@ export default {
           return await interaction.followUp({
             embeds: [successEmbed(
               'Link Invite Peserta Dibuat 🎟️',
-              `Link invite khusus peserta berhasil dibuat dan tersimpan:\n**${invite.url}**\n\n` +
+              `Link invite khusus peserta berhasil dibuat:\n**${invite.url}**\n\n` +
               `• Kode: \`${invite.code}\`\n` +
-              `• *Setiap anggota baru yang join melalui link ini akan otomatis mendapatkan role @Participant.*`
+              `• *Member baru yang join via link ini otomatis mendapat @Participant + @No-Team.*`
             )],
             flags: MessageFlags.Ephemeral
           });
@@ -381,8 +770,18 @@ export default {
         return;
       }
 
+      // Dashboard: Open Team Panel (ephemeral)
+      if (customId === 'dashboard_open_team_panel') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+        const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
+        return await interaction.reply({ embeds: [embed], components, flags: MessageFlags.Ephemeral });
+      }
+
       return;
     }
+
 
     // ========================================================
     // 3. MODAL SUBMISSION ROUTER
@@ -394,11 +793,12 @@ export default {
         const nameValidation = validateTeamName(teamName);
         if (!nameValidation.valid) {
           return await interaction.reply({
-            embeds: [errorEmbed('Invalid Team Name', nameValidation.error)],
+            embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)],
             flags: MessageFlags.Ephemeral
           });
         }
 
+        // Disable the "Open Modal" button on the ticket welcome message
         try {
           if (interaction.channel && interaction.channel.isTextBased()) {
             const messages = await interaction.channel.messages.fetch({ limit: 10 });
@@ -418,72 +818,36 @@ export default {
           logger.warn(`[Modal] Could not disable register button: ${err.message}`);
         }
 
+        // Build eligible members list (role-filtered)
         await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('UNREGISTERED_ROLE_ID');
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
 
         const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot) return false;
-          if (m.id === interaction.user.id) return false;
+          if (m.user.bot || m.id === interaction.user.id) return false;
           if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
           return true;
         });
 
         const minMembersToSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
         const maxMembersToSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
+        const encodedName = encodeURIComponent(teamName);
 
+        // If no eligible members and members required, solo team path
         if (eligibleMembers.length === 0 && minMembersToSelect > 0) {
           return await interaction.reply({
-            embeds: [
-              errorEmbed(
-                'Tidak Ada Anggota Tersedia',
-                `❌ Tidak ditemukan anggota yang memenuhi syarat di server untuk diundang ke tim **${teamName}**.\n\n` +
-                (filterRoleId
-                  ? `Pastikan rekan tim Anda sudah bergabung ke server Discord ini dan memiliki role <@&${filterRoleId}>.`
-                  : 'Pastikan rekan tim Anda sudah bergabung ke server Discord ini.')
-              )
-            ],
+            embeds: [errorEmbed(
+              'Tidak Ada Anggota Tersedia',
+              `❌ Tidak ditemukan anggota yang memenuhi syarat di server untuk diundang ke tim **${teamName}**.\n\n` +
+              (filterRoleId
+                ? `Pastikan rekan tim Anda sudah bergabung ke server ini dan memiliki role <@&${filterRoleId}>.`
+                : 'Pastikan rekan tim Anda sudah bergabung ke server Discord ini.')
+            )],
             flags: MessageFlags.Ephemeral
           });
         }
 
-        const encodedName = encodeURIComponent(teamName);
-
-        if (eligibleMembers.length > 0) {
-          const selectOptions = eligibleMembers.slice(0, 25).map((m) => {
-            const displayName = (m.displayName || m.user.username).substring(0, 100);
-            const tag = `@${m.user.username}`.substring(0, 100);
-            return new StringSelectMenuOptionBuilder()
-              .setLabel(displayName)
-              .setDescription(tag)
-              .setValue(m.id)
-              .setEmoji('👤');
-          });
-
-          const actualMax = Math.min(maxMembersToSelect, selectOptions.length);
-          const actualMin = Math.min(minMembersToSelect, actualMax);
-
-          const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`select_unreg_members_${encodedName}`)
-            .setPlaceholder('Pilih anggota tim dari daftar di bawah')
-            .setMinValues(actualMin === 0 ? 0 : 1)
-            .setMaxValues(actualMax)
-            .addOptions(selectOptions);
-
-          const row = new ActionRowBuilder().addComponents(selectMenu);
-
-          return await interaction.reply({
-            embeds: [
-              infoEmbed(
-                `Pilih Anggota Tim: "${teamName}"`,
-                `**Nama Tim:** \`${teamName}\`\n` +
-                `**Team Leader:** <@${interaction.user.id}>\n\n` +
-                `👉 Pilih antara **${actualMin} sampai ${actualMax}** anggota dari menu dropdown di bawah.\n` +
-                (filterRoleId ? `*(Hanya anggota dengan role <@&${filterRoleId}> yang ditampilkan)*` : '')
-              )
-            ],
-            components: [row]
-          });
-        } else {
+        // Solo team (no members required): register directly
+        if (eligibleMembers.length === 0 && minMembersToSelect === 0) {
           const result = await TeamService.startRegistration({
             teamName,
             leaderMember: interaction.member,
@@ -492,132 +856,206 @@ export default {
             client: interaction.client,
             ticketChannel: interaction.channel
           });
-
           if (!result.success) {
-            return await interaction.reply({
-              embeds: [errorEmbed('Gagal Registrasi', result.error)],
-              flags: MessageFlags.Ephemeral
-            });
+            return await interaction.reply({ embeds: [errorEmbed('Gagal Registrasi', result.error)], flags: MessageFlags.Ephemeral });
           }
-
           await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
           return await interaction.reply({
-            embeds: [successEmbed('Tim Berhasil Dibuat!', `Tim **${teamName}** telah dibuat dan channels telah siap!`)]
+            embeds: [successEmbed('🎉 Tim Berhasil Dibuat!', `Tim **${teamName}** telah dibuat dan channels telah siap!`)]
           });
         }
+
+        // Show the single registration embed with member dropdown
+        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minMembersToSelect, max: maxMembersToSelect });
+        const buttonRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+        );
+
+        const reply = await interaction.reply({
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName, memberIds: [], step: 'select_members' })],
+          components: [selectRow, buttonRow],
+          fetchReply: true
+        });
+
+        // Store session
+        setSession(`member_${interaction.user.id}`, {
+          teamName,
+          memberIds: [],
+          channelId: interaction.channelId,
+          messageId: reply.id
+        });
+
+        return;
       }
 
-      // Staff Add Team Modal submit
+
+      // Staff Add Team Modal submit — new single-embed flow
       if (interaction.customId === CUSTOM_IDS.MODAL_STAFF_ADD_TEAM) {
         if (!PermissionService.isStaff(interaction.member)) {
           return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
         }
 
         const teamName = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_TEAM_NAME).trim();
-        const leaderIdRaw = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_LEADER_ID).trim();
-        const membersRaw = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_MEMBERS).trim();
 
-        // Defer immediately — this will take a while
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const nameValidation = validateTeamName(teamName);
+        if (!nameValidation.valid) {
+          return await interaction.reply({ embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)], flags: MessageFlags.Ephemeral });
+        }
 
-        try {
-          // Parse leader ID (strip mention format if pasted as <@id>)
-          const leaderId = leaderIdRaw.replace(/[<@!>]/g, '').trim();
+        // Build eligible members list (role-filtered, staff themselves NOT excluded)
+        await interaction.guild.members.fetch().catch(() => {});
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
 
-          // Parse member IDs (one per line, strip mentions)
-          const memberIds = membersRaw
-            ? membersRaw
-                .split(/[\n,\s]+/)
-                .map((s) => s.replace(/[<@!>]/g, '').trim())
-                .filter((s) => /^\d{17,20}$/.test(s))
-                .slice(0, 4)
-            : [];
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+          if (m.user.bot) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+          return true;
+        });
 
-          // Validate leader ID format
-          if (!/^\d{17,20}$/.test(leaderId)) {
-            return await interaction.editReply({
-              embeds: [errorEmbed('User ID Tidak Valid', `User ID Leader \`${leaderIdRaw}\` tidak valid. Gunakan numeric User ID (17-20 digit).`)]
-            });
-          }
-
-          // Fetch leader guild member
-          const leaderMember = await interaction.guild.members.fetch(leaderId).catch(() => null);
-          if (!leaderMember) {
-            return await interaction.editReply({
-              embeds: [errorEmbed('Leader Tidak Ditemukan', `User ID \`${leaderId}\` tidak ditemukan di server ini. Pastikan user sudah join server.`)]
-            });
-          }
-
-          // Validate team name
-          const nameValidation = validateTeamName(teamName);
-          if (!nameValidation.valid) {
-            return await interaction.editReply({
-              embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)]
-            });
-          }
-
-          // Validate & resolve member IDs (skip invalid ones, warn user)
-          const resolvedMemberIds = [];
-          const failedIds = [];
-          for (const mid of memberIds) {
-            if (mid === leaderId) continue; // skip if same as leader
-            const m = await interaction.guild.members.fetch(mid).catch(() => null);
-            if (m) {
-              resolvedMemberIds.push(mid);
-            } else {
-              failedIds.push(mid);
-            }
-          }
-
-          // Start registration (no invitation flow — staff override)
-          const result = await TeamService.startRegistration({
-            teamName,
-            leaderMember,
-            memberIds: resolvedMemberIds,
-            guild: interaction.guild,
-            client: interaction.client,
-            ticketChannel: null,
-            skipInvitations: true // staff bypass
-          });
-
-          if (!result.success) {
-            return await interaction.editReply({
-              embeds: [errorEmbed('Gagal Membuat Tim', result.error)]
-            });
-          }
-
-          // Immediately finalize — create channels, roles, etc.
-          await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
-
-          const memberMentions = resolvedMemberIds.length > 0
-            ? resolvedMemberIds.map((id) => `<@${id}>`).join(', ')
-            : '*(tidak ada)*';
-
-          const warningText = failedIds.length > 0
-            ? `\n\n⚠️ **User ID Tidak Ditemukan (dilewati):** ${failedIds.map((id) => `\`${id}\``).join(', ')}`
-            : '';
-
-          return await interaction.editReply({
-            embeds: [
-              successEmbed(
-                '✅ Tim Berhasil Dibuat!',
-                `Tim **${teamName}** telah berhasil dibuat oleh staff dan channel telah disiapkan!\n\n` +
-                `👑 **Leader:** <@${leaderId}>\n` +
-                `👥 **Anggota:** ${memberMentions}` +
-                warningText
-              )
-            ]
-          });
-        } catch (err) {
-          logger.error(`[Staff Add Team] ${err.stack || err.message}`);
-          return await interaction.editReply({
-            embeds: [errorEmbed('Error', `Gagal membuat tim: ${err.message}`)]
+        if (eligibleMembers.length === 0) {
+          return await interaction.reply({
+            embeds: [errorEmbed(
+              'Tidak Ada Anggota Tersedia',
+              `Tidak ditemukan anggota yang memenuhi syarat.\n` +
+              (filterRoleId ? `Pastikan ada user dengan role <@&${filterRoleId}> di server.` : '')
+            )],
+            flags: MessageFlags.Ephemeral
           });
         }
+
+        const encodedName = encodeURIComponent(teamName);
+        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const buttonRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+        );
+
+        const reply = await interaction.reply({
+          embeds: [buildStaffRegEmbed({ teamName, memberIds: [], step: 'select_members' })],
+          components: [selectRow, buttonRow],
+          flags: MessageFlags.Ephemeral,
+          fetchReply: true
+        });
+
+        // Store session
+        setSession(`staff_${interaction.user.id}`, {
+          teamName,
+          memberIds: [],
+          channelId: interaction.channelId,
+          messageId: reply.id
+        });
+
+        return;
+      }
+
+      // Change Team Name modal submit (member)
+      if (interaction.customId === CUSTOM_IDS.MODAL_REG_CHANGE_NAME) {
+        const newName = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_REG_NEW_NAME).trim();
+        const sessionKey = `member_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+
+        const nameValidation = validateTeamName(newName);
+        if (!nameValidation.valid) {
+          return await interaction.reply({ embeds: [errorEmbed('Nama Tidak Valid', nameValidation.error)], flags: MessageFlags.Ephemeral });
+        }
+
+        if (session) {
+          session.teamName = newName;
+          session.memberIds = []; // Reset member selection when name changes
+          setSession(sessionKey, session);
+
+          // Rebuild dropdown with new name and update original message
+          await interaction.guild.members.fetch().catch(() => {});
+          const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+          const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+            if (m.user.bot || m.id === interaction.user.id) return false;
+            if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+            return true;
+          });
+
+          const encodedName = encodeURIComponent(newName);
+          const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
+          const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
+          const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minSelect, max: maxSelect });
+          const buttonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          );
+
+          try {
+            const channel = await interaction.client.channels.fetch(session.channelId).catch(() => null);
+            if (channel) {
+              const msg = await channel.messages.fetch(session.messageId).catch(() => null);
+              if (msg) {
+                await msg.edit({
+                  embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: newName, memberIds: [], step: 'select_members' })],
+                  components: [selectRow, buttonRow]
+                });
+              }
+            }
+          } catch (err) {
+            logger.warn(`[Reg Change Name] Could not edit original message: ${err.message}`);
+          }
+        }
+
+        return await interaction.reply({ content: `✅ Nama tim diperbarui menjadi **${newName}**.`, flags: MessageFlags.Ephemeral });
+      }
+
+      // Change Team Name modal submit (staff)
+      if (interaction.customId === CUSTOM_IDS.MODAL_STAFF_REG_CHANGE_NAME) {
+        const newName = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_REG_NEW_NAME).trim();
+        const sessionKey = `staff_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+
+        const nameValidation = validateTeamName(newName);
+        if (!nameValidation.valid) {
+          return await interaction.reply({ embeds: [errorEmbed('Nama Tidak Valid', nameValidation.error)], flags: MessageFlags.Ephemeral });
+        }
+
+        if (session) {
+          session.teamName = newName;
+          session.memberIds = [];
+          setSession(sessionKey, session);
+
+          await interaction.guild.members.fetch().catch(() => {});
+          const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+          const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+            if (m.user.bot) return false;
+            if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+            return true;
+          });
+
+          const encodedName = encodeURIComponent(newName);
+          const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+          const buttonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          );
+
+          try {
+            const channel = await interaction.client.channels.fetch(session.channelId).catch(() => null);
+            if (channel) {
+              const msg = await channel.messages.fetch(session.messageId).catch(() => null);
+              if (msg) {
+                await msg.edit({
+                  embeds: [buildStaffRegEmbed({ teamName: newName, memberIds: [], step: 'select_members' })],
+                  components: [selectRow, buttonRow]
+                });
+              }
+            }
+          } catch (err) {
+            logger.warn(`[Staff Reg Change Name] Could not edit original message: ${err.message}`);
+          }
+        }
+
+        return await interaction.reply({ content: `✅ Nama tim diperbarui menjadi **${newName}**.`, flags: MessageFlags.Ephemeral });
       }
 
       return;
     }
+
+
 
     // ========================================================
     // 4. SELECT MENU ROUTER
@@ -641,6 +1079,30 @@ export default {
         } catch {
           await DashboardService.setupDashboard(interaction.guild, interaction.client);
         }
+        return;
+      }
+
+      // Dashboard: Set Participant Role
+      if (interaction.customId === 'dashboard_roleselect_participant') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+        const selectedRoleId = interaction.values[0];
+        await GuildConfigService.set('PARTICIPANT_ROLE_ID', selectedRoleId);
+        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+        try { await interaction.update(payload); } catch { await DashboardService.setupDashboard(interaction.guild, interaction.client); }
+        return;
+      }
+
+      // Dashboard: Set No-Team Role
+      if (interaction.customId === 'dashboard_roleselect_noteam') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+        const selectedRoleId = interaction.values[0];
+        await GuildConfigService.set('NO_TEAM_ROLE_ID', selectedRoleId);
+        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+        try { await interaction.update(payload); } catch { await DashboardService.setupDashboard(interaction.guild, interaction.client); }
         return;
       }
 
@@ -693,7 +1155,7 @@ export default {
         });
       }
 
-      // B. Anggota Tim Dropdown
+      // B. Member: Select Anggota Tim → show CONFIRMATION step (not register directly)
       if (
         interaction.customId.startsWith('select_unreg_members_') ||
         interaction.customId.startsWith('select_team_members_')
@@ -703,63 +1165,80 @@ export default {
           .replace('select_team_members_', '');
         const teamName = decodeURIComponent(rawName);
         const selectedMemberIds = interaction.values;
+        const sessionKey = `member_${interaction.user.id}`;
 
-        await interaction.update({
-          embeds: [infoEmbed('Memproses Pendaftaran...', `Sedang mendaftarkan tim **${teamName}** dan mengirim undangan...`)],
-          components: []
+        // Update session with selected members
+        const session = getSession(sessionKey) || { teamName, channelId: interaction.channelId };
+        session.memberIds = selectedMemberIds;
+        session.messageId = interaction.message.id;
+        setSession(sessionKey, session);
+
+        // Rebuild the dropdown for the "reselect" row (same dropdown, keeps previous selection visible)
+        await interaction.guild.members.fetch().catch(() => {});
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+          if (m.user.bot || m.id === interaction.user.id) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+          return true;
         });
 
-        try {
-          const result = await TeamService.startRegistration({
-            teamName,
-            leaderMember: interaction.member,
-            memberIds: selectedMemberIds,
-            guild: interaction.guild,
-            client: interaction.client,
-            ticketChannel: interaction.channel
-          });
+        const encodedName = encodeURIComponent(teamName);
+        const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
+        const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
+        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minSelect, max: maxSelect });
 
-          if (!result.success) {
-            return await interaction.followUp({
-              embeds: [errorEmbed('Pendaftaran Gagal', result.error)],
-              flags: MessageFlags.Ephemeral
-            });
-          }
+        // Confirmation buttons row
+        const confirmRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+        );
 
-          if (result.pendingInvitations) {
-            const unixExpiry = Math.floor(new Date(result.expiresAt).getTime() / 1000);
-            const memberMentions = selectedMemberIds.map((id) => `<@${id}>`).join(', ');
-
-            return await interaction.followUp({
-              embeds: [
-                successEmbed(
-                  'Undangan Tim Terkirim',
-                  `Tim **${teamName}** berhasil didaftarkan dalam status menunggu konfirmasi!\n\n` +
-                  `📨 **Undangan dikirim ke:** ${memberMentions}\n` +
-                  `⏱️ **Batas Waktu:** <t:${unixExpiry}:R>\n\n` +
-                  `Setelah semua rekan tim menekan tombol **Accept**, role dan channel tim Anda akan otomatis dibuatkan oleh bot.`
-                )
-              ]
-            });
-          } else {
-            await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
-            return await interaction.followUp({
-              embeds: [
-                successEmbed(
-                  'Tim Berhasil Dibuat!',
-                  `Tim **${teamName}** telah berhasil dibuat dan seluruh channel telah disiapkan!`
-                )
-              ]
-            });
-          }
-        } catch (err) {
-          logger.error(`[Registration Process Error] ${err.message}`);
-          return await interaction.followUp({
-            embeds: [errorEmbed('Error', `Gagal memproses pendaftaran: ${err.message}`)],
-            flags: MessageFlags.Ephemeral
-          });
-        }
+        return await interaction.update({
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName, memberIds: selectedMemberIds, step: 'confirm' })],
+          components: [selectRow, confirmRow]
+        });
       }
+
+      // C. Staff: Select Anggota Tim → show CONFIRMATION step
+      if (interaction.customId.startsWith('select_staff_reg_members_')) {
+        const rawName = interaction.customId.replace('select_staff_reg_members_', '');
+        const teamName = decodeURIComponent(rawName);
+        const selectedMemberIds = interaction.values;
+        const sessionKey = `staff_${interaction.user.id}`;
+
+        // Update session
+        const session = getSession(sessionKey) || { teamName, channelId: interaction.channelId };
+        session.memberIds = selectedMemberIds;
+        session.messageId = interaction.message.id;
+        setSession(sessionKey, session);
+
+        // Rebuild dropdown for reselect
+        await interaction.guild.members.fetch().catch(() => {});
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+          if (m.user.bot) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+          return true;
+        });
+
+        const encodedName = encodeURIComponent(teamName);
+        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+
+        const confirmRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+        );
+
+        return await interaction.update({
+          embeds: [buildStaffRegEmbed({ teamName, memberIds: selectedMemberIds, step: 'confirm' })],
+          components: [selectRow, confirmRow]
+        });
+      }
+
     }
   }
 };

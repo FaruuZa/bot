@@ -32,53 +32,68 @@ export class DashboardService {
     // 2. Fetch configurations
     const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
     const inviteCode = GuildConfigService.get('PARTICIPANT_INVITE_CODE');
-    const selectRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('UNREGISTERED_ROLE_ID');
     const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
-    const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+    const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
+    const selectRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
 
-    // 3. Build Embed
+    // 3. Build role display strings
+    const participantDisplay = participantRoleId ? `<@&${participantRoleId}> ✅` : '*(Belum diatur)* ❌';
+    const noTeamDisplay = noTeamRoleId ? `<@&${noTeamRoleId}> ✅` : '*(Belum diatur)* ❌';
+    const filterDisplay = selectRoleId
+      ? `<@&${selectRoleId}>\n*(Hanya user dengan role ini di dropdown)*`
+      : '*(Belum diatur — default: semua member)*';
+
+    // 4. Build Embed
     const embed = new EmbedBuilder()
       .setTitle('🎛️ NSAC Staff & Admin Control Center')
       .setDescription(
         'Panel kendali terpusat untuk memantau server, membuka/menutup pendaftaran tim, ' +
-        'mengelola link invite peserta (auto-role), dan mengatur filter role pemilihan anggota tim.'
+        'mengelola link invite peserta, dan mengatur konfigurasi role sistem.'
       )
       .setColor(regOpen ? EMBED_COLORS.SUCCESS : EMBED_COLORS.DANGER)
       .addFields(
         {
           name: '📢 Status Pendaftaran Tim',
-          value: regOpen ? '🟢 **BUKA (OPEN)** — Peserta dapat mendaftar tim' : '🔴 **TUTUP (CLOSED)** — Pendaftaran tim dinonaktifkan',
+          value: regOpen
+            ? '🟢 **BUKA (OPEN)** — Peserta dapat mendaftar tim'
+            : '🔴 **TUTUP (CLOSED)** — Pendaftaran tim dinonaktifkan',
           inline: true
         },
         {
-          name: '🎟️ Link Invite Peserta (Auto-Role)',
+          name: '🎟️ Link Invite Peserta',
           value: inviteCode
             ? `[https://discord.gg/${inviteCode}](https://discord.gg/${inviteCode})\n*(Kode: \`${inviteCode}\`)*`
             : '*(Belum dibuat — klik tombol di bawah untuk generate)*',
           inline: true
         },
-        {
-          name: '👥 Role Dropdown Pemilihan Anggota Tim',
-          value: selectRoleId
-            ? `<@&${selectRoleId}>\n*(Pengguna dengan role ini yang muncul di dropdown)*`
-            : '*(Belum diatur — default ke @Unregistered)*',
-          inline: false
-        },
+        { name: '\u200B', value: '\u200B', inline: true },
         {
           name: '📊 Ringkasan Tim Hackathon',
-          value: `• **Tim Aktif:** \`${s.active_count}\` tim\n• **Menunggu Verifikasi:** \`${s.pending_count}\` tim\n• **Diarsipkan:** \`${s.archived_count}\` tim`,
+          value:
+            `• **Tim Aktif:** \`${s.active_count}\` tim\n` +
+            `• **Menunggu Verifikasi:** \`${s.pending_count}\` tim\n` +
+            `• **Diarsipkan:** \`${s.archived_count}\` tim`,
           inline: false
         },
         {
-          name: '⚙️ Konfigurasi Role Utama',
-          value: `• **Participant Role:** ${participantRoleId ? `<@&${participantRoleId}>` : '*(Belum diatur)*'}\n• **Unregistered Role:** ${unregisteredRoleId ? `<@&${unregisteredRoleId}>` : '*(Belum diatur)*'}`,
+          name: '🎭 Konfigurasi Role Sistem',
+          value:
+            `• **Participant** *(Identitas Peserta)*: ${participantDisplay}\n` +
+            `• **No-Team** *(Status Belum Punya Tim)*: ${noTeamDisplay}\n\n` +
+            `> \`@Participant\` tidak akan dihapus bot saat anggota keluar/tim dihapus.\n` +
+            `> Gunakan dropdown di bawah untuk set/ubah masing-masing role.`,
+          inline: false
+        },
+        {
+          name: '🎯 Filter Dropdown Pemilihan Anggota Tim',
+          value: filterDisplay,
           inline: false
         }
       )
       .setFooter({ text: 'NSAC Hackathon Management Bot • Terakhir Diperbarui' })
       .setTimestamp();
 
-    // 4. Action Row 1: Buttons
+    // 5. Action Row 1: Control Buttons
     const buttonRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('dashboard_toggle_reg')
@@ -87,28 +102,50 @@ export class DashboardService {
         .setEmoji(regOpen ? '🔒' : '🔓'),
       new ButtonBuilder()
         .setCustomId('dashboard_gen_invite')
-        .setLabel('Buat Link Invite Peserta')
+        .setLabel('Buat Link Invite')
         .setStyle(ButtonStyle.Primary)
         .setEmoji('🎟️'),
       new ButtonBuilder()
         .setCustomId('dashboard_refresh')
         .setLabel('Refresh Panel')
         .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🔄')
+        .setEmoji('🔄'),
+      new ButtonBuilder()
+        .setCustomId('dashboard_open_team_panel')
+        .setLabel('Kelola Tim')
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji('🛡️')
     );
 
-    // 5. Action Row 2: Role Select Menu for Team Member Filter
-    const roleSelect = new RoleSelectMenuBuilder()
-      .setCustomId('dashboard_select_member_role')
-      .setPlaceholder('🎯 Pilih role yang diizinkan muncul di dropdown anggota tim...')
+    // 6. Action Row 2: Set Participant Role
+    const participantRoleSelect = new RoleSelectMenuBuilder()
+      .setCustomId('dashboard_roleselect_participant')
+      .setPlaceholder('🎭 Set Role: Participant (Identitas Peserta Resmi)...')
       .setMinValues(1)
       .setMaxValues(1);
 
-    const selectRow = new ActionRowBuilder().addComponents(roleSelect);
+    // 7. Action Row 3: Set No-Team Role
+    const noTeamRoleSelect = new RoleSelectMenuBuilder()
+      .setCustomId('dashboard_roleselect_noteam')
+      .setPlaceholder('🚫 Set Role: No-Team (Status Belum Punya Tim)...')
+      .setMinValues(1)
+      .setMaxValues(1);
+
+    // 8. Action Row 4: Set Member Filter Role
+    const filterRoleSelect = new RoleSelectMenuBuilder()
+      .setCustomId('dashboard_select_member_role')
+      .setPlaceholder('🎯 Set Filter Dropdown Pemilihan Anggota Tim...')
+      .setMinValues(1)
+      .setMaxValues(1);
 
     return {
       embeds: [embed],
-      components: [buttonRow, selectRow]
+      components: [
+        buttonRow,
+        new ActionRowBuilder().addComponents(participantRoleSelect),
+        new ActionRowBuilder().addComponents(noTeamRoleSelect),
+        new ActionRowBuilder().addComponents(filterRoleSelect)
+      ]
     };
   }
 

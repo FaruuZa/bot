@@ -199,8 +199,9 @@ export class DiscordService {
       }
 
       const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
-      const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+      const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
 
+      // Add team role + ensure @Participant identity role
       const rolesToAdd = [];
       if (teamRoleId && !member.roles.cache.has(teamRoleId)) rolesToAdd.push(teamRoleId);
       if (participantRoleId && !member.roles.cache.has(participantRoleId)) {
@@ -211,8 +212,9 @@ export class DiscordService {
         await member.roles.add(rolesToAdd, 'Assigned Hackathon Team & Participant roles');
       }
 
-      if (unregisteredRoleId && member.roles.cache.has(unregisteredRoleId)) {
-        await member.roles.remove(unregisteredRoleId, 'Removed Unregistered role on team join');
+      // Remove @No-Team status role (they now have a team)
+      if (noTeamRoleId && member.roles.cache.has(noTeamRoleId)) {
+        await member.roles.remove(noTeamRoleId, 'Removed No-Team role on team join');
       }
     } catch (error) {
       logger.error(`[DiscordService] Failed to update roles for member ${discordId}: ${error.message}`);
@@ -226,7 +228,7 @@ export class DiscordService {
    * @param {string} teamRoleId 
    * @param {boolean} [restoreUnregistered=true]
    */
-  static async removeTeamMembershipRoles(guild, discordId, teamRoleId, restoreUnregistered = true) {
+  static async removeTeamMembershipRoles(guild, discordId, teamRoleId, restoreNoTeam = true) {
     try {
       const member = await guild.members.fetch({ user: discordId, force: true }).catch(() => null);
       if (!member) {
@@ -234,24 +236,19 @@ export class DiscordService {
         return;
       }
 
-      const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
-      const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+      const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
 
-      // 1. Remove Team Role if present
+      // 1. Remove Team Role only (keep @Participant — it's an identity, not status)
       if (teamRoleId && member.roles.cache.has(teamRoleId)) {
         await member.roles.remove(teamRoleId, 'Removed Hackathon Team role').catch(() => {});
       }
 
-      // 2. Remove Participant role & Restore Unregistered role
-      if (restoreUnregistered) {
-        if (participantRoleId && member.roles.cache.has(participantRoleId)) {
-          await member.roles.remove(participantRoleId, 'Removed Participant role on team delete/remove').catch(() => {});
-        }
-        if (unregisteredRoleId && !member.roles.cache.has(unregisteredRoleId)) {
-          await member.roles.add(unregisteredRoleId, 'Restored Unregistered role on team delete/remove').catch(() => {});
-        }
+      // 2. Restore @No-Team status role (@Participant stays untouched)
+      if (restoreNoTeam && noTeamRoleId && !member.roles.cache.has(noTeamRoleId)) {
+        await member.roles.add(noTeamRoleId, 'Restored No-Team status role on team leave/delete').catch(() => {});
       }
-      logger.info(`[DiscordService] Successfully restored @Unregistered and removed @Participant for ${member.user.tag}`);
+
+      logger.info(`[DiscordService] Restored @No-Team (kept @Participant) for ${member.user.tag}`);
     } catch (error) {
       logger.error(`[DiscordService] Failed to remove team roles for member ${discordId}: ${error.message}`);
     }

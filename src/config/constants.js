@@ -79,14 +79,29 @@ export const CUSTOM_IDS = {
   // Staff Admin buttons
   BTN_STAFF_ADD_TEAM: 'team_panel_staff_add_team',
 
-  // Modals & Select Menus
+  // === MEMBER Registration Flow (single-embed) ===
   MODAL_REGISTER_TEAM: 'modal_register_team',
   INPUT_TEAM_NAME: 'input_team_name',
   SELECT_TEAM_MEMBERS: 'select_team_members',
+  BTN_REG_CHANGE_NAME: 'btn_reg_change_name',       // Ubah nama tim (member)
+  BTN_REG_CANCEL: 'btn_reg_cancel',                 // Batal (member)
+  BTN_REG_CONFIRM: 'btn_reg_confirm',               // Konfirmasi daftar (member)
+  BTN_REG_RESELECT: 'btn_reg_reselect',             // Pilih ulang anggota (member)
+  MODAL_REG_CHANGE_NAME: 'modal_reg_change_name',   // Modal ubah nama (member)
+  INPUT_REG_NEW_NAME: 'input_reg_new_name',          // Input di modal ubah nama
 
-  // Staff Add Team Modal
+  // === STAFF Registration Flow (single-embed, ephemeral) ===
   MODAL_STAFF_ADD_TEAM: 'modal_staff_add_team',
   INPUT_STAFF_TEAM_NAME: 'input_staff_team_name',
-  INPUT_STAFF_LEADER_ID: 'input_staff_leader_id',
-  INPUT_STAFF_MEMBERS: 'input_staff_members'
+  BTN_STAFF_REG_CHANGE_NAME: 'btn_staff_reg_change_name',     // Ubah nama (staff)
+  BTN_STAFF_REG_CANCEL: 'btn_staff_reg_cancel',               // Batal (staff)
+  BTN_STAFF_REG_CONFIRM: 'btn_staff_reg_confirm',             // Konfirmasi (staff)
+  BTN_STAFF_REG_RESELECT: 'btn_staff_reg_reselect',           // Pilih ulang (staff)
+  MODAL_STAFF_REG_CHANGE_NAME: 'modal_staff_reg_change_name', // Modal ubah nama (staff)
+  INPUT_STAFF_REG_NEW_NAME: 'input_staff_reg_new_name',
+
+  // === Dashboard Role Selects ===
+  ROLESELECT_DASHBOARD_PARTICIPANT: 'dashboard_roleselect_participant', // Set Participant role
+  ROLESELECT_DASHBOARD_NOTEAM: 'dashboard_roleselect_noteam',           // Set No-Team role
 };
+
