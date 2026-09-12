@@ -206,15 +206,20 @@ export class DashboardService {
       const lines = dynamicInvites.map((inv, idx) => {
         const liveInvite = guildInvites?.get(inv.invite_code);
         const uses = liveInvite ? (liveInvite.uses || 0) : 0;
-        const roleMention = `<@&${inv.role_id}>`;
-        const roleObj = guild.roles.cache.get(inv.role_id);
-        const roleLabel = inv.label || (roleObj ? roleObj.name : 'Role');
+        const roleIds = (inv.role_ids && Array.isArray(inv.role_ids) && inv.role_ids.length > 0)
+          ? inv.role_ids
+          : (inv.role_id ? [inv.role_id] : []);
+        const roleMentions = roleIds.length > 0
+          ? roleIds.map((id) => `<@&${id}>`).join(' + ')
+          : '*(Role tidak ditemukan)*';
+        const roleLabel = inv.label || 'Role';
 
-        return `**${idx + 1}. [${roleLabel}]** ➔ ${roleMention}\n` +
+        return `**${idx + 1}. [${roleLabel}]** ➔ ${roleMentions}\n` +
                `   • Link: [https://discord.gg/${inv.invite_code}](https://discord.gg/${inv.invite_code}) \`(Kode: ${inv.invite_code})\`\n` +
                `   • Total Digunakan: \`${uses}\` kali`;
       });
       listText = lines.join('\n\n');
+
     }
 
     const description =

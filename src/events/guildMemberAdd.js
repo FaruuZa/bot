@@ -49,37 +49,44 @@ export default {
           const dynamicInvite = await getInviteRoleByCode(usedInvite.code);
 
           if (dynamicInvite) {
+            const targetRoleIds = (dynamicInvite.role_ids && Array.isArray(dynamicInvite.role_ids) && dynamicInvite.role_ids.length > 0)
+              ? dynamicInvite.role_ids
+              : (dynamicInvite.role_id ? [dynamicInvite.role_id] : []);
+
             const rolesToAdd = [];
-            if (!member.roles.cache.has(dynamicInvite.role_id)) {
-              rolesToAdd.push(dynamicInvite.role_id);
+            for (const rId of targetRoleIds) {
+              if (rId && !member.roles.cache.has(rId)) {
+                rolesToAdd.push(rId);
+              }
             }
 
-            // If the assigned role is the Participant role, also assign No-Team role
-            if (participantRoleId && dynamicInvite.role_id === participantRoleId) {
-              if (noTeamRoleId && !member.roles.cache.has(noTeamRoleId)) {
+            // If Participant role is included, also ensure No-Team role is added if configured
+            if (participantRoleId && targetRoleIds.includes(participantRoleId)) {
+              if (noTeamRoleId && !member.roles.cache.has(noTeamRoleId) && !rolesToAdd.includes(noTeamRoleId)) {
                 rolesToAdd.push(noTeamRoleId);
               }
             }
 
             if (rolesToAdd.length > 0) {
               await member.roles.add(rolesToAdd, `Auto-assigned via dynamic invite (${usedInvite.code})`).catch((err) => {
-                logger.warn(`[Member Join Warning] Could not assign dynamic invite role: ${err.message}`);
+                logger.warn(`[Member Join Warning] Could not assign dynamic invite roles: ${err.message}`);
               });
             }
 
-            const targetRole = member.guild.roles.cache.get(dynamicInvite.role_id);
-            assignedRoleName = targetRole ? targetRole.name : (dynamicInvite.label || 'Role');
+            const roleNames = targetRoleIds.map((id) => member.guild.roles.cache.get(id)?.name || id);
+            assignedRoleName = roleNames.length > 0 ? roleNames.join(' + ') : (dynamicInvite.label || 'Role');
 
             logger.info(`[Member Join] Assigned @${assignedRoleName} to ${member.user.tag} (Invite: ${usedInvite.code})`);
 
             await AuditService.log(member.client, {
               action: AUDIT_ACTIONS.ROLE_ASSIGNED,
-              title: 'Dynamic Invite Role Assigned',
+              title: 'Dynamic Invite Roles Assigned',
               targetUserId: user.id,
               targetTag: member.user.tag,
-              details: `User joined using dynamic invite link (\`${usedInvite.code}\`) and was automatically assigned @${assignedRoleName}${dynamicInvite.role_id === participantRoleId && noTeamRoleId ? ' + @No-Team' : ''}.`
+              details: `User joined using dynamic invite link (\`${usedInvite.code}\`) and was automatically assigned roles: @${assignedRoleName}.`
             });
           } else if (
+
             legacyParticipantCode &&
             usedInvite.code.toLowerCase() === legacyParticipantCode.toLowerCase() &&
             participantRoleId

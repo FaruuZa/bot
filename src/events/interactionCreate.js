@@ -760,22 +760,23 @@ export default {
 
         const roleSelect = new RoleSelectMenuBuilder()
           .setCustomId('dashboard_invite_select_role')
-          .setPlaceholder('Pilih role yang diberikan via link baru...')
+          .setPlaceholder('Pilih role (bisa pilih lebih dari 1, misal: Participant + No-Team)...')
           .setMinValues(1)
-          .setMaxValues(1);
+          .setMaxValues(10);
 
         return await interaction.reply({
           embeds: [
             infoEmbed(
               'Buat Dynamic Auto-Role Invite Link 🎟️',
-              'Silakan pilih role dari menu di bawah.\n' +
-              'Bot akan membuat link invite Discord permanen baru, dan setiap member yang bergabung dengan link ini akan **otomatis diberikan role tersebut**.'
+              'Silakan pilih **satu atau beberapa role** dari menu di bawah (misal: **Participant + No-Team**).\n' +
+              'Bot akan membuat link invite Discord permanen baru, dan setiap member yang bergabung dengan link ini akan **otomatis diberikan seluruh role tersebut**.'
             )
           ],
           components: [new ActionRowBuilder().addComponents(roleSelect)],
           flags: MessageFlags.Ephemeral
         });
       }
+
 
       if (customId === 'dashboard_invite_delete') {
         if (!PermissionService.isStaff(interaction.member)) {
@@ -1200,28 +1201,30 @@ export default {
           return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
         }
 
-        const selectedRoleId = interaction.values[0];
+        const selectedRoleIds = interaction.values;
         await interaction.deferUpdate();
 
         try {
-          const { invite, roleName } = await InviteService.createDynamicInvite(
+          const { invite, label } = await InviteService.createDynamicInvite(
             interaction.guild,
-            selectedRoleId,
+            selectedRoleIds,
             null,
             interaction.user.tag
           );
 
           await DashboardService.refreshInvitesPanel(interaction.guild);
 
+          const roleMentions = selectedRoleIds.map((id) => `<@&${id}>`).join(' + ');
+
           return await interaction.editReply({
             embeds: [
               successEmbed(
                 'Dynamic Invite Link Berhasil Dibuat 🎟️',
-                `Link invite khusus untuk role **@${roleName}** (<@&${selectedRoleId}>) berhasil dibuat:\n\n` +
+                `Link invite khusus untuk role **[${label}]** (${roleMentions}) berhasil dibuat:\n\n` +
                 `🔗 **${invite.url}**\n` +
                 `• Kode: \`${invite.code}\`\n` +
-                `• Auto-Role: <@&${selectedRoleId}>\n\n` +
-                `*Setiap anggota yang bergabung menggunakan link ini akan langsung mendapatkan role tersebut!*`
+                `• Auto-Role: ${roleMentions}\n\n` +
+                `*Setiap anggota yang bergabung menggunakan link ini akan langsung mendapatkan seluruh role tersebut!*`
               )
             ],
             components: []
@@ -1233,6 +1236,7 @@ export default {
           });
         }
       }
+
 
       // Dashboard: Dynamic Invite Delete Selection
       if (interaction.customId === 'dashboard_invite_select_delete') {

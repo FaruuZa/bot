@@ -90,50 +90,53 @@ export class InviteService {
   }
 
   /**
-   * Create a dynamic invite link tied to a specific role.
+   * Create a dynamic invite link tied to one or more roles.
    * @param {import('discord.js').Guild} guild 
-   * @param {string} roleId 
+   * @param {string|string[]} roleIdsInput 
    * @param {import('discord.js').GuildChannel} [channel] 
    * @param {string} [createdBy] 
    * @param {object} [options]
    */
-  static async createDynamicInvite(guild, roleId, channel = null, createdBy = null, options = {}) {
+  static async createDynamicInvite(guild, roleIdsInput, channel = null, createdBy = null, options = {}) {
     const targetChannel = channel || guild.systemChannel || guild.rulesChannel || guild.channels.cache.find(c => c.isTextBased());
     if (!targetChannel) {
       throw new Error('Tidak ditemukan text channel yang dapat diakses untuk membuat link invite.');
     }
 
-    const role = guild.roles.cache.get(roleId);
-    const roleName = role ? role.name : 'Unknown Role';
+    const roleIds = Array.isArray(roleIdsInput) ? roleIdsInput : [roleIdsInput];
+    const roleNames = roleIds.map((id) => guild.roles.cache.get(id)?.name || 'Role').filter(Boolean);
+    const label = roleNames.join(' + ');
 
     const invite = await targetChannel.createInvite({
       maxAge: options.maxAge ?? 0, // 0 = permanent
       maxUses: options.maxUses ?? 0, // 0 = unlimited
       unique: true,
-      reason: `Auto-Role Invite for @${roleName} created by staff (${createdBy || 'Dashboard'})`
+      reason: `Auto-Role Invite for ${label} created by staff (${createdBy || 'Dashboard'})`
     });
 
     // Save to database
     await saveInviteRole({
       inviteCode: invite.code,
-      roleId,
+      roleId: roleIds[0],
+      roleIds,
       channelId: targetChannel.id,
-      label: roleName,
+      label,
       createdBy
     });
 
-    // If this is the participant role, keep backward compatibility in guild_config
+    // If participant role is included, keep backward compatibility in guild_config
     const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
-    if (participantRoleId && roleId === participantRoleId) {
+    if (participantRoleId && roleIds.includes(participantRoleId)) {
       await GuildConfigService.set('PARTICIPANT_INVITE_CODE', invite.code);
     }
 
     // Update cache
     await this.updateGuildCache(guild);
 
-    logger.info(`[InviteService] Created dynamic invite ${invite.url} (Code: ${invite.code}) -> Role: ${roleName} (${roleId})`);
-    return { invite, roleName };
+    logger.info(`[InviteService] Created dynamic invite ${invite.url} (Code: ${invite.code}) -> Roles: ${label} (${roleIds.join(', ')})`);
+    return { invite, roleNames, label };
   }
+
 
   /**
    * Delete a dynamic invite link from database and Discord.
