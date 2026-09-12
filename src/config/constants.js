@@ -57,13 +57,15 @@ export const AUDIT_ACTIONS = {
 };
 
 export const EMBED_COLORS = {
-  PRIMARY: 0x5865F2, // Discord Blurple
-  SUCCESS: 0x57F287, // Green
-  DANGER: 0xED4245,  // Red
-  WARNING: 0xFEE75C, // Yellow
-  INFO: 0x3498DB,    // Blue
-  DARK: 0x2B2D31     // Discord Dark Theme
+  PRIMARY: 0x5865F2,   // Discord Blurple
+  SECONDARY: 0x5865F2, // Secondary Accent
+  SUCCESS: 0x57F287,   // Green
+  DANGER: 0xED4245,    // Red
+  WARNING: 0xFEE75C,   // Yellow
+  INFO: 0x3498DB,      // Blue
+  DARK: 0x2B2D31       // Discord Dark Theme
 };
+
 
 export const CUSTOM_IDS = {
   // Buttons

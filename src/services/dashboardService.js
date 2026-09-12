@@ -15,6 +15,42 @@ import { logger } from '../utils/logger.js';
 
 export class DashboardService {
   /**
+   * Set of known panel message IDs in memory to protect them from auto-deletion
+   * @type {Set<string>}
+   */
+  static panelMessageIds = new Set();
+
+  /**
+   * Register a message ID as a persistent dashboard panel message
+   * @param {string} id 
+   */
+  static registerPanelMessageId(id) {
+    if (id) {
+      this.panelMessageIds.add(id);
+    }
+  }
+
+  /**
+   * Check if a message ID belongs to one of the dashboard panel messages
+   * @param {string} id 
+   * @returns {boolean}
+   */
+  static isPanelMessage(id) {
+    if (!id) return false;
+    if (this.panelMessageIds.has(id)) return true;
+
+    const overviewId = GuildConfigService.get('DASHBOARD_OVERVIEW_MSG_ID') || GuildConfigService.get('DASHBOARD_MESSAGE_ID');
+    const rolesId = GuildConfigService.get('DASHBOARD_ROLES_MSG_ID');
+    const invitesId = GuildConfigService.get('DASHBOARD_INVITES_MSG_ID');
+
+    if (id === overviewId || id === rolesId || id === invitesId) {
+      this.panelMessageIds.add(id);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Build Payload for Panel 1: Overview & Team Management
    * @param {import('discord.js').Guild} guild 
    */
@@ -164,12 +200,12 @@ export class DashboardService {
     const guildInvites = await guild.invites.fetch().catch(() => null);
 
     let listText = '';
-    if (dynamicInvites.length === 0) {
+    if (!dynamicInvites || dynamicInvites.length === 0) {
       listText = '*(Belum ada link invite dinamis. Klik tombol **Buat Link Baru** di bawah untuk membuatnya).*';
     } else {
       const lines = dynamicInvites.map((inv, idx) => {
         const liveInvite = guildInvites?.get(inv.invite_code);
-        const uses = liveInvite ? liveInvite.uses : '?';
+        const uses = liveInvite ? (liveInvite.uses || 0) : 0;
         const roleMention = `<@&${inv.role_id}>`;
         const roleObj = guild.roles.cache.get(inv.role_id);
         const roleLabel = inv.label || (roleObj ? roleObj.name : 'Role');
@@ -181,20 +217,16 @@ export class DashboardService {
       listText = lines.join('\n\n');
     }
 
+    const description =
+      'Buat dan kelola link invite Discord dengan **Auto-Role Dinamis**.\n' +
+      'Setiap orang yang bergabung menggunakan link invite tertentu akan langsung mendapatkan role yang ditentukan (misal: Peserta, Mentor, Juri, Tamu, dll).\n\n' +
+      `__**Daftar Link Invite Aktif (${dynamicInvites?.length || 0})**__\n` +
+      (listText.length > 3500 ? listText.substring(0, 3500) + '...\n*(dan lainnya)*' : listText);
+
     const embed = new EmbedBuilder()
       .setTitle('🎟️ NSAC Admin Dashboard — Dynamic Invites & Auto-Role')
-      .setDescription(
-        'Buat dan kelola link invite Discord dengan **Auto-Role Dinamis**.\n' +
-        'Setiap orang yang bergabung menggunakan link invite tertentu akan langsung mendapatkan role yang ditentukan (misal: Peserta, Mentor, Juri, Tamu, dll).'
-      )
-      .setColor(EMBED_COLORS.SECONDARY)
-      .addFields(
-        {
-          name: `🔗 Daftar Link Invite Aktif (${dynamicInvites.length})`,
-          value: listText.length > 4000 ? listText.substring(0, 3950) + '...\n*(dan lainnya)*' : listText,
-          inline: false
-        }
-      )
+      .setDescription(description)
+      .setColor(EMBED_COLORS.PRIMARY)
       .setFooter({ text: 'Panel 3/3 • Dynamic Invites' })
       .setTimestamp();
 
@@ -209,7 +241,7 @@ export class DashboardService {
         .setLabel('Hapus Link')
         .setStyle(ButtonStyle.Danger)
         .setEmoji('🗑️')
-        .setDisabled(dynamicInvites.length === 0),
+        .setDisabled(!dynamicInvites || dynamicInvites.length === 0),
       new ButtonBuilder()
         .setCustomId('dashboard_invite_refresh')
         .setLabel('Refresh Invite')
@@ -298,6 +330,7 @@ export class DashboardService {
     } else {
       overviewMsg = await channel.send(overviewPayload);
     }
+    this.registerPanelMessageId(overviewMsg.id);
     await GuildConfigService.set('DASHBOARD_OVERVIEW_MSG_ID', overviewMsg.id);
     await GuildConfigService.set('DASHBOARD_MESSAGE_ID', overviewMsg.id);
 
@@ -311,6 +344,7 @@ export class DashboardService {
     } else {
       rolesMsg = await channel.send(rolesPayload);
     }
+    this.registerPanelMessageId(rolesMsg.id);
     await GuildConfigService.set('DASHBOARD_ROLES_MSG_ID', rolesMsg.id);
 
     // 3. Invites Panel
@@ -323,6 +357,7 @@ export class DashboardService {
     } else {
       invitesMsg = await channel.send(invitesPayload);
     }
+    this.registerPanelMessageId(invitesMsg.id);
     await GuildConfigService.set('DASHBOARD_INVITES_MSG_ID', invitesMsg.id);
 
     // 4. Purge any other messages in the channel to keep it strictly clean
@@ -343,7 +378,11 @@ export class DashboardService {
       if (!messages) return;
 
       const validIds = new Set(panelMessageIds);
-      const toDelete = messages.filter((m) => !validIds.has(m.id));
+      const toDelete = messages.filter((m) => {
+        if (validIds.has(m.id)) return false;
+        if (this.isPanelMessage(m.id)) return false;
+        return true;
+      });
 
       if (toDelete.size > 0) {
         logger.info(`[DashboardService] Purging ${toDelete.size} non-panel messages in #${channel.name}...`);
@@ -372,6 +411,7 @@ export class DashboardService {
       const msg = await channel.messages.fetch(msgId).catch(() => null);
       if (!msg) return false;
 
+      this.registerPanelMessageId(msg.id);
       const payload = await this.buildOverviewPayload(guild);
       await msg.edit(payload);
       return true;
@@ -395,6 +435,7 @@ export class DashboardService {
       const msg = await channel.messages.fetch(msgId).catch(() => null);
       if (!msg) return false;
 
+      this.registerPanelMessageId(msg.id);
       const payload = await this.buildRolesPayload(guild);
       await msg.edit(payload);
       return true;
@@ -418,6 +459,7 @@ export class DashboardService {
       const msg = await channel.messages.fetch(msgId).catch(() => null);
       if (!msg) return false;
 
+      this.registerPanelMessageId(msg.id);
       const payload = await this.buildInvitesPayload(guild);
       await msg.edit(payload);
       return true;
