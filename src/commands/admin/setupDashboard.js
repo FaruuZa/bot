@@ -32,10 +32,12 @@ export default {
             'Admin Dashboard Siap 🎛️',
             `Panel kendali staf & admin berhasil di-deploy ke channel <#${channel.id}>!\n\n` +
             `• Channel tersebut otomatis dikunci privat hanya untuk Staff & Administrator.\n` +
-            `• Anda dapat mengatur status pendaftaran, link invite auto-role peserta, dan filter role tim langsung dari panel tersebut.`
+            `• Menampilkan 3 panel terpisah: Overview & Status Tim, Konfigurasi Role Sistem, dan Dynamic Invite Auto-Role Manager.\n` +
+            `• Pesan non-panel di channel tersebut akan otomatis dibersihkan oleh bot agar channel tetap rapi.`
           )
         ]
       }, 10000);
+
     } catch (err) {
       return await replyAutoDismiss(interaction, {
         embeds: [errorEmbed('Dashboard Error', err.message)]

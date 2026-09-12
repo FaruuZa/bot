@@ -126,3 +126,16 @@ CREATE TABLE IF NOT EXISTS dynamic_embeds (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_dynamic_embeds_channel ON dynamic_embeds(channel_id);
+
+-- 9. Invite Roles Table (Dynamic invite-to-role mappings)
+CREATE TABLE IF NOT EXISTS invite_roles (
+    id SERIAL PRIMARY KEY,
+    invite_code VARCHAR(32) UNIQUE NOT NULL,
+    role_id VARCHAR(32) NOT NULL,
+    channel_id VARCHAR(32),
+    label VARCHAR(100),
+    created_by VARCHAR(32),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_invite_roles_code ON invite_roles(invite_code);
+

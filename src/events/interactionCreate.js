@@ -7,6 +7,7 @@ import {
   ModalBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
+  RoleSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle,
   EmbedBuilder
@@ -20,6 +21,7 @@ import { TeamService } from '../services/teamService.js';
 import { PermissionService } from '../services/permissionService.js';
 import { getUserActiveTeamByDiscordId, getActiveTeamMembers } from '../database/queries/memberQueries.js';
 import { getTeamById } from '../database/queries/teamQueries.js';
+import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
 import { buildTeamPanelDashboard } from '../commands/admin/teamPanel.js';
 import { validateTeamName } from '../utils/validators.js';
 import { errorEmbed, successEmbed, infoEmbed, warningEmbed, teamInfoEmbed } from '../utils/embeds.js';
@@ -28,6 +30,7 @@ import { InviteService } from '../services/inviteService.js';
 import { replyAutoDismiss } from '../utils/interactionUtils.js';
 import { logger } from '../utils/logger.js';
 import { pool } from '../database/pool.js';
+
 
 // ============================================================
 // REGISTRATION SESSION STORE
@@ -710,15 +713,113 @@ export default {
         const nextState = current ? 'false' : 'true';
         await GuildConfigService.set('REGISTRATION_OPEN', nextState);
 
-        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+        const payload = await DashboardService.buildOverviewPayload(interaction.guild);
         try {
           await interaction.update(payload);
         } catch {
-          await DashboardService.setupDashboard(interaction.guild, interaction.client);
+          await DashboardService.refreshOverviewPanel(interaction.guild);
         }
         return;
       }
 
+      if (customId === 'dashboard_refresh_all' || customId === 'dashboard_refresh') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat merefresh dashboard.')],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        await DashboardService.refreshAllPanels(interaction.guild);
+        const payload = await DashboardService.buildOverviewPayload(interaction.guild);
+        try {
+          await interaction.update(payload);
+        } catch {
+          await interaction.reply({ content: '✅ Seluruh panel berhasil diperbarui.', flags: MessageFlags.Ephemeral });
+        }
+        return;
+      }
+
+      if (customId === 'dashboard_invite_refresh') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+        const payload = await DashboardService.buildInvitesPayload(interaction.guild);
+        try {
+          await interaction.update(payload);
+        } catch {
+          await DashboardService.refreshInvitesPanel(interaction.guild);
+        }
+        return;
+      }
+
+      if (customId === 'dashboard_invite_create') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')], flags: MessageFlags.Ephemeral });
+        }
+
+        const roleSelect = new RoleSelectMenuBuilder()
+          .setCustomId('dashboard_invite_select_role')
+          .setPlaceholder('Pilih role yang diberikan via link baru...')
+          .setMinValues(1)
+          .setMaxValues(1);
+
+        return await interaction.reply({
+          embeds: [
+            infoEmbed(
+              'Buat Dynamic Auto-Role Invite Link 🎟️',
+              'Silakan pilih role dari menu di bawah.\n' +
+              'Bot akan membuat link invite Discord permanen baru, dan setiap member yang bergabung dengan link ini akan **otomatis diberikan role tersebut**.'
+            )
+          ],
+          components: [new ActionRowBuilder().addComponents(roleSelect)],
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (customId === 'dashboard_invite_delete') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+
+        const dynamicInvites = await getAllInviteRoles();
+        if (dynamicInvites.length === 0) {
+          return await interaction.reply({
+            embeds: [infoEmbed('Tidak Ada Link Invite', 'Belum ada link invite dinamis yang terdaftar untuk dihapus.')],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        const options = dynamicInvites.slice(0, 25).map((inv) => {
+          const roleObj = interaction.guild.roles.cache.get(inv.role_id);
+          const roleName = inv.label || (roleObj ? roleObj.name : inv.role_id);
+          return new StringSelectMenuOptionBuilder()
+            .setLabel(`${roleName} (${inv.invite_code})`.substring(0, 100))
+            .setDescription(`Role: @${roleName} • Code: ${inv.invite_code}`.substring(0, 100))
+            .setValue(inv.invite_code)
+            .setEmoji('🗑️');
+        });
+
+        const deleteSelect = new StringSelectMenuBuilder()
+          .setCustomId('dashboard_invite_select_delete')
+          .setPlaceholder('Pilih link invite yang ingin dihapus...')
+          .setMinValues(1)
+          .setMaxValues(1)
+          .addOptions(options);
+
+        return await interaction.reply({
+          embeds: [
+            warningEmbed(
+              'Hapus Dynamic Invite Link 🗑️',
+              'Pilih link invite dari dropdown di bawah untuk dihapus dari sistem bot dan server Discord.'
+            )
+          ],
+          components: [new ActionRowBuilder().addComponents(deleteSelect)],
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      // Legacy create participant invite
       if (customId === 'dashboard_gen_invite') {
         if (!PermissionService.isStaff(interaction.member)) {
           return await interaction.reply({
@@ -729,14 +830,9 @@ export default {
 
         try {
           const invite = await InviteService.createParticipantInvite(interaction.guild);
-          const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-          try {
-            await interaction.update(payload);
-          } catch {
-            await DashboardService.setupDashboard(interaction.guild, interaction.client);
-          }
+          await DashboardService.refreshInvitesPanel(interaction.guild);
 
-          return await interaction.followUp({
+          return await interaction.reply({
             embeds: [successEmbed(
               'Link Invite Peserta Dibuat 🎟️',
               `Link invite khusus peserta berhasil dibuat:\n**${invite.url}**\n\n` +
@@ -746,28 +842,11 @@ export default {
             flags: MessageFlags.Ephemeral
           });
         } catch (err) {
-          return await interaction.followUp({
+          return await interaction.reply({
             embeds: [errorEmbed('Gagal Membuat Invite', err.message)],
             flags: MessageFlags.Ephemeral
           });
         }
-      }
-
-      if (customId === 'dashboard_refresh') {
-        if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat merefresh dashboard.')],
-            flags: MessageFlags.Ephemeral
-          });
-        }
-
-        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-        try {
-          await interaction.update(payload);
-        } catch {
-          await DashboardService.setupDashboard(interaction.guild, interaction.client);
-        }
-        return;
       }
 
       // Dashboard: Open Team Panel (ephemeral)
@@ -781,6 +860,7 @@ export default {
 
       return;
     }
+
 
 
     // ========================================================
@@ -1073,11 +1153,11 @@ export default {
         const selectedRoleId = interaction.values[0];
         await GuildConfigService.set('TEAM_MEMBER_SELECT_ROLE_ID', selectedRoleId);
 
-        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
+        const payload = await DashboardService.buildRolesPayload(interaction.guild);
         try {
           await interaction.update(payload);
         } catch {
-          await DashboardService.setupDashboard(interaction.guild, interaction.client);
+          await DashboardService.refreshRolesPanel(interaction.guild);
         }
         return;
       }
@@ -1089,8 +1169,12 @@ export default {
         }
         const selectedRoleId = interaction.values[0];
         await GuildConfigService.set('PARTICIPANT_ROLE_ID', selectedRoleId);
-        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-        try { await interaction.update(payload); } catch { await DashboardService.setupDashboard(interaction.guild, interaction.client); }
+        const payload = await DashboardService.buildRolesPayload(interaction.guild);
+        try {
+          await interaction.update(payload);
+        } catch {
+          await DashboardService.refreshRolesPanel(interaction.guild);
+        }
         return;
       }
 
@@ -1101,10 +1185,85 @@ export default {
         }
         const selectedRoleId = interaction.values[0];
         await GuildConfigService.set('NO_TEAM_ROLE_ID', selectedRoleId);
-        const payload = await DashboardService.buildDashboardPayload(interaction.guild);
-        try { await interaction.update(payload); } catch { await DashboardService.setupDashboard(interaction.guild, interaction.client); }
+        const payload = await DashboardService.buildRolesPayload(interaction.guild);
+        try {
+          await interaction.update(payload);
+        } catch {
+          await DashboardService.refreshRolesPanel(interaction.guild);
+        }
         return;
       }
+
+      // Dashboard: Dynamic Invite Role Selection (Create)
+      if (interaction.customId === 'dashboard_invite_select_role') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+
+        const selectedRoleId = interaction.values[0];
+        await interaction.deferUpdate();
+
+        try {
+          const { invite, roleName } = await InviteService.createDynamicInvite(
+            interaction.guild,
+            selectedRoleId,
+            null,
+            interaction.user.tag
+          );
+
+          await DashboardService.refreshInvitesPanel(interaction.guild);
+
+          return await interaction.editReply({
+            embeds: [
+              successEmbed(
+                'Dynamic Invite Link Berhasil Dibuat 🎟️',
+                `Link invite khusus untuk role **@${roleName}** (<@&${selectedRoleId}>) berhasil dibuat:\n\n` +
+                `🔗 **${invite.url}**\n` +
+                `• Kode: \`${invite.code}\`\n` +
+                `• Auto-Role: <@&${selectedRoleId}>\n\n` +
+                `*Setiap anggota yang bergabung menggunakan link ini akan langsung mendapatkan role tersebut!*`
+              )
+            ],
+            components: []
+          });
+        } catch (err) {
+          return await interaction.editReply({
+            embeds: [errorEmbed('Gagal Membuat Link Invite', err.message)],
+            components: []
+          });
+        }
+      }
+
+      // Dashboard: Dynamic Invite Delete Selection
+      if (interaction.customId === 'dashboard_invite_select_delete') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+        }
+
+        const selectedCode = interaction.values[0];
+        await interaction.deferUpdate();
+
+        try {
+          await InviteService.deleteDynamicInvite(interaction.guild, selectedCode);
+          await DashboardService.refreshInvitesPanel(interaction.guild);
+
+          return await interaction.editReply({
+            embeds: [
+              successEmbed(
+                'Link Invite Berhasil Dihapus 🗑️',
+                `Link invite dengan kode \`${selectedCode}\` telah dihapus dari sistem bot dan server Discord.`
+              )
+            ],
+            components: []
+          });
+        } catch (err) {
+          return await interaction.editReply({
+            embeds: [errorEmbed('Gagal Menghapus Link Invite', err.message)],
+            components: []
+          });
+        }
+      }
+
 
       // A. Team Panel: Select Team Details
       if (interaction.customId === 'team_panel_select_team') {

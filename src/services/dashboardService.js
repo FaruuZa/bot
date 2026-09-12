@@ -8,17 +8,17 @@ import {
   PermissionsBitField
 } from 'discord.js';
 import { GuildConfigService } from './guildConfigService.js';
-import { InviteService } from './inviteService.js';
+import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
 import { pool } from '../database/pool.js';
 import { EMBED_COLORS } from '../config/constants.js';
 import { logger } from '../utils/logger.js';
 
 export class DashboardService {
   /**
-   * Build the Embed and Components payload for the Admin Control Panel
+   * Build Payload for Panel 1: Overview & Team Management
    * @param {import('discord.js').Guild} guild 
    */
-  static async buildDashboardPayload(guild) {
+  static async buildOverviewPayload(guild) {
     // 1. Fetch team statistics
     const { rows: stats } = await pool.query(`
       SELECT
@@ -31,42 +31,23 @@ export class DashboardService {
 
     // 2. Fetch configurations
     const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
-    const inviteCode = GuildConfigService.get('PARTICIPANT_INVITE_CODE');
-    const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
-    const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
-    const selectRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
 
-    // 3. Build role display strings
-    const participantDisplay = participantRoleId ? `<@&${participantRoleId}> ✅` : '*(Belum diatur)* ❌';
-    const noTeamDisplay = noTeamRoleId ? `<@&${noTeamRoleId}> ✅` : '*(Belum diatur)* ❌';
-    const filterDisplay = selectRoleId
-      ? `<@&${selectRoleId}>\n*(Hanya user dengan role ini di dropdown)*`
-      : '*(Belum diatur — default: semua member)*';
-
-    // 4. Build Embed
+    // 3. Build Embed
     const embed = new EmbedBuilder()
-      .setTitle('🎛️ NSAC Staff & Admin Control Center')
+      .setTitle('🎛️ NSAC Admin Dashboard — Overview & Tim')
       .setDescription(
-        'Panel kendali terpusat untuk memantau server, membuka/menutup pendaftaran tim, ' +
-        'mengelola link invite peserta, dan mengatur konfigurasi role sistem.'
+        'Panel kendali status operasional server, pembukaan pendaftaran tim, ' +
+        'dan monitoring statistik tim peserta hackathon.'
       )
       .setColor(regOpen ? EMBED_COLORS.SUCCESS : EMBED_COLORS.DANGER)
       .addFields(
         {
           name: '📢 Status Pendaftaran Tim',
           value: regOpen
-            ? '🟢 **BUKA (OPEN)** — Peserta dapat mendaftar tim'
-            : '🔴 **TUTUP (CLOSED)** — Pendaftaran tim dinonaktifkan',
-          inline: true
+            ? '🟢 **BUKA (OPEN)** — Peserta dapat mendaftarkan tim baru'
+            : '🔴 **TUTUP (CLOSED)** — Pendaftaran tim sedang dinonaktifkan',
+          inline: false
         },
-        {
-          name: '🎟️ Link Invite Peserta',
-          value: inviteCode
-            ? `[https://discord.gg/${inviteCode}](https://discord.gg/${inviteCode})\n*(Kode: \`${inviteCode}\`)*`
-            : '*(Belum dibuat — klik tombol di bawah untuk generate)*',
-          inline: true
-        },
-        { name: '\u200B', value: '\u200B', inline: true },
         {
           name: '📊 Ringkasan Tim Hackathon',
           value:
@@ -74,26 +55,12 @@ export class DashboardService {
             `• **Menunggu Verifikasi:** \`${s.pending_count}\` tim\n` +
             `• **Diarsipkan:** \`${s.archived_count}\` tim`,
           inline: false
-        },
-        {
-          name: '🎭 Konfigurasi Role Sistem',
-          value:
-            `• **Participant** *(Identitas Peserta)*: ${participantDisplay}\n` +
-            `• **No-Team** *(Status Belum Punya Tim)*: ${noTeamDisplay}\n\n` +
-            `> \`@Participant\` tidak akan dihapus bot saat anggota keluar/tim dihapus.\n` +
-            `> Gunakan dropdown di bawah untuk set/ubah masing-masing role.`,
-          inline: false
-        },
-        {
-          name: '🎯 Filter Dropdown Pemilihan Anggota Tim',
-          value: filterDisplay,
-          inline: false
         }
       )
-      .setFooter({ text: 'NSAC Hackathon Management Bot • Terakhir Diperbarui' })
+      .setFooter({ text: 'Panel 1/3 • Overview & Tim' })
       .setTimestamp();
 
-    // 5. Action Row 1: Control Buttons
+    // 4. Action Row: Buttons
     const buttonRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('dashboard_toggle_reg')
@@ -101,37 +68,77 @@ export class DashboardService {
         .setStyle(regOpen ? ButtonStyle.Danger : ButtonStyle.Success)
         .setEmoji(regOpen ? '🔒' : '🔓'),
       new ButtonBuilder()
-        .setCustomId('dashboard_gen_invite')
-        .setLabel('Buat Link Invite')
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('🎟️'),
-      new ButtonBuilder()
-        .setCustomId('dashboard_refresh')
-        .setLabel('Refresh Panel')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🔄'),
-      new ButtonBuilder()
         .setCustomId('dashboard_open_team_panel')
         .setLabel('Kelola Tim')
         .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🛡️')
+        .setEmoji('🛡️'),
+      new ButtonBuilder()
+        .setCustomId('dashboard_refresh_all')
+        .setLabel('Refresh Semua Panel')
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji('🔄')
     );
 
-    // 6. Action Row 2: Set Participant Role
+    return {
+      embeds: [embed],
+      components: [buttonRow]
+    };
+  }
+
+  /**
+   * Build Payload for Panel 2: System Role Configuration
+   * @param {import('discord.js').Guild} guild 
+   */
+  static async buildRolesPayload(guild) {
+    const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+    const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
+    const selectRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+
+    const participantDisplay = participantRoleId ? `<@&${participantRoleId}> ✅` : '*(Belum diatur)* ❌';
+    const noTeamDisplay = noTeamRoleId ? `<@&${noTeamRoleId}> ✅` : '*(Belum diatur)* ❌';
+    const filterDisplay = selectRoleId
+      ? `<@&${selectRoleId}> *(Member dengan role ini yang tampil di dropdown pendaftaran)*`
+      : '*(Belum diatur — default: semua member)*';
+
+    const embed = new EmbedBuilder()
+      .setTitle('🎭 NSAC Admin Dashboard — Pengaturan Role Sistem')
+      .setDescription(
+        'Atur role sistem yang digunakan oleh bot untuk identitas peserta dan filter dropdown pembentukan tim. ' +
+        'Pilih role melalui menu dropdown di bawah.'
+      )
+      .setColor(EMBED_COLORS.PRIMARY)
+      .addFields(
+        {
+          name: '🎖️ Role Participant (Identitas Peserta)',
+          value: `${participantDisplay}\n*Role permanen sebagai identitas peserta resmi hackathon.*`,
+          inline: false
+        },
+        {
+          name: '🚫 Role No-Team (Belum Memiliki Tim)',
+          value: `${noTeamDisplay}\n*Role sementara untuk peserta yang belum terdaftar di tim mana pun.*`,
+          inline: false
+        },
+        {
+          name: '🎯 Filter Dropdown Pemilihan Anggota',
+          value: `${filterDisplay}`,
+          inline: false
+        }
+      )
+      .setFooter({ text: 'Panel 2/3 • Konfigurasi Role' })
+      .setTimestamp();
+
     const participantRoleSelect = new RoleSelectMenuBuilder()
       .setCustomId('dashboard_roleselect_participant')
-      .setPlaceholder('🎭 Set Role: Participant (Identitas Peserta Resmi)...')
+      .setPlaceholder('🎭 Set Role: Participant (Identitas Peserta)...')
       .setMinValues(1)
       .setMaxValues(1);
 
-    // 7. Action Row 3: Set No-Team Role
     const noTeamRoleSelect = new RoleSelectMenuBuilder()
       .setCustomId('dashboard_roleselect_noteam')
-      .setPlaceholder('🚫 Set Role: No-Team (Status Belum Punya Tim)...')
+      .setPlaceholder('🚫 Set Role: No-Team (Belum Punya Tim)...')
       .setMinValues(1)
       .setMaxValues(1);
 
-    // 8. Action Row 4: Set Member Filter Role
     const filterRoleSelect = new RoleSelectMenuBuilder()
       .setCustomId('dashboard_select_member_role')
       .setPlaceholder('🎯 Set Filter Dropdown Pemilihan Anggota Tim...')
@@ -141,7 +148,6 @@ export class DashboardService {
     return {
       embeds: [embed],
       components: [
-        buttonRow,
         new ActionRowBuilder().addComponents(participantRoleSelect),
         new ActionRowBuilder().addComponents(noTeamRoleSelect),
         new ActionRowBuilder().addComponents(filterRoleSelect)
@@ -150,7 +156,76 @@ export class DashboardService {
   }
 
   /**
-   * Setup or find the admin dashboard channel and deploy/update the control panel
+   * Build Payload for Panel 3: Dynamic Invites & Auto-Role Manager
+   * @param {import('discord.js').Guild} guild 
+   */
+  static async buildInvitesPayload(guild) {
+    const dynamicInvites = await getAllInviteRoles();
+    const guildInvites = await guild.invites.fetch().catch(() => null);
+
+    let listText = '';
+    if (dynamicInvites.length === 0) {
+      listText = '*(Belum ada link invite dinamis. Klik tombol **Buat Link Baru** di bawah untuk membuatnya).*';
+    } else {
+      const lines = dynamicInvites.map((inv, idx) => {
+        const liveInvite = guildInvites?.get(inv.invite_code);
+        const uses = liveInvite ? liveInvite.uses : '?';
+        const roleMention = `<@&${inv.role_id}>`;
+        const roleObj = guild.roles.cache.get(inv.role_id);
+        const roleLabel = inv.label || (roleObj ? roleObj.name : 'Role');
+
+        return `**${idx + 1}. [${roleLabel}]** ➔ ${roleMention}\n` +
+               `   • Link: [https://discord.gg/${inv.invite_code}](https://discord.gg/${inv.invite_code}) \`(Kode: ${inv.invite_code})\`\n` +
+               `   • Total Digunakan: \`${uses}\` kali`;
+      });
+      listText = lines.join('\n\n');
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle('🎟️ NSAC Admin Dashboard — Dynamic Invites & Auto-Role')
+      .setDescription(
+        'Buat dan kelola link invite Discord dengan **Auto-Role Dinamis**.\n' +
+        'Setiap orang yang bergabung menggunakan link invite tertentu akan langsung mendapatkan role yang ditentukan (misal: Peserta, Mentor, Juri, Tamu, dll).'
+      )
+      .setColor(EMBED_COLORS.SECONDARY)
+      .addFields(
+        {
+          name: `🔗 Daftar Link Invite Aktif (${dynamicInvites.length})`,
+          value: listText.length > 4000 ? listText.substring(0, 3950) + '...\n*(dan lainnya)*' : listText,
+          inline: false
+        }
+      )
+      .setFooter({ text: 'Panel 3/3 • Dynamic Invites' })
+      .setTimestamp();
+
+    const buttonRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('dashboard_invite_create')
+        .setLabel('Buat Link Baru')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('➕'),
+      new ButtonBuilder()
+        .setCustomId('dashboard_invite_delete')
+        .setLabel('Hapus Link')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('🗑️')
+        .setDisabled(dynamicInvites.length === 0),
+      new ButtonBuilder()
+        .setCustomId('dashboard_invite_refresh')
+        .setLabel('Refresh Invite')
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji('🔄')
+    );
+
+    return {
+      embeds: [embed],
+      components: [buttonRow]
+    };
+  }
+
+  /**
+   * Setup or find the admin dashboard channel and deploy/update all separated panels.
+   * Also purges any non-panel messages to keep the channel clean.
    * @param {import('discord.js').Guild} guild 
    * @param {import('discord.js').Client} client 
    */
@@ -213,51 +288,172 @@ export class DashboardService {
       logger.info(`[DashboardService] Created admin dashboard channel: #${channel.name} (${channel.id})`);
     }
 
-    // Check existing message or post new one
-    const payload = await this.buildDashboardPayload(guild);
-    let messageId = GuildConfigService.get('DASHBOARD_MESSAGE_ID');
-    let message = null;
+    // 1. Overview Panel
+    const overviewPayload = await this.buildOverviewPayload(guild);
+    let overviewMsgId = GuildConfigService.get('DASHBOARD_OVERVIEW_MSG_ID') || GuildConfigService.get('DASHBOARD_MESSAGE_ID');
+    let overviewMsg = overviewMsgId ? await channel.messages.fetch(overviewMsgId).catch(() => null) : null;
 
-    if (messageId) {
-      message = await channel.messages.fetch(messageId).catch(() => null);
-    }
-
-    if (message) {
-      await message.edit(payload);
-      logger.info(`[DashboardService] Updated existing dashboard message in #${channel.name}`);
+    if (overviewMsg) {
+      await overviewMsg.edit(overviewPayload);
     } else {
-      message = await channel.send(payload);
-      await GuildConfigService.set('DASHBOARD_MESSAGE_ID', message.id);
-      logger.info(`[DashboardService] Posted new dashboard message in #${channel.name}`);
+      overviewMsg = await channel.send(overviewPayload);
     }
+    await GuildConfigService.set('DASHBOARD_OVERVIEW_MSG_ID', overviewMsg.id);
+    await GuildConfigService.set('DASHBOARD_MESSAGE_ID', overviewMsg.id);
 
-    return { channel, message };
+    // 2. Roles Panel
+    const rolesPayload = await this.buildRolesPayload(guild);
+    let rolesMsgId = GuildConfigService.get('DASHBOARD_ROLES_MSG_ID');
+    let rolesMsg = rolesMsgId ? await channel.messages.fetch(rolesMsgId).catch(() => null) : null;
+
+    if (rolesMsg) {
+      await rolesMsg.edit(rolesPayload);
+    } else {
+      rolesMsg = await channel.send(rolesPayload);
+    }
+    await GuildConfigService.set('DASHBOARD_ROLES_MSG_ID', rolesMsg.id);
+
+    // 3. Invites Panel
+    const invitesPayload = await this.buildInvitesPayload(guild);
+    let invitesMsgId = GuildConfigService.get('DASHBOARD_INVITES_MSG_ID');
+    let invitesMsg = invitesMsgId ? await channel.messages.fetch(invitesMsgId).catch(() => null) : null;
+
+    if (invitesMsg) {
+      await invitesMsg.edit(invitesPayload);
+    } else {
+      invitesMsg = await channel.send(invitesPayload);
+    }
+    await GuildConfigService.set('DASHBOARD_INVITES_MSG_ID', invitesMsg.id);
+
+    // 4. Purge any other messages in the channel to keep it strictly clean
+    await this.cleanExtraneousMessages(channel, [overviewMsg.id, rolesMsg.id, invitesMsg.id]);
+
+    logger.info(`[DashboardService] Deployed/Updated 3 dashboard panels in #${channel.name}`);
+    return { channel, overviewMsg, rolesMsg, invitesMsg };
   }
 
   /**
-   * Refresh the dashboard message in-place
+   * Delete any non-panel messages in the channel.
+   * @param {import('discord.js').TextChannel} channel 
+   * @param {string[]} panelMessageIds 
+   */
+  static async cleanExtraneousMessages(channel, panelMessageIds) {
+    try {
+      const messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+      if (!messages) return;
+
+      const validIds = new Set(panelMessageIds);
+      const toDelete = messages.filter((m) => !validIds.has(m.id));
+
+      if (toDelete.size > 0) {
+        logger.info(`[DashboardService] Purging ${toDelete.size} non-panel messages in #${channel.name}...`);
+        await channel.bulkDelete(toDelete, true).catch(async () => {
+          for (const [, msg] of toDelete) {
+            await msg.delete().catch(() => {});
+          }
+        });
+      }
+    } catch (err) {
+      logger.warn(`[DashboardService] Clean extraneous messages warning: ${err.message}`);
+    }
+  }
+
+  /**
+   * Refresh Panel 1: Overview
+   */
+  static async refreshOverviewPanel(guild) {
+    const channelId = GuildConfigService.get('DASHBOARD_CHANNEL_ID');
+    const msgId = GuildConfigService.get('DASHBOARD_OVERVIEW_MSG_ID') || GuildConfigService.get('DASHBOARD_MESSAGE_ID');
+    if (!channelId || !msgId) return false;
+
+    try {
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
+      if (!channel?.isTextBased()) return false;
+      const msg = await channel.messages.fetch(msgId).catch(() => null);
+      if (!msg) return false;
+
+      const payload = await this.buildOverviewPayload(guild);
+      await msg.edit(payload);
+      return true;
+    } catch (err) {
+      logger.warn(`[DashboardService] Failed to refresh overview panel: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Refresh Panel 2: Roles
+   */
+  static async refreshRolesPanel(guild) {
+    const channelId = GuildConfigService.get('DASHBOARD_CHANNEL_ID');
+    const msgId = GuildConfigService.get('DASHBOARD_ROLES_MSG_ID');
+    if (!channelId || !msgId) return false;
+
+    try {
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
+      if (!channel?.isTextBased()) return false;
+      const msg = await channel.messages.fetch(msgId).catch(() => null);
+      if (!msg) return false;
+
+      const payload = await this.buildRolesPayload(guild);
+      await msg.edit(payload);
+      return true;
+    } catch (err) {
+      logger.warn(`[DashboardService] Failed to refresh roles panel: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Refresh Panel 3: Dynamic Invites
+   */
+  static async refreshInvitesPanel(guild) {
+    const channelId = GuildConfigService.get('DASHBOARD_CHANNEL_ID');
+    const msgId = GuildConfigService.get('DASHBOARD_INVITES_MSG_ID');
+    if (!channelId || !msgId) return false;
+
+    try {
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
+      if (!channel?.isTextBased()) return false;
+      const msg = await channel.messages.fetch(msgId).catch(() => null);
+      if (!msg) return false;
+
+      const payload = await this.buildInvitesPayload(guild);
+      await msg.edit(payload);
+      return true;
+    } catch (err) {
+      logger.warn(`[DashboardService] Failed to refresh invites panel: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Refresh all 3 panels at once.
+   * @param {import('discord.js').Guild} guild 
+   */
+  static async refreshAllPanels(guild) {
+    await Promise.allSettled([
+      this.refreshOverviewPanel(guild),
+      this.refreshRolesPanel(guild),
+      this.refreshInvitesPanel(guild)
+    ]);
+    return true;
+  }
+
+  /**
+   * General refresh dashboard method for backward compatibility
    * @param {import('discord.js').Client} client 
    * @param {import('discord.js').Guild} guild 
    */
   static async refreshDashboard(client, guild) {
-    const channelId = GuildConfigService.get('DASHBOARD_CHANNEL_ID');
-    const messageId = GuildConfigService.get('DASHBOARD_MESSAGE_ID');
+    return await this.refreshAllPanels(guild);
+  }
 
-    if (!channelId || !messageId) return false;
-
-    try {
-      const channel = await guild.channels.fetch(channelId).catch(() => null);
-      if (!channel || !channel.isTextBased()) return false;
-
-      const message = await channel.messages.fetch(messageId).catch(() => null);
-      if (!message) return false;
-
-      const payload = await this.buildDashboardPayload(guild);
-      await message.edit(payload);
-      return true;
-    } catch (err) {
-      logger.warn(`[DashboardService] Failed to refresh dashboard: ${err.message}`);
-      return false;
-    }
+  /**
+   * Legacy buildDashboardPayload for any old calls
+   * @param {import('discord.js').Guild} guild 
+   */
+  static async buildDashboardPayload(guild) {
+    return await this.buildOverviewPayload(guild);
   }
 }

@@ -19,6 +19,7 @@ import setupDashboardCmd from './commands/admin/setupDashboard.js';
 import readyEvent from './events/ready.js';
 import guildMemberAddEvent from './events/guildMemberAdd.js';
 import interactionCreateEvent from './events/interactionCreate.js';
+import messageCreateEvent from './events/messageCreate.js';
 
 // Initialize Client
 const client = new Client({
@@ -64,6 +65,7 @@ for (const cmd of commandList) {
 client.once(readyEvent.name, (...args) => readyEvent.execute(...args));
 client.on(guildMemberAddEvent.name, (...args) => guildMemberAddEvent.execute(...args));
 client.on(interactionCreateEvent.name, (...args) => interactionCreateEvent.execute(...args));
+client.on(messageCreateEvent.name, (...args) => messageCreateEvent.execute(...args));
 
 // Handle Process Termination Gracefully
 async function gracefulShutdown(signal) {

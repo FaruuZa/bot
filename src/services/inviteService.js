@@ -1,4 +1,5 @@
 import { GuildConfigService } from './guildConfigService.js';
+import { saveInviteRole, deleteInviteRole, getAllInviteRoles, getInviteRoleByCode } from '../database/queries/inviteQueries.js';
 import { logger } from '../utils/logger.js';
 
 export class InviteService {
@@ -89,31 +90,98 @@ export class InviteService {
   }
 
   /**
-   * Create or update a participant invite link for a guild and persist in guild_config.
+   * Create a dynamic invite link tied to a specific role.
    * @param {import('discord.js').Guild} guild 
+   * @param {string} roleId 
    * @param {import('discord.js').GuildChannel} [channel] 
+   * @param {string} [createdBy] 
    * @param {object} [options]
    */
-  static async createParticipantInvite(guild, channel = null, options = {}) {
+  static async createDynamicInvite(guild, roleId, channel = null, createdBy = null, options = {}) {
     const targetChannel = channel || guild.systemChannel || guild.rulesChannel || guild.channels.cache.find(c => c.isTextBased());
     if (!targetChannel) {
-      throw new Error('No accessible text channel found to generate invite link.');
+      throw new Error('Tidak ditemukan text channel yang dapat diakses untuk membuat link invite.');
     }
+
+    const role = guild.roles.cache.get(roleId);
+    const roleName = role ? role.name : 'Unknown Role';
 
     const invite = await targetChannel.createInvite({
       maxAge: options.maxAge ?? 0, // 0 = permanent
       maxUses: options.maxUses ?? 0, // 0 = unlimited
       unique: true,
-      reason: 'Auto-Role Participant Invite Link created by Staff/Dashboard'
+      reason: `Auto-Role Invite for @${roleName} created by staff (${createdBy || 'Dashboard'})`
     });
 
-    // Persist code in config
-    await GuildConfigService.set('PARTICIPANT_INVITE_CODE', invite.code);
+    // Save to database
+    await saveInviteRole({
+      inviteCode: invite.code,
+      roleId,
+      channelId: targetChannel.id,
+      label: roleName,
+      createdBy
+    });
+
+    // If this is the participant role, keep backward compatibility in guild_config
+    const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+    if (participantRoleId && roleId === participantRoleId) {
+      await GuildConfigService.set('PARTICIPANT_INVITE_CODE', invite.code);
+    }
 
     // Update cache
     await this.updateGuildCache(guild);
 
-    logger.info(`[InviteService] Created new participant invite ${invite.url} (Code: ${invite.code})`);
+    logger.info(`[InviteService] Created dynamic invite ${invite.url} (Code: ${invite.code}) -> Role: ${roleName} (${roleId})`);
+    return { invite, roleName };
+  }
+
+  /**
+   * Delete a dynamic invite link from database and Discord.
+   * @param {import('discord.js').Guild} guild 
+   * @param {string} inviteCode 
+   */
+  static async deleteDynamicInvite(guild, inviteCode) {
+    if (!inviteCode) return false;
+
+    // 1. Delete from DB
+    await deleteInviteRole(inviteCode);
+
+    // 2. Delete from Discord if it exists
+    try {
+      const invites = await guild.invites.fetch().catch(() => null);
+      const discordInvite = invites?.get(inviteCode);
+      if (discordInvite) {
+        await discordInvite.delete('Deleted by staff via Admin Dashboard').catch(() => {});
+      }
+    } catch (err) {
+      logger.warn(`[InviteService] Could not delete invite ${inviteCode} from Discord: ${err.message}`);
+    }
+
+    // 3. Clear from config if it was the legacy participant invite
+    const currentParticipantCode = GuildConfigService.get('PARTICIPANT_INVITE_CODE');
+    if (currentParticipantCode && currentParticipantCode.toLowerCase() === inviteCode.toLowerCase()) {
+      await GuildConfigService.set('PARTICIPANT_INVITE_CODE', '');
+    }
+
+    // 4. Update cache
+    await this.updateGuildCache(guild);
+    logger.info(`[InviteService] Deleted dynamic invite code: ${inviteCode}`);
+    return true;
+  }
+
+  /**
+   * Create or update a participant invite link (convenience wrapper).
+   * @param {import('discord.js').Guild} guild 
+   * @param {import('discord.js').GuildChannel} [channel] 
+   * @param {object} [options]
+   */
+  static async createParticipantInvite(guild, channel = null, options = {}) {
+    const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+    if (!participantRoleId) {
+      throw new Error('Role Participant belum diatur! Harap atur Participant Role terlebih dahulu di panel konfigurasi role.');
+    }
+    const { invite } = await this.createDynamicInvite(guild, participantRoleId, channel, 'Dashboard', options);
     return invite;
   }
 }
+
