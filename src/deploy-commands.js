@@ -5,25 +5,19 @@ import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 
 // Import all commands
-import registerTeamCmd from './commands/registration/registerTeam.js';
+import registerCmd from './commands/registration/register.js';
 import teamCmd from './commands/team/team.js';
 import ticketCmd from './commands/ticket/close.js';
-import setupPanelsCmd from './commands/admin/setupPanels.js';
-import setupConfigCmd from './commands/admin/setupConfig.js';
-import teamPanelCmd from './commands/admin/teamPanel.js';
+import setupCmd from './commands/admin/setup.js';
 import faqCmd from './commands/admin/faq.js';
 import announceCmd from './commands/admin/announce.js';
 import purgeCmd from './commands/admin/purge.js';
-import setupDashboardCmd from './commands/admin/setupDashboard.js';
 
 const commands = [
-  registerTeamCmd.data.toJSON(),
+  registerCmd.data.toJSON(),
   teamCmd.data.toJSON(),
   ticketCmd.data.toJSON(),
-  setupPanelsCmd.data.toJSON(),
-  setupConfigCmd.data.toJSON(),
-  setupDashboardCmd.data.toJSON(),
-  teamPanelCmd.data.toJSON(),
+  setupCmd.data.toJSON(),
   faqCmd.data.toJSON(),
   announceCmd.data.toJSON(),
   purgeCmd.data.toJSON()
@@ -59,17 +53,23 @@ export async function deployCommands() {
   }
 }
 
-const currentFilePath = fileURLToPath(import.meta.url);
-const executedFilePath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+import { pool } from './database/pool.js';
 
-if (executedFilePath && path.normalize(currentFilePath).toLowerCase() === path.normalize(executedFilePath).toLowerCase()) {
+const isDirectRun = Boolean(
+  process.argv[1] &&
+  path.resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+);
+
+if (isDirectRun) {
   deployCommands()
-    .then(() => {
+    .then(async () => {
       logger.info('[Deploy Commands] Pendaftaran slash commands selesai.');
-      process.exit(0);
+      try { await pool.end(); } catch (_) {}
+      setTimeout(() => process.exit(0), 150);
     })
-    .catch((err) => {
+    .catch(async (err) => {
       logger.error('[Deploy Commands] Error:', err.message);
-      process.exit(1);
+      try { await pool.end(); } catch (_) {}
+      setTimeout(() => process.exit(1), 150);
     });
 }

@@ -3,12 +3,16 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  EmbedBuilder,
   MessageFlags
 } from 'discord.js';
 import { PermissionService } from '../../services/permissionService.js';
 import { TeamService } from '../../services/teamService.js';
 import { InvitationService } from '../../services/invitationService.js';
 import { AuditService } from '../../services/auditService.js';
+import { pool } from '../../database/pool.js';
 import {
   getTeamByName,
   getTeamById,
@@ -25,8 +29,100 @@ import {
 } from '../../database/queries/invitationQueries.js';
 import { getUserByDiscordId, upsertUser } from '../../database/queries/userQueries.js';
 import { errorEmbed, successEmbed, teamInfoEmbed, warningEmbed } from '../../utils/embeds.js';
-import { AUDIT_ACTIONS, CUSTOM_IDS, MEMBER_ROLE, MEMBER_STATUS, TEAM_STATUS } from '../../config/constants.js';
+import { AUDIT_ACTIONS, CUSTOM_IDS, MEMBER_ROLE, MEMBER_STATUS, TEAM_STATUS, EMBED_COLORS } from '../../config/constants.js';
 import { env } from '../../config/env.js';
+
+export async function buildTeamPanelDashboard(guild) {
+  // Query team statistics & list
+  const { rows: stats } = await pool.query(`
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_count,
+      COUNT(*) FILTER (WHERE status = 'PENDING') as pending_count,
+      COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived_count,
+      COUNT(*) FILTER (WHERE status = 'DISBANDED') as disbanded_count
+    FROM teams
+  `);
+
+  const { rows: teams } = await pool.query(`
+    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
+           (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'ACTIVE') as member_count
+    FROM teams t
+    LEFT JOIN users u ON t.leader_id = u.id
+    ORDER BY 
+      CASE t.status
+        WHEN 'PENDING' THEN 1
+        WHEN 'ACTIVE' THEN 2
+        WHEN 'ARCHIVED' THEN 3
+        ELSE 4
+      END,
+      t.created_at DESC
+    LIMIT 25
+  `);
+
+  const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0, disbanded_count: 0 };
+
+  const embed = new EmbedBuilder()
+    .setTitle('🛡️ Hackathon Team Admin Panel')
+    .setDescription(
+      'Panel kontrol terpusat untuk memantau, approve, dan mengelola seluruh tim hackathon.\n' +
+      'Pilih tim dari dropdown menu di bawah untuk melihat detail atau menjalankan aksi.'
+    )
+    .setColor(EMBED_COLORS.PRIMARY)
+    .addFields(
+      { name: '🟢 Tim Aktif', value: `**${s.active_count}** Tim`, inline: true },
+      { name: '⏳ Menunggu Konfirmasi', value: `**${s.pending_count}** Tim`, inline: true },
+      { name: '📦 Diarsipkan / Bubar', value: `**${s.archived_count}** / **${s.disbanded_count}**`, inline: true }
+    )
+    .setFooter({ text: 'NSAC Team Management Dashboard' })
+    .setTimestamp();
+
+  const components = [];
+
+  if (teams.length > 0) {
+    const options = teams.map((t) => {
+      const leaderTag = t.leader_username ? `@${t.leader_username}` : 'Unknown';
+      const desc = `Leader: ${leaderTag} | ${t.member_count} anggota | Status: ${t.status}`;
+      return new StringSelectMenuOptionBuilder()
+        .setLabel(`${t.name} (ID: ${t.id})`.substring(0, 100))
+        .setDescription(desc.substring(0, 100))
+        .setValue(t.id.toString())
+        .setEmoji(t.status === 'ACTIVE' ? '🛡️' : t.status === 'PENDING' ? '⏳' : '📁');
+    });
+
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('team_panel_select_team')
+      .setPlaceholder('🔍 Pilih tim untuk melihat detail & opsi...')
+      .addOptions(options);
+
+    components.push(new ActionRowBuilder().addComponents(selectMenu));
+  } else {
+    embed.addFields({ name: 'Daftar Tim', value: '*(Belum ada tim yang terdaftar di database)*', inline: false });
+  }
+
+  // Action Buttons row
+  const buttonRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(CUSTOM_IDS.BTN_STAFF_ADD_TEAM)
+      .setLabel('Tambah Tim')
+      .setStyle(ButtonStyle.Success)
+      .setEmoji('➕'),
+    new ButtonBuilder()
+      .setCustomId('team_panel_refresh')
+      .setLabel('Refresh Data')
+      .setStyle(ButtonStyle.Secondary)
+      .setEmoji('🔄'),
+    new ButtonBuilder()
+      .setCustomId('team_panel_export_summary')
+      .setLabel('Export Ringkasan Tim')
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji('📋')
+  );
+
+  components.push(buttonRow);
+
+  return { embed, components };
+}
+
 
 export default {
   data: new SlashCommandBuilder()
@@ -142,11 +238,28 @@ export default {
         .addUserOption((opt) => opt.setName('member1').setDescription('Member 1').setRequired(false))
         .addUserOption((opt) => opt.setName('member2').setDescription('Member 2').setRequired(false))
         .addUserOption((opt) => opt.setName('member3').setDescription('Member 3').setRequired(false))
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('panel')
+        .setDescription('[Staff] Interactive dashboard to monitor and manage all teams')
     ),
 
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
     const isStaffUser = PermissionService.isStaff(interaction.member);
+
+    // ========================================================
+    // 0. PANEL SUBCOMMAND (Staff Dashboard)
+    // ========================================================
+    if (subcommand === 'panel') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      if (!isStaffUser) {
+        return await interaction.editReply({ embeds: [errorEmbed('Staff Only', 'Hanya staff yang dapat membuka dashboard tim.')] });
+      }
+      const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
+      return await interaction.editReply({ embeds: [embed], components });
+    }
 
     // ========================================================
     // 1. INFO SUBCOMMAND

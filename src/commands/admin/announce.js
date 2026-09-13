@@ -31,6 +31,28 @@ export default {
           { name: 'Yellow (Warning)', value: 'WARNING' },
           { name: 'Blue (Info)', value: 'INFO' }
         )
+    )
+    .addRoleOption((opt) =>
+      opt
+        .setName('role')
+        .setDescription('Role to ping / mention (e.g. @Participant)')
+        .setRequired(false)
+    )
+    .addRoleOption((opt) =>
+      opt
+        .setName('role2')
+        .setDescription('Second role to ping (optional)')
+        .setRequired(false)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('mention')
+        .setDescription('Global ping type')
+        .setRequired(false)
+        .addChoices(
+          { name: '@everyone', value: 'everyone' },
+          { name: '@here', value: 'here' }
+        )
     ),
 
   async execute(interaction) {
@@ -46,6 +68,9 @@ export default {
     const title = interaction.options.getString('title');
     const rawMessage = interaction.options.getString('message');
     const colorChoice = interaction.options.getString('color') || 'PRIMARY';
+    const role = interaction.options.getRole('role');
+    const role2 = interaction.options.getRole('role2');
+    const mentionChoice = interaction.options.getString('mention');
 
     const formattedMessage = rawMessage.replace(/\\n/g, '\n');
 
@@ -56,10 +81,26 @@ export default {
       .setFooter({ text: `Announced by ${interaction.user.tag}` })
       .setTimestamp();
 
-    await channel.send({ embeds: [embed] });
+    // Construct outer text mentions so Discord triggers audio/push alerts
+    const mentions = [];
+    if (mentionChoice === 'everyone') mentions.push('@everyone');
+    else if (mentionChoice === 'here') mentions.push('@here');
+    if (role) mentions.push(`<@&${role.id}>`);
+    if (role2) mentions.push(`<@&${role2.id}>`);
 
+    const content = mentions.length > 0 ? mentions.join(' ') : undefined;
+
+    await channel.send({
+      content,
+      embeds: [embed],
+      allowedMentions: {
+        parse: ['roles', 'users', 'everyone']
+      }
+    });
+
+    const pingNotice = mentions.length > 0 ? ` (dengan mention: ${mentions.join(' ')})` : '';
     return await interaction.editReply({
-      embeds: [successEmbed('Announcement Sent', `Announcement posted to <#${channel.id}>.`)]
+      embeds: [successEmbed('Pengumuman Terkirim', `Pengumuman berhasil diposting ke <#${channel.id}>${pingNotice}.`)]
     });
   }
 };

@@ -4,16 +4,13 @@ import { pool } from './database/pool.js';
 import { logger } from './utils/logger.js';
 
 // Import Commands
-import registerTeamCmd from './commands/registration/registerTeam.js';
+import registerCmd from './commands/registration/register.js';
 import teamCmd from './commands/team/team.js';
 import ticketCmd from './commands/ticket/close.js';
-import setupPanelsCmd from './commands/admin/setupPanels.js';
-import setupConfigCmd from './commands/admin/setupConfig.js';
-import teamPanelCmd from './commands/admin/teamPanel.js';
+import setupCmd from './commands/admin/setup.js';
 import faqCmd from './commands/admin/faq.js';
 import announceCmd from './commands/admin/announce.js';
 import purgeCmd from './commands/admin/purge.js';
-import setupDashboardCmd from './commands/admin/setupDashboard.js';
 
 // Import Events
 import readyEvent from './events/ready.js';
@@ -42,13 +39,10 @@ const client = new Client({
 // Register Commands
 client.commands = new Collection();
 const commandList = [
-  registerTeamCmd,
+  registerCmd,
   teamCmd,
   ticketCmd,
-  setupPanelsCmd,
-  setupConfigCmd,
-  setupDashboardCmd,
-  teamPanelCmd,
+  setupCmd,
   faqCmd,
   announceCmd,
   purgeCmd

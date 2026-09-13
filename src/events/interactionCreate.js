@@ -22,7 +22,7 @@ import { PermissionService } from '../services/permissionService.js';
 import { getUserActiveTeamByDiscordId, getActiveTeamMembers } from '../database/queries/memberQueries.js';
 import { getTeamById } from '../database/queries/teamQueries.js';
 import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
-import { buildTeamPanelDashboard } from '../commands/admin/teamPanel.js';
+import { buildTeamPanelDashboard } from '../commands/team/team.js';
 import { validateTeamName } from '../utils/validators.js';
 import { errorEmbed, successEmbed, infoEmbed, warningEmbed, teamInfoEmbed } from '../utils/embeds.js';
 import { DashboardService } from '../services/dashboardService.js';
