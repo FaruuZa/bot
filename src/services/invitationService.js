@@ -1,5 +1,5 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
-import { CUSTOM_IDS, INVITATION_STATUS, MEMBER_ROLE, MEMBER_STATUS, AUDIT_ACTIONS, TEAM_STATUS } from '../config/constants.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from 'discord.js';
+import { CUSTOM_IDS, INVITATION_STATUS, MEMBER_ROLE, MEMBER_STATUS, AUDIT_ACTIONS, EMBED_COLORS } from '../config/constants.js';
 import {
   createInvitation,
   getInvitationById,
@@ -7,16 +7,21 @@ import {
   updateInvitationStatus,
   markExpiredInvitations
 } from '../database/queries/invitationQueries.js';
-import { addTeamMember, getUserActiveTeamByDiscordId } from '../database/queries/memberQueries.js';
-import { getTeamById, updateTeamStatus } from '../database/queries/teamQueries.js';
+import {
+  addTeamMember,
+  getUserActiveTeamByDiscordId,
+  updateMemberStatus
+} from '../database/queries/memberQueries.js';
+import { getTeamById } from '../database/queries/teamQueries.js';
 import { getUserByDiscordId } from '../database/queries/userQueries.js';
 import { invitationEmbed, successEmbed, errorEmbed } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
 import { AuditService } from './auditService.js';
+import { DiscordService } from './discordService.js';
 
 export class InvitationService {
   /**
-   * Create an invitation record in the database
+   * Buat entri undangan di database
    */
   static async createTeamInvitation({ teamId, invitedUserId, invitedBy, expiresAt, dbClient }) {
     return await createInvitation({
@@ -28,12 +33,11 @@ export class InvitationService {
   }
 
   /**
-   * Send the interactive DM/Message invitation to a user
+   * Kirim pesan undangan interaktif via DM ke anggota
    */
   static async sendInvitationMessage({ guild, team, leaderMember, targetMember, expiresAt }) {
     const embed = invitationEmbed(team.name, leaderMember.user.tag, expiresAt);
 
-    // Get the invitation ID from DB
     const user = await getUserByDiscordId(targetMember.id);
     if (!user) return;
 
@@ -44,40 +48,38 @@ export class InvitationService {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`${CUSTOM_IDS.BTN_INVITE_ACCEPT}${invite.id}`)
-        .setLabel('Accept')
-        .setStyle(ButtonStyle.Success)
-        .setEmoji('✅'),
+        .setLabel('Terima')
+        .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(`${CUSTOM_IDS.BTN_INVITE_DECLINE}${invite.id}`)
-        .setLabel('Decline')
+        .setLabel('Tolak')
         .setStyle(ButtonStyle.Danger)
-        .setEmoji('✖️')
     );
 
-    // Attempt to DM the user; if DMs are closed, notify in registration channel or log
     try {
       await targetMember.send({ embeds: [embed], components: [row] });
-      logger.info(`[InvitationService] Sent invitation DM to ${targetMember.user.tag} for team "${team.name}"`);
+      logger.info(`[InvitationService] Undangan DM terkirim ke ${targetMember.user.tag} untuk tim "${team.name}"`);
     } catch (err) {
-      logger.warn(`[InvitationService] Could not DM user ${targetMember.user.tag}: ${err.message}.`);
+      logger.warn(`[InvitationService] Tidak bisa DM ${targetMember.user.tag}: ${err.message}.`);
     }
   }
 
   /**
-   * Handle member clicking 'Accept' button
+   * Handle member klik tombol 'Terima' undangan.
+   * Tim sudah ACTIVE — anggota langsung join dan mendapat role.
    */
   static async handleAccept(interaction, invitationId, teamService) {
     const invite = await getInvitationById(invitationId);
     if (!invite) {
       return await interaction.reply({
-        embeds: [errorEmbed('Invitation Not Found', 'This invitation does not exist or has already been removed.')],
+        embeds: [errorEmbed('Undangan Tidak Ditemukan', 'Undangan ini tidak ada atau sudah dihapus.')],
         flags: MessageFlags.Ephemeral
       });
     }
 
     if (invite.status !== INVITATION_STATUS.PENDING) {
       return await interaction.reply({
-        embeds: [errorEmbed('Invalid Invitation', `This invitation is already **${invite.status}**.`)],
+        embeds: [errorEmbed('Undangan Tidak Valid', `Undangan ini sudah berstatus **${invite.status}**.`)],
         flags: MessageFlags.Ephemeral
       });
     }
@@ -85,119 +87,182 @@ export class InvitationService {
     if (new Date(invite.expires_at) <= new Date()) {
       await updateInvitationStatus(invite.id, INVITATION_STATUS.EXPIRED);
       return await interaction.reply({
-        embeds: [errorEmbed('Invitation Expired', 'This invitation has expired.')],
+        embeds: [errorEmbed('Undangan Kedaluwarsa', 'Undangan ini sudah melewati batas waktu.')],
         flags: MessageFlags.Ephemeral
       });
     }
 
-    // Verify button clicker is the invited user
+    // Pastikan yang klik adalah orang yang diundang
     if (interaction.user.id !== invite.invited_discord_id) {
       return await interaction.reply({
-        embeds: [errorEmbed('Unauthorized', 'This invitation was not sent to you.')],
+        embeds: [errorEmbed('Tidak Berwenang', 'Undangan ini bukan untukmu.')],
         flags: MessageFlags.Ephemeral
       });
     }
 
-    // Anti-double-team check
+    // Cek apakah sudah di tim lain
     const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
     if (activeTeam) {
       return await interaction.reply({
-        embeds: [errorEmbed('Already in a Team', `❌ You are already registered in team **${activeTeam.name}**.`)],
+        embeds: [errorEmbed('Sudah di Tim Lain', `Kamu sudah terdaftar di tim **${activeTeam.name}**.`)],
         flags: MessageFlags.Ephemeral
       });
     }
 
-    // 1. Mark invitation ACCEPTED
+    // Ambil data tim yang sudah aktif
+    const team = await getTeamById(invite.team_id);
+    if (!team) {
+      return await interaction.reply({
+        embeds: [errorEmbed('Tim Tidak Ditemukan', 'Tim yang bersangkutan tidak ditemukan.')],
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    // 1. Tandai undangan sebagai ACCEPTED
     await updateInvitationStatus(invite.id, INVITATION_STATUS.ACCEPTED);
 
-    // 2. Add member record (PENDING until all accept, or will be activated upon finalization)
-    await addTeamMember({
-      teamId: invite.team_id,
-      userId: invite.invited_user_id,
-      role: MEMBER_ROLE.MEMBER,
-      status: MEMBER_STATUS.PENDING
-    });
+    // 2. Aktifkan status member dari PENDING ke ACTIVE
+    await updateMemberStatus(invite.team_id, invite.invited_user_id, MEMBER_STATUS.ACTIVE);
 
+    // 3. Assign Discord role tim langsung
+    try {
+      const { env } = await import('../config/env.js');
+      const guild = interaction.guild ?? await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
+
+      if (guild && team.role_id) {
+        await DiscordService.assignTeamMembershipRoles(guild, interaction.user.id, team.role_id);
+      }
+
+      // 4. Notifikasi di channel tim bahwa anggota baru bergabung
+      if (guild && team.text_channel_id) {
+        const textChannel = guild.channels.cache.get(team.text_channel_id)
+          || await guild.channels.fetch(team.text_channel_id).catch(() => null);
+        if (textChannel && textChannel.isTextBased()) {
+          await textChannel.send({
+            embeds: [
+              new EmbedBuilder()
+                .setColor(EMBED_COLORS.SUCCESS)
+                .setDescription(`<@${interaction.user.id}> baru saja bergabung ke tim **${team.name}**. Selamat datang!`)
+                .setTimestamp()
+            ]
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      logger.error(`[InvitationService] Gagal assign role setelah accept: ${err.message}`);
+    }
+
+    // 5. Update pesan undangan
     await interaction.update({
-      embeds: [successEmbed('Invitation Accepted!', `✅ Kamu telah bergabung ke tim **${invite.team_name}**!\n\nMenunggu seluruh anggota lain menerima undangan, setelah itu channel tim akan dibuat secara otomatis.`)],
+      embeds: [
+        successEmbed(
+          'Undangan Diterima!',
+          `Kamu berhasil bergabung ke tim **${invite.team_name}**.\n\n` +
+          `Role dan akses channel tim sudah diberikan. Silakan cek channel tim kamu!`
+        )
+      ],
       components: []
     });
 
     await AuditService.log(interaction.client, {
       action: AUDIT_ACTIONS.INVITATION_ACCEPTED,
-      title: 'Invitation Accepted',
+      title: 'Undangan Diterima',
       actorTag: interaction.user.tag,
       teamId: invite.team_id,
       teamName: invite.team_name,
-      details: `<@${interaction.user.id}> accepted invitation to join team "${invite.team_name}".`
+      details: `<@${interaction.user.id}> menerima undangan untuk bergabung ke tim "${invite.team_name}".`
     });
-
-    // 3. Check if all invitations are now accepted
-    const remainingPending = await getPendingInvitationsForTeam(invite.team_id);
-    if (remainingPending.length === 0) {
-      // All accepted! Fetch guild (interaction is in DM so interaction.guild is null)
-      try {
-        const { env } = await import('../config/env.js');
-        const guild = interaction.guild ?? await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
-        if (!guild) {
-          logger.error(`[InvitationService] Could not fetch guild (GUILD_ID: ${env.GUILD_ID}) to finalize team.`);
-          return;
-        }
-        await teamService.finalizeTeamCreation(invite.team_id, guild, interaction.client);
-      } catch (err) {
-        logger.error(`[InvitationService] Failed to finalize team after all invites accepted: ${err.stack || err.message}`);
-      }
-    }
   }
 
   /**
-   * Handle member clicking 'Decline' button
+   * Handle member klik tombol 'Tolak' undangan
    */
   static async handleDecline(interaction, invitationId) {
     const invite = await getInvitationById(invitationId);
     if (!invite) {
       return await interaction.reply({
-        embeds: [errorEmbed('Invitation Not Found', 'This invitation does not exist.')],
+        embeds: [errorEmbed('Undangan Tidak Ditemukan', 'Undangan ini tidak ada.')],
         flags: MessageFlags.Ephemeral
       });
     }
 
     if (interaction.user.id !== invite.invited_discord_id) {
       return await interaction.reply({
-        embeds: [errorEmbed('Unauthorized', 'This invitation was not sent to you.')],
+        embeds: [errorEmbed('Tidak Berwenang', 'Undangan ini bukan untukmu.')],
         flags: MessageFlags.Ephemeral
       });
     }
 
     await updateInvitationStatus(invite.id, INVITATION_STATUS.DECLINED);
 
+    // Hapus entry member dari tim (status PENDING dihapus)
+    try {
+      const user = await getUserByDiscordId(interaction.user.id);
+      if (user) {
+        await updateMemberStatus(invite.team_id, user.id, 'REMOVED');
+      }
+    } catch (err) {
+      logger.warn(`[InvitationService] Gagal hapus member setelah decline: ${err.message}`);
+    }
+
+    // Notifikasi ke leader via DM
+    try {
+      const { env } = await import('../config/env.js');
+      const guild = interaction.guild ?? await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
+      const team = await getTeamById(invite.team_id);
+      if (guild && team) {
+        const leaderMember = await guild.members.fetch(team.leader_discord_id).catch(() => null);
+        if (leaderMember) {
+          await leaderMember.send({
+            embeds: [
+              new EmbedBuilder()
+                .setColor(EMBED_COLORS.WARNING)
+                .setTitle('Undangan Ditolak')
+                .setDescription(
+                  `<@${interaction.user.id}> menolak undangan untuk bergabung ke tim **${team.name}**.\n\n` +
+                  `Kamu bisa mengundang anggota lain dengan command \`/team invite @user\`.`
+                )
+                .setTimestamp()
+            ]
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      logger.warn(`[InvitationService] Tidak bisa notif leader setelah decline: ${err.message}`);
+    }
+
     await interaction.update({
-      embeds: [errorEmbed('Invitation Declined', `You declined the invitation to join **${invite.team_name}**.`)]
-      ,
+      embeds: [
+        new EmbedBuilder()
+          .setColor(EMBED_COLORS.DANGER)
+          .setTitle('Undangan Ditolak')
+          .setDescription(`Kamu menolak undangan untuk bergabung ke tim **${invite.team_name}**.`)
+          .setTimestamp()
+      ],
       components: []
     });
 
     await AuditService.log(interaction.client, {
       action: AUDIT_ACTIONS.INVITATION_DECLINED,
-      title: 'Invitation Declined',
+      title: 'Undangan Ditolak',
       actorTag: interaction.user.tag,
       teamId: invite.team_id,
       teamName: invite.team_name,
-      details: `<@${interaction.user.id}> declined invitation for team "${invite.team_name}".`
+      details: `<@${interaction.user.id}> menolak undangan untuk tim "${invite.team_name}".`
     });
   }
 
   /**
-   * Background sweeper to expire stale invitations
+   * Background sweeper untuk expire undangan yang sudah lewat batas waktu
    */
   static startExpirationSweeper(client) {
-    logger.info('[InvitationService] Starting background invitation expiration sweeper (5m interval).');
+    logger.info('[InvitationService] Menjalankan sweeper undangan (interval 5 menit).');
 
     setInterval(async () => {
       try {
         const expired = await markExpiredInvitations();
         if (expired.length > 0) {
-          logger.info(`[InvitationService] Swept and expired ${expired.length} pending invitations.`);
+          logger.info(`[InvitationService] ${expired.length} undangan sudah diexpire.`);
         }
       } catch (err) {
         logger.error(`[InvitationService Sweeper Error] ${err.message}`);

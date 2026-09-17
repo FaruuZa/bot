@@ -44,6 +44,8 @@ export const AUDIT_ACTIONS = {
   TEAM_RENAMED: 'TEAM_RENAMED',
   MEMBER_ADDED: 'MEMBER_ADDED',
   MEMBER_REMOVED: 'MEMBER_REMOVED',
+  MEMBER_KICKED: 'MEMBER_KICKED',
+  MEMBER_LEFT: 'MEMBER_LEFT',
   LEADER_TRANSFERRED: 'LEADER_TRANSFERRED',
   INVITATION_SENT: 'INVITATION_SENT',
   INVITATION_ACCEPTED: 'INVITATION_ACCEPTED',
@@ -53,7 +55,12 @@ export const AUDIT_ACTIONS = {
   TICKET_CREATED: 'TICKET_CREATED',
   TICKET_CLOSED: 'TICKET_CLOSED',
   ROLE_RESTORED: 'ROLE_RESTORED',
-  ROLE_ASSIGNED: 'ROLE_ASSIGNED'
+  ROLE_ASSIGNED: 'ROLE_ASSIGNED',
+  RECRUITMENT_POSTED: 'RECRUITMENT_POSTED',
+  RECRUITMENT_CLOSED: 'RECRUITMENT_CLOSED',
+  RECRUITMENT_REQUEST_SENT: 'RECRUITMENT_REQUEST_SENT',
+  RECRUITMENT_REQUEST_ACCEPTED: 'RECRUITMENT_REQUEST_ACCEPTED',
+  RECRUITMENT_REQUEST_REJECTED: 'RECRUITMENT_REQUEST_REJECTED'
 };
 
 export const EMBED_COLORS = {
@@ -105,5 +112,24 @@ export const CUSTOM_IDS = {
   // === Dashboard Role Selects ===
   ROLESELECT_DASHBOARD_PARTICIPANT: 'dashboard_roleselect_participant', // Set Participant role
   ROLESELECT_DASHBOARD_NOTEAM: 'dashboard_roleselect_noteam',           // Set No-Team role
-};
 
+  // === Team Management (Leader) ===
+  BTN_TEAM_KICK_CONFIRM: 'btn_team_kick_confirm_',   // prefix + teamId + '_' + userId
+  BTN_TEAM_KICK_CANCEL: 'btn_team_kick_cancel',
+  BTN_TEAM_LEAVE_CONFIRM: 'btn_team_leave_confirm',
+  BTN_TEAM_LEAVE_CANCEL: 'btn_team_leave_cancel',
+
+  // === Team Recruitment ===
+  MODAL_TEAM_RECRUIT: 'modal_team_recruit_',         // prefix + teamId
+  INPUT_RECRUIT_SLOTS: 'input_recruit_slots',
+  INPUT_RECRUIT_DESC: 'input_recruit_desc',
+  BTN_RECRUIT_REQUEST_JOIN: 'btn_recruit_join_',     // prefix + recruitmentId
+  BTN_TEAM_RECRUIT_CLOSE: 'btn_recruit_close_',      // prefix + recruitmentId
+  BTN_RECRUIT_ACCEPT: 'btn_recruit_accept_',         // prefix + recruitmentId + '_' + requestDiscordId
+  BTN_RECRUIT_REJECT: 'btn_recruit_reject_',         // prefix + recruitmentId + '_' + requestDiscordId
+
+  // === Team Panel Info ===
+  BTN_TEAM_PANEL_INVITE: 'btn_team_panel_invite',
+  BTN_TEAM_PANEL_RECRUIT: 'btn_team_panel_recruit',
+  BTN_TEAM_PANEL_INFO: 'btn_team_panel_info',
+};

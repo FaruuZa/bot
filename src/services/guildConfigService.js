@@ -28,6 +28,7 @@ export const CONFIG_DEFINITIONS = {
   LOG_CHANNEL_ID: { key: 'LOG_CHANNEL_ID', type: 'CHANNEL', label: 'Audit Log Channel', description: 'Channel for audit and system logs' },
   REGISTRATION_CHANNEL_ID: { key: 'REGISTRATION_CHANNEL_ID', type: 'CHANNEL', label: 'Registration Panel Channel', description: 'Channel where team registration panel is posted' },
   SUPPORT_CHANNEL_ID: { key: 'SUPPORT_CHANNEL_ID', type: 'CHANNEL', label: 'Support Panel Channel', description: 'Channel where support ticket panel is posted' },
+  RECRUITMENT_CHANNEL_ID: { key: 'RECRUITMENT_CHANNEL_ID', type: 'CHANNEL', label: 'Recruitment Board Channel', description: 'Channel khusus menampilkan board lowongan rekrutmen tim' },
 
   // Categories
   REGISTRATION_CATEGORY_ID: { key: 'REGISTRATION_CATEGORY_ID', type: 'CATEGORY', label: 'Registration Category', description: 'Category for team registration tickets' },

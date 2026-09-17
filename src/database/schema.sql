@@ -141,4 +141,22 @@ CREATE TABLE IF NOT EXISTS invite_roles (
 CREATE INDEX IF NOT EXISTS idx_invite_roles_code ON invite_roles(invite_code);
 ALTER TABLE invite_roles ADD COLUMN IF NOT EXISTS role_ids JSONB DEFAULT '[]'::jsonb;
 
+-- 10. Team Recruitments Table (posting lowongan anggota oleh leader)
+CREATE TABLE IF NOT EXISTS team_recruitments (
+    id SERIAL PRIMARY KEY,
+    team_id INT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    channel_id VARCHAR(32) NOT NULL,
+    message_id VARCHAR(32) NOT NULL,
+    slots_needed INT NOT NULL DEFAULT 1,
+    description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    closed_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT chk_recruitment_status CHECK (status IN ('OPEN', 'CLOSED'))
+);
+CREATE INDEX IF NOT EXISTS idx_recruitments_team ON team_recruitments(team_id);
+CREATE INDEX IF NOT EXISTS idx_recruitments_status ON team_recruitments(status);
+CREATE INDEX IF NOT EXISTS idx_recruitments_message ON team_recruitments(message_id);
+
+
 

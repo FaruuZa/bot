@@ -6,12 +6,16 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   EmbedBuilder,
-  MessageFlags
+  MessageFlags,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } from 'discord.js';
 import { PermissionService } from '../../services/permissionService.js';
 import { TeamService } from '../../services/teamService.js';
 import { InvitationService } from '../../services/invitationService.js';
 import { AuditService } from '../../services/auditService.js';
+import { GuildConfigService } from '../../services/guildConfigService.js';
 import { pool } from '../../database/pool.js';
 import {
   getTeamByName,
@@ -27,13 +31,16 @@ import {
   getPendingInvitationsForTeam,
   cancelPendingInvitationsForTeam
 } from '../../database/queries/invitationQueries.js';
+import {
+  getOpenRecruitmentByTeam,
+  closeAllRecruitmentsByTeam
+} from '../../database/queries/recruitmentQueries.js';
 import { getUserByDiscordId, upsertUser } from '../../database/queries/userQueries.js';
-import { errorEmbed, successEmbed, teamInfoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { errorEmbed, successEmbed, teamInfoEmbed, warningEmbed, infoEmbed } from '../../utils/embeds.js';
 import { AUDIT_ACTIONS, CUSTOM_IDS, MEMBER_ROLE, MEMBER_STATUS, TEAM_STATUS, EMBED_COLORS } from '../../config/constants.js';
 import { env } from '../../config/env.js';
 
 export async function buildTeamPanelDashboard(guild) {
-  // Query team statistics & list
   const { rows: stats } = await pool.query(`
     SELECT
       COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_count,
@@ -62,16 +69,16 @@ export async function buildTeamPanelDashboard(guild) {
   const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0, disbanded_count: 0 };
 
   const embed = new EmbedBuilder()
-    .setTitle('🛡️ Hackathon Team Admin Panel')
+    .setTitle('Hackathon Team Admin Panel')
     .setDescription(
-      'Panel kontrol terpusat untuk memantau, approve, dan mengelola seluruh tim hackathon.\n' +
-      'Pilih tim dari dropdown menu di bawah untuk melihat detail atau menjalankan aksi.'
+      'Panel kontrol terpusat untuk memantau dan mengelola seluruh tim hackathon.\n' +
+      'Pilih tim dari dropdown di bawah untuk melihat detail atau menjalankan aksi.'
     )
     .setColor(EMBED_COLORS.PRIMARY)
     .addFields(
-      { name: '🟢 Tim Aktif', value: `**${s.active_count}** Tim`, inline: true },
-      { name: '⏳ Menunggu Konfirmasi', value: `**${s.pending_count}** Tim`, inline: true },
-      { name: '📦 Diarsipkan / Bubar', value: `**${s.archived_count}** / **${s.disbanded_count}**`, inline: true }
+      { name: 'Tim Aktif', value: `**${s.active_count}** Tim`, inline: true },
+      { name: 'Menunggu Konfirmasi', value: `**${s.pending_count}** Tim`, inline: true },
+      { name: 'Diarsipkan / Bubar', value: `**${s.archived_count}** / **${s.disbanded_count}**`, inline: true }
     )
     .setFooter({ text: 'NSAC Team Management Dashboard' })
     .setTimestamp();
@@ -91,31 +98,27 @@ export async function buildTeamPanelDashboard(guild) {
 
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('team_panel_select_team')
-      .setPlaceholder('🔍 Pilih tim untuk melihat detail & opsi...')
+      .setPlaceholder('Pilih tim untuk melihat detail dan opsi...')
       .addOptions(options);
 
     components.push(new ActionRowBuilder().addComponents(selectMenu));
   } else {
-    embed.addFields({ name: 'Daftar Tim', value: '*(Belum ada tim yang terdaftar di database)*', inline: false });
+    embed.addFields({ name: 'Daftar Tim', value: '*(Belum ada tim yang terdaftar)*', inline: false });
   }
 
-  // Action Buttons row
   const buttonRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CUSTOM_IDS.BTN_STAFF_ADD_TEAM)
       .setLabel('Tambah Tim')
-      .setStyle(ButtonStyle.Success)
-      .setEmoji('➕'),
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('team_panel_refresh')
       .setLabel('Refresh Data')
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji('🔄'),
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('team_panel_export_summary')
       .setLabel('Export Ringkasan Tim')
       .setStyle(ButtonStyle.Primary)
-      .setEmoji('📋')
   );
 
   components.push(buttonRow);
@@ -127,122 +130,143 @@ export async function buildTeamPanelDashboard(guild) {
 export default {
   data: new SlashCommandBuilder()
     .setName('team')
-    .setDescription('Hackathon team management commands')
+    .setDescription('Perintah manajemen tim hackathon')
     // ================= User Subcommands =================
     .addSubcommand((sub) =>
       sub
         .setName('info')
-        .setDescription('View team information and channels')
-        .addStringOption((opt) => opt.setName('name').setDescription('Team name (leave empty for your own team)'))
-        .addUserOption((opt) => opt.setName('user').setDescription('View team of a specific user'))
+        .setDescription('Lihat informasi tim')
+        .addStringOption((opt) => opt.setName('name').setDescription('Nama tim (kosongkan untuk tim sendiri)'))
+        .addUserOption((opt) => opt.setName('user').setDescription('Lihat tim dari user tertentu'))
     )
     .addSubcommand((sub) =>
       sub
         .setName('members')
-        .setDescription('List all members of a team')
-        .addStringOption((opt) => opt.setName('name').setDescription('Team name (leave empty for your own team)'))
+        .setDescription('Lihat daftar anggota tim')
+        .addStringOption((opt) => opt.setName('name').setDescription('Nama tim (kosongkan untuk tim sendiri)'))
     )
     .addSubcommand((sub) =>
       sub
         .setName('invite')
-        .setDescription('Team Leader: Invite a new member to your team')
-        .addUserOption((opt) => opt.setName('user').setDescription('User to invite').setRequired(true))
+        .setDescription('Undang anggota baru ke timmu (hanya untuk Team Leader)')
+        .addUserOption((opt) => opt.setName('user').setDescription('User yang ingin diundang').setRequired(true))
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('kick')
+        .setDescription('Keluarkan anggota dari timmu (hanya untuk Team Leader)')
+        .addUserOption((opt) => opt.setName('user').setDescription('Anggota yang ingin dikeluarkan').setRequired(true))
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('leave')
+        .setDescription('Keluar dari tim secara mandiri')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('recruit')
+        .setDescription('Buka lowongan anggota tim di channel rekrutmen (hanya untuk Team Leader)')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('recruit-close')
+        .setDescription('Tutup lowongan rekrutmen tim yang sedang aktif (hanya untuk Team Leader)')
     )
     // ================= Staff Subcommands =================
     .addSubcommand((sub) =>
       sub
         .setName('create')
-        .setDescription('[Staff] Manually create an active team')
-        .addStringOption((opt) => opt.setName('name').setDescription('Team name').setRequired(true))
+        .setDescription('[Staff] Buat tim baru secara manual')
+        .addStringOption((opt) => opt.setName('name').setDescription('Nama tim').setRequired(true))
         .addUserOption((opt) => opt.setName('leader').setDescription('Team leader').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('approve')
-        .setDescription('[Staff] Force-approve a pending team and provision resources')
-        .addStringOption((opt) => opt.setName('name').setDescription('Pending team name').setRequired(true))
+        .setDescription('[Staff] Force-approve tim yang pending')
+        .addStringOption((opt) => opt.setName('name').setDescription('Nama tim pending').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('add-member')
-        .setDescription('[Staff] Add a member to an existing team')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
-        .addUserOption((opt) => opt.setName('user').setDescription('User to add').setRequired(true))
+        .setDescription('[Staff] Tambah anggota ke tim')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
+        .addUserOption((opt) => opt.setName('user').setDescription('User yang ditambahkan').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('remove-member')
-        .setDescription('[Staff] Remove a member from a team')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
-        .addUserOption((opt) => opt.setName('user').setDescription('User to remove').setRequired(true))
+        .setDescription('[Staff] Hapus anggota dari tim')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
+        .addUserOption((opt) => opt.setName('user').setDescription('User yang dihapus').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('rename')
-        .setDescription('[Staff] Rename a team and all its Discord resources')
-        .addStringOption((opt) => opt.setName('team').setDescription('Current team name').setRequired(true))
-        .addStringOption((opt) => opt.setName('new_name').setDescription('New team name').setRequired(true))
+        .setDescription('[Staff] Ubah nama tim')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim saat ini').setRequired(true))
+        .addStringOption((opt) => opt.setName('new_name').setDescription('Nama tim baru').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('transfer-leader')
-        .setDescription('[Staff] Transfer leadership of a team')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
-        .addUserOption((opt) => opt.setName('new_leader').setDescription('New team leader').setRequired(true))
+        .setDescription('[Staff] Alihkan kepemimpinan tim')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
+        .addUserOption((opt) => opt.setName('new_leader').setDescription('Leader baru').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('archive')
-        .setDescription('[Staff] Archive a team and set channels to read-only')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
+        .setDescription('[Staff] Arsipkan tim dan jadikan channel read-only')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('delete')
-        .setDescription('[Staff] Delete a team and its Discord channels/roles')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
+        .setDescription('[Staff] Hapus tim dan seluruh channel/rolenya')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('force-add')
-        .setDescription('[Staff Override] Force add user into team bypassing checks')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
-        .addUserOption((opt) => opt.setName('user').setDescription('User to force add').setRequired(true))
+        .setDescription('[Staff Override] Paksa tambah user ke tim tanpa validasi')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
+        .addUserOption((opt) => opt.setName('user').setDescription('User yang ditambahkan').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('force-remove')
-        .setDescription('[Staff Override] Force remove user from team')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
-        .addUserOption((opt) => opt.setName('user').setDescription('User to force remove').setRequired(true))
+        .setDescription('[Staff Override] Paksa hapus user dari tim')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
+        .addUserOption((opt) => opt.setName('user').setDescription('User yang dihapus').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('resend-invite')
-        .setDescription('[Staff Override] Resend invitation to a member')
-        .addStringOption((opt) => opt.setName('team').setDescription('Team name').setRequired(true))
-        .addUserOption((opt) => opt.setName('user').setDescription('Invited user').setRequired(true))
+        .setDescription('[Staff Override] Kirim ulang undangan ke anggota')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
+        .addUserOption((opt) => opt.setName('user').setDescription('User yang diundang').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('cancel-registration')
-        .setDescription('[Staff Override] Cancel a pending team registration')
-        .addStringOption((opt) => opt.setName('team').setDescription('Pending team name').setRequired(true))
+        .setDescription('[Staff Override] Batalkan pendaftaran tim yang pending')
+        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim pending').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
         .setName('force-register')
-        .setDescription('[Staff Override] Instantly register and provision a team with members')
-        .addStringOption((opt) => opt.setName('name').setDescription('Team name').setRequired(true))
+        .setDescription('[Staff Override] Daftarkan tim beserta anggota secara langsung')
+        .addStringOption((opt) => opt.setName('name').setDescription('Nama tim').setRequired(true))
         .addUserOption((opt) => opt.setName('leader').setDescription('Leader').setRequired(true))
-        .addUserOption((opt) => opt.setName('member1').setDescription('Member 1').setRequired(false))
-        .addUserOption((opt) => opt.setName('member2').setDescription('Member 2').setRequired(false))
-        .addUserOption((opt) => opt.setName('member3').setDescription('Member 3').setRequired(false))
+        .addUserOption((opt) => opt.setName('member1').setDescription('Anggota 1').setRequired(false))
+        .addUserOption((opt) => opt.setName('member2').setDescription('Anggota 2').setRequired(false))
+        .addUserOption((opt) => opt.setName('member3').setDescription('Anggota 3').setRequired(false))
     )
     .addSubcommand((sub) =>
       sub
         .setName('panel')
-        .setDescription('[Staff] Interactive dashboard to monitor and manage all teams')
+        .setDescription('[Staff] Buka dashboard manajemen tim')
     ),
 
   async execute(interaction) {
@@ -281,7 +305,7 @@ export default {
 
       if (!team) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Team Not Found', 'Could not find the specified team or active membership.')]
+          embeds: [errorEmbed('Tim Tidak Ditemukan', 'Tidak ditemukan tim atau keanggotaan aktif yang sesuai.')]
         });
       }
 
@@ -307,18 +331,18 @@ export default {
 
       if (!team) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Team Not Found', 'Could not find the specified team.')]
+          embeds: [errorEmbed('Tim Tidak Ditemukan', 'Tim yang dimaksud tidak ditemukan.')]
         });
       }
 
       const members = await getActiveTeamMembers(team.id);
       const memberList = members.map((m, idx) => {
-        const badge = m.role === 'LEADER' ? '👑 Leader' : '👤 Member';
-        return `${idx + 1}. ${badge} - <@${m.discord_id}> (${m.username})`;
-      }).join('\n') || 'No members';
+        const badge = m.role === 'LEADER' ? 'Leader' : 'Anggota';
+        return `${idx + 1}. ${badge} — <@${m.discord_id}> (${m.username})`;
+      }).join('\n') || 'Belum ada anggota';
 
       return await interaction.editReply({
-        embeds: [successEmbed(`Team Members: ${team.name}`, memberList)]
+        embeds: [successEmbed(`Anggota Tim: ${team.name}`, memberList)]
       });
     }
 
@@ -333,27 +357,34 @@ export default {
 
       if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
         return await interaction.editReply({
-          embeds: [errorEmbed('Permission Denied', 'Only the Team Leader can invite new members.')]
+          embeds: [errorEmbed('Bukan Leader', 'Hanya Team Leader yang bisa mengundang anggota baru.')]
         });
       }
 
       if (targetUser.id === interaction.user.id) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Invalid User', 'You cannot invite yourself.')]
+          embeds: [errorEmbed('Tidak Valid', 'Kamu tidak bisa mengundang dirimu sendiri.')]
         });
       }
 
       if (targetUser.bot) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Invalid User', 'You cannot invite a bot.')]
+          embeds: [errorEmbed('Tidak Valid', 'Kamu tidak bisa mengundang bot.')]
         });
       }
 
-      // Check anti-double-team
       const targetTeam = await getUserActiveTeamByDiscordId(targetUser.id);
       if (targetTeam) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Already Registered', `❌ <@${targetUser.id}> is already registered in another team (${targetTeam.name}).`)]
+          embeds: [errorEmbed('Sudah di Tim Lain', `<@${targetUser.id}> sudah terdaftar di tim **${targetTeam.name}**.`)]
+        });
+      }
+
+      // Cek batas maksimum anggota
+      const currentMemberCount = await countActiveTeamMembers(activeTeam.id);
+      if (currentMemberCount >= env.MAX_TEAM_SIZE) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Tim Penuh', `Tim sudah mencapai batas maksimum ${env.MAX_TEAM_SIZE} anggota.`)]
         });
       }
 
@@ -368,6 +399,14 @@ export default {
         expiresAt
       });
 
+      // Tambahkan sebagai PENDING ke team_members
+      await addTeamMember({
+        teamId: activeTeam.id,
+        userId: invitedDbUser.id,
+        role: MEMBER_ROLE.MEMBER,
+        status: MEMBER_STATUS.PENDING
+      });
+
       const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (targetMember) {
         await InvitationService.sendInvitationMessage({
@@ -380,7 +419,216 @@ export default {
       }
 
       return await interaction.editReply({
-        embeds: [successEmbed('Invitation Sent', `Invitation sent to <@${targetUser.id}>!`)]
+        embeds: [successEmbed('Undangan Terkirim', `Undangan berhasil dikirim ke <@${targetUser.id}>!`)]
+      });
+    }
+
+    // ========================================================
+    // 4. KICK SUBCOMMAND (Leader Only)
+    // ========================================================
+    if (subcommand === 'kick') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const targetUser = interaction.options.getUser('user');
+      const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+
+      if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Bukan Leader', 'Hanya Team Leader yang bisa mengeluarkan anggota.')]
+        });
+      }
+
+      if (targetUser.id === interaction.user.id) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Tidak Valid', 'Kamu tidak bisa mengeluarkan dirimu sendiri. Gunakan `/team leave` jika ingin meninggalkan tim.')]
+        });
+      }
+
+      // Konfirmasi sebelum kick
+      const confirmRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${CUSTOM_IDS.BTN_TEAM_KICK_CONFIRM}${activeTeam.id}_${targetUser.id}`)
+          .setLabel('Ya, Keluarkan')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.BTN_TEAM_KICK_CANCEL)
+          .setLabel('Batal')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      return await interaction.editReply({
+        embeds: [
+          warningEmbed(
+            'Konfirmasi Pengeluaran Anggota',
+            `Apakah kamu yakin ingin mengeluarkan <@${targetUser.id}> dari tim **${activeTeam.name}**?\n\n` +
+            `Anggota ini akan kehilangan akses ke channel tim.`
+          )
+        ],
+        components: [confirmRow]
+      });
+    }
+
+    // ========================================================
+    // 5. LEAVE SUBCOMMAND
+    // ========================================================
+    if (subcommand === 'leave') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+
+      if (!activeTeam) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Tidak di Tim', 'Kamu tidak terdaftar di tim mana pun.')]
+        });
+      }
+
+      if (activeTeam.user_team_role === 'LEADER') {
+        return await interaction.editReply({
+          embeds: [errorEmbed(
+            'Tidak Bisa Keluar',
+            'Sebagai Team Leader, kamu tidak bisa langsung meninggalkan tim.\n\n' +
+            'Alihkan kepemimpinan ke anggota lain terlebih dahulu, atau hubungi panitia untuk membubarkan tim.'
+          )]
+        });
+      }
+
+      const confirmRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.BTN_TEAM_LEAVE_CONFIRM)
+          .setLabel('Ya, Keluar dari Tim')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.BTN_TEAM_LEAVE_CANCEL)
+          .setLabel('Batal')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      return await interaction.editReply({
+        embeds: [
+          warningEmbed(
+            'Konfirmasi Keluar dari Tim',
+            `Apakah kamu yakin ingin keluar dari tim **${activeTeam.name}**?\n\n` +
+            `Kamu akan kehilangan akses ke channel tim. Tindakan ini tidak bisa dibatalkan.`
+          )
+        ],
+        components: [confirmRow]
+      });
+    }
+
+    // ========================================================
+    // 6. RECRUIT SUBCOMMAND (Leader Only) — Buka lowongan
+    // ========================================================
+    if (subcommand === 'recruit') {
+      const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+
+      if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
+        return await interaction.reply({
+          embeds: [errorEmbed('Bukan Leader', 'Hanya Team Leader yang bisa membuka lowongan rekrutmen.')],
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      // Cek apakah sudah ada rekrutmen yang aktif
+      const existing = await getOpenRecruitmentByTeam(activeTeam.id);
+      if (existing) {
+        return await interaction.reply({
+          embeds: [errorEmbed(
+            'Rekrutmen Sudah Aktif',
+            `Tim **${activeTeam.name}** sudah memiliki lowongan rekrutmen yang aktif.\n\n` +
+            `Tutup dulu dengan \`/team recruit-close\` sebelum membuka yang baru.`
+          )],
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      // Tampilkan modal untuk input detail rekrutmen
+      const modal = new ModalBuilder()
+        .setCustomId(`${CUSTOM_IDS.MODAL_TEAM_RECRUIT}${activeTeam.id}`)
+        .setTitle('Buka Lowongan Rekrutmen Tim');
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId(CUSTOM_IDS.INPUT_RECRUIT_SLOTS)
+            .setLabel('Berapa anggota yang kamu butuhkan?')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Contoh: 2')
+            .setMinLength(1)
+            .setMaxLength(1)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId(CUSTOM_IDS.INPUT_RECRUIT_DESC)
+            .setLabel('Deskripsi kebutuhan tim (opsional)')
+            .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder('Contoh: Mencari anggota dengan keahlian desain UI/UX atau pengembangan backend.')
+            .setMaxLength(300)
+            .setRequired(false)
+        )
+      );
+
+      return await interaction.showModal(modal);
+    }
+
+    // ========================================================
+    // 7. RECRUIT-CLOSE SUBCOMMAND (Leader Only)
+    // ========================================================
+    if (subcommand === 'recruit-close') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+
+      if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Bukan Leader', 'Hanya Team Leader yang bisa menutup rekrutmen.')]
+        });
+      }
+
+      const existing = await getOpenRecruitmentByTeam(activeTeam.id);
+      if (!existing) {
+        return await interaction.editReply({
+          embeds: [infoEmbed('Tidak Ada Rekrutmen Aktif', `Tim **${activeTeam.name}** tidak memiliki rekrutmen yang sedang aktif.`)]
+        });
+      }
+
+      // Tutup di DB
+      await closeAllRecruitmentsByTeam(activeTeam.id);
+
+      // Update pesan di channel rekrutmen
+      try {
+        const recruitChannel = interaction.guild.channels.cache.get(existing.channel_id)
+          || await interaction.guild.channels.fetch(existing.channel_id).catch(() => null);
+        if (recruitChannel && recruitChannel.isTextBased()) {
+          const msg = await recruitChannel.messages.fetch(existing.message_id).catch(() => null);
+          if (msg) {
+            await msg.edit({
+              embeds: [
+                new EmbedBuilder()
+                  .setTitle(`[DITUTUP] Rekrutmen — ${activeTeam.name}`)
+                  .setColor(EMBED_COLORS.DARK)
+                  .setDescription('Rekrutmen ini sudah ditutup oleh leader tim.')
+                  .setTimestamp()
+              ],
+              components: []
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        // Lanjut meskipun gagal update pesan
+      }
+
+      await AuditService.log(interaction.client, {
+        action: AUDIT_ACTIONS.RECRUITMENT_CLOSED,
+        title: 'Rekrutmen Ditutup',
+        actorTag: interaction.user.tag,
+        teamId: activeTeam.id,
+        teamName: activeTeam.name,
+        details: `Leader menutup rekrutmen tim "${activeTeam.name}".`
+      });
+
+      return await interaction.editReply({
+        embeds: [successEmbed('Rekrutmen Ditutup', `Lowongan rekrutmen tim **${activeTeam.name}** telah ditutup.`)]
       });
     }
 
@@ -389,12 +637,12 @@ export default {
     // ========================================================
     if (!isStaffUser) {
       return await interaction.reply({
-        embeds: [errorEmbed('Staff Only', 'You do not have permission to execute this staff command.')],
+        embeds: [errorEmbed('Staff Only', 'Kamu tidak memiliki akses untuk menjalankan perintah staff ini.')],
         flags: MessageFlags.Ephemeral
       });
     }
 
-    // 4. CREATE (Staff Manual)
+    // 8. CREATE (Staff Manual)
     if (subcommand === 'create') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -403,7 +651,7 @@ export default {
 
       const leaderMember = await interaction.guild.members.fetch(leader.id).catch(() => null);
       if (!leaderMember) {
-        return await interaction.editReply({ embeds: [errorEmbed('Error', 'Leader is not in this server.')] });
+        return await interaction.editReply({ embeds: [errorEmbed('Error', 'Leader tidak ditemukan di server ini.')] });
       }
 
       const result = await TeamService.startRegistration({
@@ -415,17 +663,17 @@ export default {
       });
 
       if (!result.success) {
-        return await interaction.editReply({ embeds: [errorEmbed('Failed', result.error)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Gagal', result.error)] });
       }
 
       await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
 
       return await interaction.editReply({
-        embeds: [successEmbed('Team Created', `Team **${name}** created with leader <@${leader.id}>!`)]
+        embeds: [successEmbed('Tim Dibuat', `Tim **${name}** berhasil dibuat dengan leader <@${leader.id}>!`)]
       });
     }
 
-    // 5. APPROVE (Staff Force Finalize)
+    // 9. APPROVE (Staff Force Finalize)
     if (subcommand === 'approve') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -433,20 +681,20 @@ export default {
       const team = await getTeamByName(name);
 
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${name}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${name}" tidak ditemukan.`)] });
       }
 
       try {
         await TeamService.finalizeTeamCreation(team.id, interaction.guild, interaction.client);
         return await interaction.editReply({
-          embeds: [successEmbed('Team Approved', `Team **${team.name}** has been force-approved and channels provisioned.`)]
+          embeds: [successEmbed('Tim Diapprove', `Tim **${team.name}** berhasil di-approve dan channel sudah diprovisioning.`)]
         });
       } catch (err) {
-        return await interaction.editReply({ embeds: [errorEmbed('Approval Failed', err.message)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Gagal Approve', err.message)] });
       }
     }
 
-    // 6. ADD-MEMBER (Staff)
+    // 10. ADD-MEMBER (Staff)
     if (subcommand === 'add-member' || subcommand === 'force-add') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -455,21 +703,21 @@ export default {
 
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       const result = await TeamService.addMemberToTeam(team.id, targetUser.id, interaction.guild, interaction.client, interaction.user.tag);
 
       if (!result.success) {
-        return await interaction.editReply({ embeds: [errorEmbed('Failed', result.error)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Gagal', result.error)] });
       }
 
       return await interaction.editReply({
-        embeds: [successEmbed('Member Added', `Successfully added <@${targetUser.id}> to team **${team.name}**.`)]
+        embeds: [successEmbed('Anggota Ditambahkan', `<@${targetUser.id}> berhasil ditambahkan ke tim **${team.name}**.`)]
       });
     }
 
-    // 7. REMOVE-MEMBER (Staff)
+    // 11. REMOVE-MEMBER (Staff)
     if (subcommand === 'remove-member' || subcommand === 'force-remove') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -478,21 +726,21 @@ export default {
 
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       const result = await TeamService.removeMemberFromTeam(team.id, targetUser.id, interaction.guild, interaction.client, interaction.user.tag);
 
       if (!result.success) {
-        return await interaction.editReply({ embeds: [errorEmbed('Failed', result.error)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Gagal', result.error)] });
       }
 
       return await interaction.editReply({
-        embeds: [successEmbed('Member Removed', `Successfully removed <@${targetUser.id}> from team **${team.name}**.`)]
+        embeds: [successEmbed('Anggota Dihapus', `<@${targetUser.id}> berhasil dihapus dari tim **${team.name}**.`)]
       });
     }
 
-    // 8. RENAME (Staff)
+    // 12. RENAME (Staff)
     if (subcommand === 'rename') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -501,21 +749,21 @@ export default {
 
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       const result = await TeamService.renameTeam(team.id, newName, interaction.guild, interaction.client, interaction.user.tag);
 
       if (!result.success) {
-        return await interaction.editReply({ embeds: [errorEmbed('Rename Failed', result.error)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Gagal Ubah Nama', result.error)] });
       }
 
       return await interaction.editReply({
-        embeds: [successEmbed('Team Renamed', `Team **${result.oldName}** has been renamed to **${result.newName}**.`)]
+        embeds: [successEmbed('Nama Tim Diubah', `Tim **${result.oldName}** berhasil diubah namanya menjadi **${result.newName}**.`)]
       });
     }
 
-    // 9. TRANSFER-LEADER (Staff)
+    // 13. TRANSFER-LEADER (Staff)
     if (subcommand === 'transfer-leader') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -524,76 +772,75 @@ export default {
 
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       const result = await TeamService.transferLeader(team.id, newLeader.id, interaction.guild, interaction.client, interaction.user.tag);
 
       if (!result.success) {
-        return await interaction.editReply({ embeds: [errorEmbed('Failed', result.error)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Gagal', result.error)] });
       }
 
       return await interaction.editReply({
-        embeds: [successEmbed('Leader Transferred', `Leadership of team **${team.name}** transferred to <@${newLeader.id}>.`)]
+        embeds: [successEmbed('Kepemimpinan Dialihkan', `Kepemimpinan tim **${team.name}** dialihkan ke <@${newLeader.id}>.`)]
       });
     }
 
-    // 10. ARCHIVE (Staff)
+    // 14. ARCHIVE (Staff)
     if (subcommand === 'archive') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const teamName = interaction.options.getString('team');
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       await TeamService.archiveTeam(team.id, interaction.guild, interaction.client, interaction.user.tag);
 
       return await interaction.editReply({
-        embeds: [successEmbed('Team Archived', `Team **${team.name}** is now archived and channels are read-only.`)]
+        embeds: [successEmbed('Tim Diarsipkan', `Tim **${team.name}** telah diarsipkan dan channel dijadikan read-only.`)]
       });
     }
 
-    // 11. DELETE (Staff Confirmation Prompt)
+    // 15. DELETE (Staff Confirmation Prompt)
     if (subcommand === 'delete') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const teamName = interaction.options.getString('team');
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`${CUSTOM_IDS.BTN_DELETE_TEAM_CONFIRM}${team.id}`)
-          .setLabel('Confirm Delete')
-          .setStyle(ButtonStyle.Danger)
-          .setEmoji('🗑️'),
+          .setLabel('Konfirmasi Hapus')
+          .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
           .setCustomId(`${CUSTOM_IDS.BTN_DELETE_TEAM_CANCEL}${team.id}`)
-          .setLabel('Cancel')
+          .setLabel('Batal')
           .setStyle(ButtonStyle.Secondary)
       );
 
       return await interaction.editReply({
         embeds: [
           warningEmbed(
-            'Confirm Team Deletion',
-            `⚠️ Are you sure you want to permanently delete team **${team.name}**?\n\n` +
-            'This action will:\n' +
-            '• Delete the Discord role\n' +
-            '• Delete the Category, Text, and Voice channels\n' +
-            '• Mark team as DISBANDED in database\n' +
-            '• Restore @Unregistered role to members'
+            'Konfirmasi Hapus Tim',
+            `Apakah kamu yakin ingin menghapus tim **${team.name}** secara permanen?\n\n` +
+            'Tindakan ini akan:\n' +
+            '- Menghapus role Discord tim\n' +
+            '- Menghapus Category, Text, dan Voice channel\n' +
+            '- Menandai tim sebagai DISBANDED di database\n' +
+            '- Mengembalikan role @Unregistered ke semua mantan anggota'
           )
         ],
         components: [row]
       });
     }
 
-    // 12. RESEND-INVITE (Staff)
+    // 16. RESEND-INVITE (Staff)
     if (subcommand === 'resend-invite') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -602,16 +849,18 @@ export default {
 
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (!targetMember) {
-        return await interaction.editReply({ embeds: [errorEmbed('Error', 'User not in server.')] });
+        return await interaction.editReply({ embeds: [errorEmbed('Error', 'User tidak ditemukan di server.')] });
       }
 
       const expiresAt = new Date(Date.now() + env.INVITATION_EXPIRE_HOURS * 3600 * 1000);
-      const leaderMember = team.leader_discord_id ? await interaction.guild.members.fetch(team.leader_discord_id).catch(() => null) : interaction.member;
+      const leaderMember = team.leader_discord_id
+        ? await interaction.guild.members.fetch(team.leader_discord_id).catch(() => null)
+        : interaction.member;
 
       await InvitationService.sendInvitationMessage({
         guild: interaction.guild,
@@ -622,22 +871,22 @@ export default {
       });
 
       return await interaction.editReply({
-        embeds: [successEmbed('Invitation Resent', `Resent invitation for team **${team.name}** to <@${targetUser.id}>.`)]
+        embeds: [successEmbed('Undangan Dikirim Ulang', `Undangan tim **${team.name}** dikirim ulang ke <@${targetUser.id}>.`)]
       });
     }
 
-    // 13. CANCEL-REGISTRATION (Staff)
+    // 17. CANCEL-REGISTRATION (Staff)
     if (subcommand === 'cancel-registration') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const teamName = interaction.options.getString('team');
       const team = await getTeamByName(teamName);
       if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Not Found', `Team "${teamName}" not found.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
       if (team.status !== TEAM_STATUS.PENDING) {
-        return await interaction.editReply({ embeds: [errorEmbed('Error', `Team "${team.name}" is not in PENDING status.`)] });
+        return await interaction.editReply({ embeds: [errorEmbed('Error', `Tim "${team.name}" bukan dalam status PENDING.`)] });
       }
 
       await cancelPendingInvitationsForTeam(team.id);
@@ -645,19 +894,19 @@ export default {
 
       await AuditService.log(interaction.client, {
         action: AUDIT_ACTIONS.REGISTRATION_REJECTED,
-        title: 'Registration Cancelled by Staff',
+        title: 'Pendaftaran Dibatalkan oleh Staff',
         actorTag: interaction.user.tag,
         teamId: team.id,
         teamName: team.name,
-        details: `Pending registration for "${team.name}" cancelled.`
+        details: `Pendaftaran tim "${team.name}" dibatalkan oleh staff.`
       });
 
       return await interaction.editReply({
-        embeds: [successEmbed('Registration Cancelled', `Pending registration for **${team.name}** has been cancelled.`)]
+        embeds: [successEmbed('Pendaftaran Dibatalkan', `Pendaftaran tim **${team.name}** berhasil dibatalkan.`)]
       });
     }
 
-    // 14. FORCE-REGISTER (Staff Instant Provisioning)
+    // 18. FORCE-REGISTER (Staff Instant Provisioning)
     if (subcommand === 'force-register') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -671,7 +920,7 @@ export default {
 
       const leaderMember = await interaction.guild.members.fetch(leader.id).catch(() => null);
       if (!leaderMember) {
-        return await interaction.editReply({ embeds: [errorEmbed('Error', 'Leader not found in server.')] });
+        return await interaction.editReply({ embeds: [errorEmbed('Error', 'Leader tidak ditemukan di server.')] });
       }
 
       const result = await TeamService.startRegistration({
@@ -679,23 +928,22 @@ export default {
         leaderMember,
         memberIds: [],
         guild: interaction.guild,
-        client: interaction.client
+        client: interaction.client,
+        skipInvitations: true
       });
 
       if (!result.success) {
         return await interaction.editReply({ embeds: [errorEmbed('Error', result.error)] });
       }
 
-      // Provision channels
       await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
 
-      // Add extra members
       for (const mId of memberIds) {
         await TeamService.addMemberToTeam(result.team.id, mId, interaction.guild, interaction.client, interaction.user.tag);
       }
 
       return await interaction.editReply({
-        embeds: [successEmbed('Team Force-Registered', `Team **${name}** created and activated with ${memberIds.length + 1} members!`)]
+        embeds: [successEmbed('Tim Berhasil Dibuat', `Tim **${name}** dibuat dan diaktifkan dengan ${memberIds.length + 1} anggota!`)]
       });
     }
   }
