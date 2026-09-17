@@ -75,7 +75,7 @@ export async function updateMemberRole(teamId, userId, role, client = pool) {
 export async function updateMemberStatus(teamId, userId, status, client = pool) {
   const sql = `
     UPDATE team_members
-    SET status = $3, removed_at = CASE WHEN $3 = 'REMOVED' THEN NOW() ELSE NULL END
+    SET status = $3::varchar, removed_at = CASE WHEN $3::text = 'REMOVED' THEN NOW() ELSE NULL END
     WHERE team_id = $1 AND user_id = $2
     RETURNING *;
   `;

@@ -169,7 +169,7 @@ DATABASE_URL=postgresql://hackathon_user:secure_password_123@localhost:5432/hack
 
 # Hackathon Rules
 MIN_TEAM_SIZE=2
-MAX_TEAM_SIZE=4
+MAX_TEAM_SIZE=6
 INVITATION_EXPIRE_HOURS=24
 
 # Category IDs (Right-click Category in Discord -> Copy ID)

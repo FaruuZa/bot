@@ -133,5 +133,6 @@ export const CUSTOM_IDS = {
   // === Team Panel Info ===
   BTN_TEAM_PANEL_INVITE: 'btn_team_panel_invite',
   BTN_TEAM_PANEL_RECRUIT: 'btn_team_panel_recruit',
+  BTN_TEAM_PANEL_RECRUIT_CLOSE: 'btn_team_panel_recruit_close',
   BTN_TEAM_PANEL_INFO: 'btn_team_panel_info',
 };

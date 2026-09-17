@@ -36,7 +36,7 @@ services:
       CLIENT_ID: ${CLIENT_ID}
       GUILD_ID: ${GUILD_ID}
       MIN_TEAM_SIZE: ${MIN_TEAM_SIZE:-2}
-      MAX_TEAM_SIZE: ${MAX_TEAM_SIZE:-4}
+      MAX_TEAM_SIZE: ${MAX_TEAM_SIZE:-6}
       INVITATION_EXPIRE_HOURS: ${INVITATION_EXPIRE_HOURS:-24}
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-hackathon_db}
     depends_on:

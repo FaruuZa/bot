@@ -30,6 +30,6 @@ export const env = {
 
   // Hackathon Team Rules (Numerical parameters)
   MIN_TEAM_SIZE: parseInt(process.env.MIN_TEAM_SIZE || '2', 10),
-  MAX_TEAM_SIZE: parseInt(process.env.MAX_TEAM_SIZE || '4', 10),
+  MAX_TEAM_SIZE: parseInt(process.env.MAX_TEAM_SIZE || '6', 10),
   INVITATION_EXPIRE_HOURS: parseInt(process.env.INVITATION_EXPIRE_HOURS || '24', 10)
 };

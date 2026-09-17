@@ -262,6 +262,8 @@ export default {
         .addUserOption((opt) => opt.setName('member1').setDescription('Anggota 1').setRequired(false))
         .addUserOption((opt) => opt.setName('member2').setDescription('Anggota 2').setRequired(false))
         .addUserOption((opt) => opt.setName('member3').setDescription('Anggota 3').setRequired(false))
+        .addUserOption((opt) => opt.setName('member4').setDescription('Anggota 4').setRequired(false))
+        .addUserOption((opt) => opt.setName('member5').setDescription('Anggota 5').setRequired(false))
     )
     .addSubcommand((sub) =>
       sub
@@ -916,8 +918,10 @@ export default {
       const member1 = interaction.options.getUser('member1');
       const member2 = interaction.options.getUser('member2');
       const member3 = interaction.options.getUser('member3');
+      const member4 = interaction.options.getUser('member4');
+      const member5 = interaction.options.getUser('member5');
 
-      const memberIds = [member1, member2, member3].filter(Boolean).map((u) => u.id);
+      const memberIds = [member1, member2, member3, member4, member5].filter(Boolean).map((u) => u.id);
 
       const leaderMember = await interaction.guild.members.fetch(leader.id).catch(() => null);
       if (!leaderMember) {

@@ -23,7 +23,8 @@ import {
 } from '../database/queries/memberQueries.js';
 import {
   closeAllRecruitmentsByTeam,
-  getRecruitmentById
+  getRecruitmentById,
+  getOpenRecruitmentByTeam
 } from '../database/queries/recruitmentQueries.js';
 import { DiscordService } from './discordService.js';
 import { AuditService } from './auditService.js';
@@ -328,7 +329,7 @@ export class TeamService {
    * Buat embed welcome panel untuk channel tim.
    * Menggantikan welcome message sederhana dengan info yang lebih berguna.
    */
-  static buildTeamWelcomePanel(team, activeMembers) {
+  static buildTeamWelcomePanel(team, activeMembers, hasActiveRecruitment = false) {
     const leaderMention = team.leader_discord_id ? `<@${team.leader_discord_id}>` : 'Tidak diketahui';
     const memberList = activeMembers
       .map((m) => {
@@ -367,16 +368,23 @@ export class TeamService {
       .setFooter({ text: 'NSAC Hackathon — Semoga sukses!' })
       .setTimestamp();
 
+    const recruitBtn = hasActiveRecruitment
+      ? new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE)
+          .setLabel('Tutup Rekrutmen')
+          .setStyle(ButtonStyle.Danger)
+      : new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT)
+          .setLabel('Buka Rekrutmen')
+          .setStyle(ButtonStyle.Secondary);
+
     const components = [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INVITE)
           .setLabel('Undang Anggota')
           .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT)
-          .setLabel('Buka Rekrutmen')
-          .setStyle(ButtonStyle.Secondary),
+        recruitBtn,
         new ButtonBuilder()
           .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INFO)
           .setLabel('Info Tim')
@@ -385,6 +393,44 @@ export class TeamService {
     ];
 
     return { embed, components };
+  }
+
+  /**
+   * Cari pesan welcome panel tim di channel tim dan refresh tampilannya
+   */
+  static async refreshTeamWelcomePanel(teamId, guild) {
+    try {
+      const team = await getTeamById(teamId);
+      if (!team || !team.text_channel_id) return;
+
+      const channel = guild.channels.cache.get(team.text_channel_id)
+        || await guild.channels.fetch(team.text_channel_id).catch(() => null);
+      if (!channel || !channel.isTextBased()) return;
+
+      const activeMembers = await getActiveTeamMembers(team.id);
+      const activeRecruit = await getOpenRecruitmentByTeam(team.id);
+      const { embed, components } = this.buildTeamWelcomePanel(team, activeMembers, !!activeRecruit);
+
+      const messages = await channel.messages.fetch({ limit: 50 }).catch(() => null);
+      if (!messages) return;
+
+      const panelMsg = messages.find((m) =>
+        m.author.id === guild.client.user.id &&
+        m.components.some((row) =>
+          row.components.some((c) =>
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT ||
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE ||
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE
+          )
+        )
+      );
+
+      if (panelMsg) {
+        await panelMsg.edit({ embeds: [embed], components }).catch(() => {});
+      }
+    } catch (err) {
+      logger.warn(`[TeamService] Gagal refresh welcome panel tim ${teamId}: ${err.message}`);
+    }
   }
 
   /**

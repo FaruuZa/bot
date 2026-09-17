@@ -20,7 +20,7 @@ import { InvitationService } from '../services/invitationService.js';
 import { TeamService } from '../services/teamService.js';
 import { AuditService } from '../services/auditService.js';
 import { PermissionService } from '../services/permissionService.js';
-import { getUserActiveTeamByDiscordId, getActiveTeamMembers, countActiveTeamMembers } from '../database/queries/memberQueries.js';
+import { getUserActiveTeamByDiscordId, getActiveTeamMembers, countActiveTeamMembers, getTeamMembers } from '../database/queries/memberQueries.js';
 import { getTeamById } from '../database/queries/teamQueries.js';
 import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
 import {
@@ -1082,6 +1082,68 @@ export default {
         return await interaction.showModal(modal);
       }
 
+      // Team Welcome Panel Button: Tutup Rekrutmen
+      if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE) {
+        const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+        if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
+          return await interaction.reply({
+            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa menutup rekrutmen tim.')],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        const openRecruit = await getOpenRecruitmentByTeam(activeTeam.id);
+        if (!openRecruit) {
+          await TeamService.refreshTeamWelcomePanel(activeTeam.id, interaction.guild);
+          return await interaction.reply({
+            embeds: [infoEmbed('Tidak Ada Rekrutmen', 'Tidak ada lowongan rekrutmen aktif untuk tim kamu.')],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        await closeRecruitment(openRecruit.id);
+
+        // Update pesan board publik jadi [DITUTUP] & kosongkan komponen
+        try {
+          const recruitChannel = interaction.guild.channels.cache.get(openRecruit.channel_id)
+            || await interaction.guild.channels.fetch(openRecruit.channel_id).catch(() => null);
+          if (recruitChannel && recruitChannel.isTextBased()) {
+            const bMsg = await recruitChannel.messages.fetch(openRecruit.message_id).catch(() => null);
+            if (bMsg) {
+              await bMsg.edit({
+                embeds: [
+                  new EmbedBuilder()
+                    .setTitle(`[DITUTUP] Rekrutmen Tim ${activeTeam.name}`)
+                    .setColor(EMBED_COLORS.DARK)
+                    .setDescription('Lowongan rekrutmen tim ini telah ditutup oleh leader tim.')
+                    .setTimestamp()
+                ],
+                components: []
+              }).catch(() => {});
+            }
+          }
+        } catch (err) {
+          logger.warn(`[Recruit Close] Gagal update pesan board: ${err.message}`);
+        }
+
+        // Refresh welcome panel tim agar tombol kembali jadi Buka Rekrutmen
+        await TeamService.refreshTeamWelcomePanel(activeTeam.id, interaction.guild);
+
+        await AuditService.log(interaction.client, {
+          action: AUDIT_ACTIONS.RECRUITMENT_CLOSED,
+          title: 'Rekrutmen Ditutup',
+          actorTag: interaction.user.tag,
+          teamId: activeTeam.id,
+          teamName: activeTeam.name,
+          details: `Leader menutup rekrutmen tim "${activeTeam.name}" dari embed panel tim.`
+        });
+
+        return await interaction.reply({
+          embeds: [successEmbed('Rekrutmen Ditutup', `Lowongan rekrutmen tim **${activeTeam.name}** berhasil ditutup.`)],
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
       // Team Welcome Panel Button: Info Tim
       if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_INFO) {
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
@@ -1241,13 +1303,15 @@ export default {
 
       // Leader terima permintaan join dari DM (BTN_RECRUIT_ACCEPT)
       if (customId.startsWith(CUSTOM_IDS.BTN_RECRUIT_ACCEPT)) {
+        await interaction.deferUpdate();
+
         const payload = customId.replace(CUSTOM_IDS.BTN_RECRUIT_ACCEPT, '');
         const [recruitIdStr, applicantDiscordId] = payload.split('_');
         const recruitId = parseInt(recruitIdStr, 10);
 
         const recruitment = await getRecruitmentById(recruitId);
         if (!recruitment) {
-          return await interaction.update({
+          return await interaction.editReply({
             embeds: [errorEmbed('Tidak Ditemukan', 'Data rekrutmen tidak ditemukan.')],
             components: []
           });
@@ -1257,13 +1321,13 @@ export default {
           || await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
 
         if (!guild) {
-          return await interaction.reply({ embeds: [errorEmbed('Error', 'Server tidak ditemukan.')], flags: MessageFlags.Ephemeral });
+          return await interaction.editReply({ embeds: [errorEmbed('Error', 'Server tidak ditemukan.')], components: [] });
         }
 
         // Cek kuota tim
         const currentCount = await countActiveTeamMembers(recruitment.team_id);
         if (currentCount >= env.MAX_TEAM_SIZE) {
-          return await interaction.update({
+          return await interaction.editReply({
             embeds: [errorEmbed('Tim Penuh', `Tim **${recruitment.team_name}** sudah mencapai kuota maksimal (${env.MAX_TEAM_SIZE} orang).`)],
             components: []
           });
@@ -1272,7 +1336,7 @@ export default {
         // Cek anti-double-team
         const applicantTeam = await getUserActiveTeamByDiscordId(applicantDiscordId);
         if (applicantTeam) {
-          return await interaction.update({
+          return await interaction.editReply({
             embeds: [errorEmbed('Sudah Punya Tim', `<@${applicantDiscordId}> saat ini sudah bergabung di tim lain (${applicantTeam.name}).`)],
             components: []
           });
@@ -1288,11 +1352,14 @@ export default {
         );
 
         if (!addResult.success) {
-          return await interaction.update({
+          return await interaction.editReply({
             embeds: [errorEmbed('Gagal Menambahkan', addResult.error)],
             components: []
           });
         }
+
+        // Kurangi slot rekrutmen
+        const updatedRecruit = await decrementRecruitmentSlot(recruitment.id);
 
         // Kirim DM konfirmasi ke pemohon
         const applicantMember = await guild.members.fetch(applicantDiscordId).catch(() => null);
@@ -1323,9 +1390,10 @@ export default {
           }
         }
 
-        // Periksa apakah kuota rekrutmen sudah terpenuhi
+        // Periksa apakah kuota tim sudah penuh atau slot rekrutmen habis
         const newCount = await countActiveTeamMembers(recruitment.team_id);
-        if (newCount >= env.MAX_TEAM_SIZE) {
+        const shouldClose = newCount >= env.MAX_TEAM_SIZE || (updatedRecruit && updatedRecruit.status === 'CLOSED');
+        if (shouldClose) {
           await closeRecruitment(recruitment.id);
           // Update pesan board jadi tertutup
           try {
@@ -1348,6 +1416,9 @@ export default {
           } catch {}
         }
 
+        // Refresh welcome panel tim di channel tim
+        await TeamService.refreshTeamWelcomePanel(recruitment.team_id, guild);
+
         await AuditService.log(interaction.client, {
           action: AUDIT_ACTIONS.RECRUITMENT_REQUEST_ACCEPTED,
           title: 'Permintaan Join Tim Diterima',
@@ -1357,7 +1428,7 @@ export default {
           details: `Leader menerima <@${applicantDiscordId}> bergabung ke tim "${recruitment.team_name}".`
         });
 
-        return await interaction.update({
+        return await interaction.editReply({
           embeds: [successEmbed('Permintaan Diterima', `<@${applicantDiscordId}> telah berhasil ditambahkan ke tim **${recruitment.team_name}**!`)],
           components: []
         });
@@ -1365,6 +1436,8 @@ export default {
 
       // Leader tolak permintaan join dari DM (BTN_RECRUIT_REJECT)
       if (customId.startsWith(CUSTOM_IDS.BTN_RECRUIT_REJECT)) {
+        await interaction.deferUpdate();
+
         const payload = customId.replace(CUSTOM_IDS.BTN_RECRUIT_REJECT, '');
         const [recruitIdStr, applicantDiscordId] = payload.split('_');
         const recruitId = parseInt(recruitIdStr, 10);
@@ -1399,7 +1472,7 @@ export default {
           details: `Leader menolak permintaan <@${applicantDiscordId}> untuk bergabung ke tim "${teamName}".`
         });
 
-        return await interaction.update({
+        return await interaction.editReply({
           embeds: [infoEmbed('Permintaan Ditolak', `Kamu telah menolak permintaan bergabung dari <@${applicantDiscordId}>.`)],
           components: []
         });
@@ -1766,19 +1839,18 @@ export default {
           description
         });
 
-        // Update board message dengan action buttons
+        // Update board message dengan action buttons (Hanya "Minta Bergabung", tutup board ada di embed tim)
         const boardRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId(`${CUSTOM_IDS.BTN_RECRUIT_REQUEST_JOIN}${recruitmentRecord.id}`)
             .setLabel('Minta Bergabung')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId(`${CUSTOM_IDS.BTN_TEAM_RECRUIT_CLOSE}${recruitmentRecord.id}`)
-            .setLabel('Tutup Lowongan')
-            .setStyle(ButtonStyle.Secondary)
+            .setStyle(ButtonStyle.Success)
         );
 
         await boardMsg.edit({ components: [boardRow] }).catch(() => {});
+
+        // Refresh welcome panel tim di channel tim agar tombol otomatis berubah menjadi "Tutup Rekrutmen"
+        await TeamService.refreshTeamWelcomePanel(team.id, interaction.guild);
 
         await AuditService.log(interaction.client, {
           action: AUDIT_ACTIONS.RECRUITMENT_POSTED,
