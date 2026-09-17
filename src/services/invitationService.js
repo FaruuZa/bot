@@ -10,14 +10,18 @@ import {
 import {
   addTeamMember,
   getUserActiveTeamByDiscordId,
-  updateMemberStatus
+  updateMemberStatus,
+  countActiveTeamMembers
 } from '../database/queries/memberQueries.js';
+import { getOpenRecruitmentByTeam, closeRecruitment } from '../database/queries/recruitmentQueries.js';
 import { getTeamById } from '../database/queries/teamQueries.js';
 import { getUserByDiscordId } from '../database/queries/userQueries.js';
 import { invitationEmbed, successEmbed, errorEmbed } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
 import { AuditService } from './auditService.js';
 import { DiscordService } from './discordService.js';
+import { TeamService } from './teamService.js';
+import { env } from '../config/env.js';
 
 export class InvitationService {
   /**
@@ -146,6 +150,40 @@ export class InvitationService {
                 .setTimestamp()
             ]
           }).catch(() => {});
+        }
+      }
+
+      // Refresh welcome panel tim
+      if (guild) {
+        await TeamService.refreshTeamWelcomePanel(invite.team_id, guild);
+
+        // Jika tim sudah mencapai kapasitas maksimum, tutup rekrutmen aktif jika ada
+        const memberCount = await countActiveTeamMembers(invite.team_id);
+        if (memberCount >= env.MAX_TEAM_SIZE) {
+          const openRecruit = await getOpenRecruitmentByTeam(invite.team_id);
+          if (openRecruit) {
+            await closeRecruitment(openRecruit.id);
+            try {
+              const recruitChannel = guild.channels.cache.get(openRecruit.channel_id)
+                || await guild.channels.fetch(openRecruit.channel_id).catch(() => null);
+              if (recruitChannel && recruitChannel.isTextBased()) {
+                const bMsg = await recruitChannel.messages.fetch(openRecruit.message_id).catch(() => null);
+                if (bMsg) {
+                  await bMsg.edit({
+                    embeds: [
+                      new EmbedBuilder()
+                        .setTitle(`[DITUTUP] Rekrutmen Tim ${invite.team_name}`)
+                        .setColor(EMBED_COLORS.DARK)
+                        .setDescription('Lowongan rekrutmen tim ini telah ditutup karena kuota tim telah terpenuhi.')
+                        .setTimestamp()
+                    ],
+                    components: []
+                  }).catch(() => {});
+                }
+              }
+            } catch {}
+            await TeamService.refreshTeamWelcomePanel(invite.team_id, guild);
+          }
         }
       }
     } catch (err) {

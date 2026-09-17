@@ -137,11 +137,12 @@ export class TicketService {
       const pings = [`<@${user.id}>`];
       if (staffRoleId) pings.push(`<@&${staffRoleId}>`);
 
-      await channel.send({
+      const ticketMsg = await channel.send({
         content: pings.join(' ') + ' 🔔 **Tiket Registrasi Baru Dibuat!**',
         embeds: [registrationTicketEmbed(user)],
         components: [row]
       });
+      await ticketMsg.pin().catch(() => {});
 
       await AuditService.log(interaction.client, {
         action: AUDIT_ACTIONS.TICKET_CREATED,
@@ -261,11 +262,12 @@ export class TicketService {
       if (techSupportRoleId) pings.push(`<@&${techSupportRoleId}>`);
       else if (staffRoleId) pings.push(`<@&${staffRoleId}>`);
 
-      await channel.send({
+      const ticketMsg = await channel.send({
         content: pings.join(' ') + ' 🆘 **Tiket Bantuan / Support Baru!** Mohon staff/tech support segera merespons.',
         embeds: [supportTicketEmbed(user)],
         components: [row]
       });
+      await ticketMsg.pin().catch(() => {});
 
       await AuditService.log(interaction.client, {
         action: AUDIT_ACTIONS.TICKET_CREATED,

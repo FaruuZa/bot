@@ -1,146 +1,154 @@
-# 🏆 Discord Hackathon Management Bot
+# Discord Hackathon Management Bot
 
-A production-grade, enterprise-ready **Discord Bot designed for online hackathon management**, built with **Node.js**, **discord.js v14**, and **PostgreSQL** (`pg`).
+A production-grade Discord Bot designed for online hackathon management, built with **Node.js**, **discord.js v14**, and **PostgreSQL**.
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
 1. **Automated Team Registration**:
-   - Ticket-based registration (`#team-registration` -> private ticket).
-   - Interactive Discord Modal & **User Select Menu** (no manual typing of user tags).
-   - Multi-member invitation system with expiration timers (`INVITATION_EXPIRE_HOURS`).
-   - Anti-double-team enforcement at database and application levels.
+   - Ticket-based registration (`#team-registration` -> private channel).
+   - Interactive Discord Modal and dynamic member select menu.
+   - Supports team sizes from 1 to 6 members, including instant solo-team creation.
+   - Multi-member invitation system with expiration timers.
+   - Database-enforced Anti-Double-Team protection.
+
 2. **Dynamic Channel & Role Provisioning**:
-   - Automatically creates `@Team-Name` role placed safely under staff roles.
-   - Creates private `📁 TEAM NAME` Category, `💬・team-name` Text Channel, and `🔊・team-name` Voice Channel.
+   - Automatically provisions `@Team-Name` role, category, text channel, and voice channel.
    - Strict channel permission overwrites for `@everyone`, team members, and staff.
-   - **Automatic Rollback**: If channel/role creation fails midway, all partial resources are automatically cleaned up.
-3. **Role & Reconnect Management**:
+   - Automatic rollback of partial Discord resources if provisioning encounters errors.
+   - Automatic message pinning for team workspace dashboards and ticket channels.
+
+3. **Open Recruitment Board System**:
+   - Team leaders can post open roster vacancies to a public recruitment channel.
+   - Public board contains only the "Minta Bergabung" action to prevent unauthorized modifications.
+   - The "Tutup Rekrutmen" action is managed directly inside each team's private workspace channel.
+   - Real-time slot and member count updates on the public board when an applicant is accepted.
+   - Automatic vacancy closure when slots are filled or when the team reaches the maximum capacity (6 members).
+
+4. **Participant Role & Reconnect Management**:
    - Auto-assigns `@Unregistered` to newly joined members.
-   - Detects reconnecting/rejoining participants and automatically restores `@Participant` and team roles from PostgreSQL.
-4. **Staff Management & Overrides**:
-   - Commands to rename, add members, remove members, transfer leadership, archive (make read-only), or delete teams.
-   - Override commands for edge cases (`force-add`, `force-remove`, `resend-invite`, `cancel-registration`, `force-register`).
-5. **Support Ticket System**:
-   - `#support` panel with interactive button to spawn private tickets for Staff & Technical Support.
-6. **Dual-Audit Logging**:
-   - Persistent database logging in the `audit_logs` table.
-   - Real-time formatted embeds dispatched to Discord `#bot-log`.
+   - Detects reconnecting participants and restores participant and team roles from PostgreSQL.
+
+5. **Staff Management & Central Control Panel**:
+   - Interactive control panel (`/setup dashboard` and `/team panel`) for monitoring teams, registrations, and configurations.
+   - Management commands: rename, add/remove members, transfer leadership, archive, and delete teams.
+   - Staff override commands (`force-register`, `force-add`, `force-remove`, `resend-invite`, `cancel-registration`).
+
+6. **Support Ticket & Dynamic FAQ System**:
+   - Ticket panel for technical support and inquiries.
+   - Live-editable markdown FAQ/Rules system (`/faq`).
+
+7. **Dual-Audit Logging**:
+   - Persistent transactional logging in the PostgreSQL `audit_logs` table.
+   - Formatted real-time audit log embeds dispatched to the designated log channel.
 
 ---
 
-## 📁 Project Architecture
+## Project Architecture
 
 ```
 .
 ├── src/
-│   ├── index.js                      # Application entry point & client lifecycle
-│   ├── deploy-commands.js            # Slash command registration REST script
+│   ├── index.js                      # Application entry point and client lifecycle
+│   ├── deploy-commands.js            # Slash command registration script
 │   │
 │   ├── config/
-│   │   ├── env.js                    # Environment variable loader & validator
-│   │   └── constants.js              # Enums, statuses, colors, custom IDs
+│   │   ├── env.js                    # Environment variable loader and fallback config
+│   │   └── constants.js              # Enums, statuses, embed colors, custom IDs
 │   │
 │   ├── database/
-│   │   ├── pool.js                   # PostgreSQL connection pool & transaction helper
-│   │   ├── schema.sql                # DDL schema, constraints, partial indexes
+│   │   ├── pool.js                   # PostgreSQL connection pool and transaction helper
+│   │   ├── schema.sql                # DDL schema, constraints, and partial indexes
 │   │   ├── migrate.js                # Database migration runner
 │   │   └── queries/
-│   │       ├── userQueries.js        # User CRUD & lookup
+│   │       ├── userQueries.js        # User records and lookup
 │   │       ├── teamQueries.js        # Team lifecycle queries
 │   │       ├── memberQueries.js      # Team membership queries
 │   │       ├── invitationQueries.js  # Invitation tracking queries
+│   │       ├── recruitmentQueries.js # Open recruitment board queries
 │   │       ├── ticketQueries.js      # Ticket records
+│   │       ├── faqQueries.js         # Dynamic FAQ and embed queries
 │   │       └── auditQueries.js       # Audit log records
 │   │
 │   ├── services/
-│   │   ├── teamService.js            # Team validation, creation, rename, delete
-│   │   ├── invitationService.js      # Member invitations & expiration sweeper
-│   │   ├── ticketService.js          # Registration & support ticket channels
+│   │   ├── teamService.js            # Team validation, creation, rename, and panel logic
+│   │   ├── invitationService.js      # Member invitations and expiration sweeper
+│   │   ├── ticketService.js          # Registration and support ticket provisioning
 │   │   ├── discordService.js         # Discord channel/role provisioning with rollback
-│   │   ├── permissionService.js      # Backend staff/admin permission validator
-│   │   └── auditService.js           # Dual PostgreSQL + Discord log dispatcher
+│   │   ├── permissionService.js      # Role-based permission checks
+│   │   ├── guildConfigService.js     # Dynamic guild settings stored in PostgreSQL
+│   │   ├── dashboardService.js       # Central admin dashboard renderer
+│   │   ├── faqService.js             # Live markdown FAQ builder and renderer
+│   │   └── auditService.js           # Dual PostgreSQL and Discord log dispatcher
 │   │
 │   ├── utils/
-│   │   ├── embeds.js                 # Standardized Discord Embed builders
-│   │   ├── logger.js                 # Colored console logger
-│   │   └── validators.js             # Team name and size validation helpers
+│   │   ├── embeds.js                 # Standardized Discord embed builders
+│   │   ├── logger.js                 # Formatted console logger
+│   │   ├── validators.js             # Team name and size validation helpers
+│   │   └── interactionUtils.js       # Interaction response helpers
 │   │
 │   ├── commands/
 │   │   ├── registration/
-│   │   │   └── registerTeam.js       # /register-team command
+│   │   │   └── register.js           # /register member
 │   │   ├── team/
-│   │   │   └── team.js               # /team (info, members, invite, rename, archive, etc.)
+│   │   │   └── team.js               # /team subcommands (info, members, invite, recruit, etc.)
 │   │   ├── ticket/
 │   │   │   └── close.js              # /ticket close
 │   │   └── admin/
-│   │       ├── setupPanels.js        # /setup-panels (deploy buttons)
-│   │       └── announce.js           # /announce (rich announcements)
+│   │       ├── setup.js              # /setup (dashboard, panels, config)
+│   │       ├── faq.js                # /faq (create, edit, delete)
+│   │       ├── announce.js           # /announce (rich announcements)
+│   │       └── purge.js              # /purge (bulk message cleanup)
 │   │
 │   └── events/
-│       ├── ready.js                  # Startup verification & sweeper init
-│       ├── guildMemberAdd.js         # Auto-role & rejoin restore
-│       └── interactionCreate.js      # Central router for commands/buttons/modals/selects
+│       ├── ready.js                  # Startup verification, config cache, and sweeper init
+│       ├── guildMemberAdd.js         # Auto-role assignment and rejoin restoration
+│       └── interactionCreate.js      # Central router for commands, buttons, modals, and selects
 │
-├── .env.example                      # Environment variables template
-├── .gitignore                        # Git ignore file
-├── ecosystem.config.cjs              # PM2 process manager configuration
-├── package.json                      # NPM dependencies & scripts
-└── README.md                         # Full documentation
+├── docker-compose.yml                # Docker compose configuration
+├── Dockerfile                        # Container definition
+├── package.json                      # NPM dependencies and scripts
+└── README.md                         # Project documentation
 ```
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
-- **Node.js**: v18.0.0 or higher (Tested on v20+ / v24+)
+- **Node.js**: v18.0.0 or higher (v20+ recommended)
 - **PostgreSQL**: v13.0 or higher
-- **Discord Bot Token & Application** from Discord Developer Portal
+- **Discord Bot Token & Application** from the Discord Developer Portal
 
 ---
 
-## ⚙️ 1. Discord Developer Portal Setup
+## 1. Discord Developer Portal Setup
 
-1. Visit the [Discord Developer Portal](https://discord.com/developers/applications).
-2. Click **New Application**, give it a name (e.g., `Hackathon Bot`), and create it.
-3. Go to the **Bot** tab on the left sidebar:
-   - Click **Add Bot** / **Reset Token** to copy your **`DISCORD_TOKEN`**.
-   - Under **Privileged Gateway Intents**, enable:
-     - ✅ **SERVER MEMBERS INTENT** (Required for auto-roles, membership tracking)
-     - ✅ **MESSAGE CONTENT INTENT** (Required for announcements and moderation)
-4. Go to the **General Information** tab:
-   - Copy the **`Application ID`** (this is your `CLIENT_ID`).
-5. Generate the Bot Invite URL:
-   - Go to **OAuth2** -> **URL Generator**.
-   - Under **Scopes**, select: `bot` and `applications.commands`.
-   - Under **Bot Permissions**, select:
-     - `Administrator` (or individually: Manage Roles, Manage Channels, View Channels, Send Messages, Embed Links, Attach Files, Read Message History, Move Members, Mute Members, Connect, Speak).
-   - Use the generated URL to invite the bot to your Hackathon Discord server.
-6. **Role Hierarchy in Discord**:
-   - In Discord Server Settings -> **Roles**, ensure the **Bot's highest role is positioned ABOVE** the `@Participant`, `@Unregistered`, and team roles.
+1. Create a new application in the [Discord Developer Portal](https://discord.com/developers/applications).
+2. Under the **Bot** tab:
+   - Reset/Copy your `DISCORD_TOKEN`.
+   - Enable **Server Members Intent** and **Message Content Intent**.
+3. Under the **General Information** tab:
+   - Copy the `Application ID` (used as `CLIENT_ID`).
+4. Generate the bot invite URL via **OAuth2 -> URL Generator**:
+   - Scopes: `bot`, `applications.commands`.
+   - Permissions: `Administrator` (or granular permissions for Manage Roles, Manage Channels, Send Messages, etc.).
+5. **Role Hierarchy Requirement**:
+   - In Discord Server Settings -> **Roles**, place the Bot's highest role **ABOVE** the `@Participant`, `@Unregistered`, and team roles.
 
 ---
 
-## 🗄️ 2. PostgreSQL Database Setup
+## 2. PostgreSQL Setup & Migrations
 
-Create a dedicated database and user in PostgreSQL:
+Create a database and user:
 
-```bash
-# Connect to PostgreSQL CLI
-psql -U postgres
-
-# Create database and user
+```sql
 CREATE USER hackathon_user WITH PASSWORD 'secure_password_123';
 CREATE DATABASE hackathon_db OWNER hackathon_user;
 GRANT ALL PRIVILEGES ON DATABASE hackathon_db TO hackathon_user;
-\q
 ```
 
-Your `DATABASE_URL` will be:
-`postgresql://hackathon_user:secure_password_123@localhost:5432/hackathon_db`
-
-Run migrations to create the database tables, relations, and anti-double-team indexes:
+Run migrations:
 
 ```bash
 npm run migrate
@@ -148,15 +156,9 @@ npm run migrate
 
 ---
 
-## 🔑 3. Configuration (`.env`)
+## 3. Environment Configuration (`.env`)
 
-Copy `.env.example` to `.env`:
-
-```bash
-cp .env.example .env
-```
-
-Fill in the required values:
+Copy `.env.example` to `.env` and fill in the values:
 
 ```env
 # Discord Bot Credentials
@@ -171,168 +173,120 @@ DATABASE_URL=postgresql://hackathon_user:secure_password_123@localhost:5432/hack
 MIN_TEAM_SIZE=2
 MAX_TEAM_SIZE=6
 INVITATION_EXPIRE_HOURS=24
-
-# Category IDs (Right-click Category in Discord -> Copy ID)
-REGISTRATION_CATEGORY_ID=123456789012345678
-TEAM_PARENT_CATEGORY_ID=123456789012345678
-SUPPORT_CATEGORY_ID=123456789012345678
-
-# Role IDs (Right-click Role in Discord -> Copy ID)
-ADMINISTRATOR_ROLE_ID=123456789012345678
-STAFF_ROLE_ID=123456789012345678
-TECHNICAL_SUPPORT_ROLE_ID=123456789012345678
-JUDGE_ROLE_ID=123456789012345678
-PARTICIPANT_ROLE_ID=123456789012345678
-UNREGISTERED_ROLE_ID=123456789012345678
-
-# Channel IDs (Right-click Channel in Discord -> Copy ID)
-LOG_CHANNEL_ID=123456789012345678
-REGISTRATION_CHANNEL_ID=123456789012345678
-SUPPORT_CHANNEL_ID=123456789012345678
 ```
+
+*Note: All category, channel, and role IDs can be configured dynamically via `/setup config set` or directly in the database.*
 
 ---
 
-## 🚀 4. Deployment & Running
+## 4. Running the Bot
 
-### Step 1: Install Dependencies
+### Local Development
+
 ```bash
+# Install dependencies
 npm install
-```
 
-### Step 2: Run Database Migrations
-```bash
+# Run database migrations
 npm run migrate
-```
 
-### Step 3: Deploy Slash Commands
-```bash
+# Deploy slash commands to Discord
 npm run deploy-commands
-```
 
-### Step 4: Start Bot in Development Mode
-```bash
+# Start the bot in development mode
 npm run dev
 ```
 
-### Step 5: Post Panels to Registration & Support Channels
-Once the bot is online in your server, run this slash command as Staff:
-```
-/setup-panels type:Both Panels
-```
-This will automatically send the interactive **Team Registration** button in `#team-registration` and the **Support Ticket** button in `#support`.
+### Initial Server Setup
+
+Once the bot is online, execute:
+1. `/setup dashboard` — Deploys the central admin control panel in `#admin-dashboard`.
+2. `/setup panels type:both` — Deploys the public Team Registration and Support Ticket panels.
 
 ---
 
-## 🌐 5. Production Deployment on Linux VPS
+## 5. Deployment with PM2 / Docker
 
-### Step 1: Install Node.js & PostgreSQL on Ubuntu/Debian
+### Using PM2
+
 ```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install Node.js 20 LTS
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs git postgresql postgresql-contrib
-
 # Install PM2 globally
-sudo npm install -g pm2
-```
+npm install -g pm2
 
-### Step 2: Clone & Configure Project
-```bash
-git clone <your-repo-url> /opt/hackathon-bot
-cd /opt/hackathon-bot
-
-npm install --production
-cp .env.example .env
-nano .env # Edit your environment variables
-
-npm run migrate
-npm run deploy-commands
-```
-
-### Step 3: Start with PM2 Process Manager
-```bash
-# Start bot using ecosystem configuration
+# Start bot process
 pm2 start ecosystem.config.cjs
 
-# Save PM2 process list to persist across server reboots
+# Persist across reboots
 pm2 save
 pm2 startup
 ```
 
-### Step 4: Monitoring & Logs
+### Using Docker Compose
+
 ```bash
-# View live logs
-pm2 logs hackathon-bot
-
-# Monitor CPU/Memory
-pm2 monit
-
-# Restart bot
-pm2 restart hackathon-bot
+docker-compose up -d --build
 ```
 
 ---
 
-## 📖 6. Slash Command Reference
+## 6. Command Reference
 
-### Participant Commands
+### Participant & Team Commands
 | Command | Description |
 |---|---|
-| `/register-team` | Start a private ticket to register your team |
-| `/team info [name] [user]` | View details, status, and channels of a team |
+| `/team info [name] [user]` | View team details, members, and channels |
 | `/team members [name]` | List all registered members of a team |
-| `/team invite <user>` | Leader: Invite an additional member to your team |
-| `/ticket close` | Close and archive the current ticket |
+| `/team invite <user>` | Leader: Invite an unregistered user to the team |
+| `/team kick <user>` | Leader: Remove a member from the team |
+| `/team leave` | Member: Leave the current team |
+| `/team recruit` | Leader: Open team recruitment on the public board |
+| `/team recruit-close` | Leader: Close active recruitment listing |
+| `/ticket close` | Close the current registration or support ticket |
 
-### Staff Management Commands
+### Staff & Administrative Commands
 | Command | Description |
 |---|---|
+| `/setup dashboard` | Deploy or refresh the central Admin Control Panel |
+| `/setup panels <type> [channel]` | Deploy persistent Registration and Support ticket panels |
+| `/setup config set <key> <value>` | Update guild configuration values dynamically |
+| `/setup config list` | View all active guild configuration parameters |
+| `/team panel` | Open the interactive Team Management dashboard |
 | `/team create <name> <leader>` | Manually create an active team |
-| `/team approve <name>` | Force approve a pending team and provision resources |
+| `/team approve <name>` | Approve a pending team and provision resources |
 | `/team add-member <team> <user>` | Add a member to an existing team |
 | `/team remove-member <team> <user>` | Remove a member from a team |
-| `/team rename <team> <new_name>` | Rename team in DB, Discord role, category, text, voice |
-| `/team transfer-leader <team> <new_leader>` | Transfer team leadership |
+| `/team rename <team> <new_name>` | Rename team in DB, Discord role, and channels |
+| `/team transfer-leader <team> <user>` | Transfer team leadership |
 | `/team archive <team>` | Archive team and lock channels to read-only |
-| `/team delete <team>` | Delete team resources with confirmation prompt |
-| `/team force-add <team> <user>` | Staff override: Force add member |
-| `/team force-remove <team> <user>` | Staff override: Force remove member |
-| `/team resend-invite <team> <user>` | Resend pending invitation DM |
+| `/team delete <team>` | Delete team resources with confirmation |
+| `/team force-register <name> <leader> [members...]` | Instantly provision a complete team (up to 6 members) |
+| `/team force-add <team> <user>` | Force-add a member bypassing standard checks |
+| `/team force-remove <team> <user>` | Force-remove a member |
+| `/team resend-invite <team> <user>` | Resend pending invitation DM to a user |
 | `/team cancel-registration <team>` | Cancel a pending team registration |
-| `/team force-register <name> <leader> [members...]` | Instantly provision a complete team |
-| `/setup-panels <type> [channel]` | Deploy persistent Registration / Support panels |
+| `/register member <user> [role]` | Assign participant roles and clear unregistered status |
+| `/faq create <id> [channel]` | Create a live-editable Markdown FAQ/Rules embed |
+| `/faq edit <id>` | Open editor modal to update FAQ content in-place |
 | `/announce <channel> <title> <message> [color]` | Send formatted announcement embed |
 | `/purge <amount> [user]` | Bulk delete 1-100 messages with optional user filter |
 
 ---
 
-## 🛡️ 7. Anti-Double-Team Mechanism
+## 7. Anti-Double-Team Enforcement
 
-1. **Database-Level Constraint**:
+1. **Database Constraint**:
    ```sql
    CREATE UNIQUE INDEX unique_active_user_team 
    ON team_members (user_id) 
    WHERE status = 'ACTIVE';
    ```
 2. **Transaction Isolation**:
-   Team registration and membership updates execute inside `withTransaction()` with `BEGIN ... COMMIT` and rollback on error.
-3. **Application Validation**:
-   Checks active user status in PostgreSQL before accepting invitations or allowing registration.
+   Team registration, member addition, and invitations execute inside PostgreSQL transactions (`withTransaction`) ensuring atomic rollbacks upon conflict.
+3. **Application Verification**:
+   Validates user active status prior to dispatching invitations, accepting join requests, or creating teams.
 
 ---
 
-## 🔄 8. Recovery & Startup Integrity
+## 8. License
 
-Upon startup (`ready.js`):
-1. Verifies PostgreSQL connection and auto-applies schema if missing.
-2. Sweeps expired pending invitations (`expires_at <= NOW()`).
-3. Re-establishes background expiration intervals.
-4. Auto-restores `@Participant` and team roles if a member left and rejoined the Discord server (`guildMemberAdd.js`).
-
----
-
-## 📜 License
-MIT License - Open Source for Hackathons & Developer Communities.
+MIT License - Open Source for Hackathons and Developer Communities.

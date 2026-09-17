@@ -24,7 +24,8 @@ import {
 import {
   closeAllRecruitmentsByTeam,
   getRecruitmentById,
-  getOpenRecruitmentByTeam
+  getOpenRecruitmentByTeam,
+  closeRecruitment
 } from '../database/queries/recruitmentQueries.js';
 import { DiscordService } from './discordService.js';
 import { AuditService } from './auditService.js';
@@ -271,11 +272,15 @@ export class TeamService {
       const textChannel = guild.channels.cache.get(discordResources.textChannelId);
       if (textChannel && textChannel.isTextBased()) {
         const { embed, components } = this.buildTeamWelcomePanel(team, activeMembers);
-        await textChannel.send({
+        const panelMsg = await textChannel.send({
           content: activeMembers.map((m) => `<@${m.discord_id}>`).join(' '),
           embeds: [embed],
           components
-        }).catch(() => {});
+        }).catch(() => null);
+
+        if (panelMsg) {
+          await panelMsg.pin().catch((err) => logger.warn(`[TeamService] Gagal pin welcome panel: ${err.message}`));
+        }
       }
 
       // 5. Auto-close registration ticket jika ada
@@ -427,6 +432,9 @@ export class TeamService {
 
       if (panelMsg) {
         await panelMsg.edit({ embeds: [embed], components }).catch(() => {});
+        if (!panelMsg.pinned) {
+          await panelMsg.pin().catch(() => {});
+        }
       }
     } catch (err) {
       logger.warn(`[TeamService] Gagal refresh welcome panel tim ${teamId}: ${err.message}`);
@@ -463,6 +471,38 @@ export class TeamService {
 
     if (team.role_id) {
       await DiscordService.assignTeamMembershipRoles(guild, memberDiscordId, team.role_id);
+    }
+
+    // Refresh welcome panel tim
+    await TeamService.refreshTeamWelcomePanel(team.id, guild);
+
+    // Jika setelah penambahan tim sudah mencapai kapasitas maksimum, tutup rekrutmen aktif jika ada
+    const updatedCount = await countActiveTeamMembers(teamId);
+    if (updatedCount >= env.MAX_TEAM_SIZE) {
+      const openRecruit = await getOpenRecruitmentByTeam(teamId);
+      if (openRecruit) {
+        await closeRecruitment(openRecruit.id);
+        try {
+          const recruitChannel = guild.channels.cache.get(openRecruit.channel_id)
+            || await guild.channels.fetch(openRecruit.channel_id).catch(() => null);
+          if (recruitChannel && recruitChannel.isTextBased()) {
+            const bMsg = await recruitChannel.messages.fetch(openRecruit.message_id).catch(() => null);
+            if (bMsg) {
+              await bMsg.edit({
+                embeds: [
+                  new EmbedBuilder()
+                    .setTitle(`[DITUTUP] Rekrutmen Tim ${team.name}`)
+                    .setColor(EMBED_COLORS.DARK)
+                    .setDescription('Lowongan rekrutmen tim ini telah ditutup karena kuota tim telah terpenuhi.')
+                    .setTimestamp()
+                ],
+                components: []
+              }).catch(() => {});
+            }
+          }
+        } catch {}
+        await TeamService.refreshTeamWelcomePanel(team.id, guild);
+      }
     }
 
     await AuditService.log(client, {
@@ -623,6 +663,9 @@ export class TeamService {
       teamName: activeTeam.name,
       details: `<@${discordId}> meninggalkan tim "${activeTeam.name}".`
     });
+
+    // Refresh welcome panel tim
+    await TeamService.refreshTeamWelcomePanel(activeTeam.id, guild);
 
     return { success: true, team: activeTeam };
   }

@@ -1393,14 +1393,16 @@ export default {
         // Periksa apakah kuota tim sudah penuh atau slot rekrutmen habis
         const newCount = await countActiveTeamMembers(recruitment.team_id);
         const shouldClose = newCount >= env.MAX_TEAM_SIZE || (updatedRecruit && updatedRecruit.status === 'CLOSED');
-        if (shouldClose) {
-          await closeRecruitment(recruitment.id);
-          // Update pesan board jadi tertutup
-          try {
-            const recruitChannel = guild.channels.cache.get(recruitment.channel_id);
-            if (recruitChannel && recruitChannel.isTextBased()) {
-              const bMsg = await recruitChannel.messages.fetch(recruitment.message_id).catch(() => null);
-              if (bMsg) {
+
+        try {
+          const recruitChannel = guild.channels.cache.get(recruitment.channel_id)
+            || await guild.channels.fetch(recruitment.channel_id).catch(() => null);
+
+          if (recruitChannel && recruitChannel.isTextBased()) {
+            const bMsg = await recruitChannel.messages.fetch(recruitment.message_id).catch(() => null);
+            if (bMsg) {
+              if (shouldClose) {
+                await closeRecruitment(recruitment.id);
                 await bMsg.edit({
                   embeds: [
                     new EmbedBuilder()
@@ -1411,9 +1413,37 @@ export default {
                   ],
                   components: []
                 }).catch(() => {});
+              } else {
+                // Update embed board dengan sisa slot dan jumlah anggota terkini
+                const remainingSlots = updatedRecruit?.slots_needed ?? Math.max(0, (recruitment.slots_needed || 1) - 1);
+                const updatedBoardEmbed = new EmbedBuilder()
+                  .setTitle(`Lowongan Tim — ${recruitment.team_name}`)
+                  .setColor(EMBED_COLORS.PRIMARY)
+                  .setDescription(recruitment.description ? `"${recruitment.description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.')
+                  .addFields(
+                    { name: 'Leader Tim', value: `<@${recruitment.leader_discord_id}>`, inline: true },
+                    { name: 'Slot Dibutuhkan', value: `**${remainingSlots}** orang`, inline: true },
+                    { name: 'Anggota Saat Ini', value: `**${newCount}** / ${env.MAX_TEAM_SIZE}`, inline: true }
+                  )
+                  .setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' })
+                  .setTimestamp();
+
+                const boardRow = new ActionRowBuilder().addComponents(
+                  new ButtonBuilder()
+                    .setCustomId(`${CUSTOM_IDS.BTN_RECRUIT_REQUEST_JOIN}${recruitment.id}`)
+                    .setLabel('Minta Bergabung')
+                    .setStyle(ButtonStyle.Success)
+                );
+
+                await bMsg.edit({
+                  embeds: [updatedBoardEmbed],
+                  components: [boardRow]
+                }).catch(() => {});
               }
             }
-          } catch {}
+          }
+        } catch (err) {
+          logger.warn(`[Recruit Accept] Gagal update pesan board: ${err.message}`);
         }
 
         // Refresh welcome panel tim di channel tim
