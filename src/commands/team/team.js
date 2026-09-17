@@ -659,7 +659,8 @@ export default {
         leaderMember,
         memberIds: [],
         guild: interaction.guild,
-        client: interaction.client
+        client: interaction.client,
+        allowSolo: true
       });
 
       if (!result.success) {
@@ -926,10 +927,11 @@ export default {
       const result = await TeamService.startRegistration({
         teamName: name,
         leaderMember,
-        memberIds: [],
+        memberIds: memberIds,
         guild: interaction.guild,
         client: interaction.client,
-        skipInvitations: true
+        skipInvitations: true,
+        allowSolo: true
       });
 
       if (!result.success) {
@@ -937,10 +939,6 @@ export default {
       }
 
       await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
-
-      for (const mId of memberIds) {
-        await TeamService.addMemberToTeam(result.team.id, mId, interaction.guild, interaction.client, interaction.user.tag);
-      }
 
       return await interaction.editReply({
         embeds: [successEmbed('Tim Berhasil Dibuat', `Tim **${name}** dibuat dan diaktifkan dengan ${memberIds.length + 1} anggota!`)]

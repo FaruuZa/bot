@@ -86,3 +86,20 @@ export async function closeAllRecruitmentsByTeam(teamId, client = pool) {
   const res = await client.query(sql, [teamId]);
   return res.rows;
 }
+
+/**
+ * Kurangi 1 slot kebutuhan rekrutmen. Jika slot menjadi 0, ubah status jadi CLOSED.
+ */
+export async function decrementRecruitmentSlot(id, client = pool) {
+  const sql = `
+    UPDATE team_recruitments
+    SET slots_needed = GREATEST(0, slots_needed - 1),
+        status = CASE WHEN slots_needed - 1 <= 0 THEN 'CLOSED' ELSE status END,
+        closed_at = CASE WHEN slots_needed - 1 <= 0 THEN NOW() ELSE closed_at END
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const res = await client.query(sql, [id]);
+  return res.rows[0] || null;
+}
+

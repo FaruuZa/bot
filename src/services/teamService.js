@@ -38,7 +38,7 @@ export class TeamService {
   /**
    * Validate potential team registration before creating
    */
-  static async validateRegistration({ teamName, leaderMember, memberIds, guild }) {
+  static async validateRegistration({ teamName, leaderMember, memberIds, guild, allowSolo = false }) {
     // 1. Validate team name
     const nameCheck = validateTeamName(teamName);
     if (!nameCheck.valid) {
@@ -56,9 +56,16 @@ export class TeamService {
     const uniqueMemberIds = [...new Set(memberIds.filter((id) => id !== leaderMember.id))];
     const totalCount = uniqueMemberIds.length + 1; // +1 for leader
 
-    const sizeCheck = validateTeamSize(totalCount);
-    if (!sizeCheck.valid) {
-      return { valid: false, error: sizeCheck.error };
+    if (!allowSolo) {
+      const sizeCheck = validateTeamSize(totalCount);
+      if (!sizeCheck.valid) {
+        return { valid: false, error: sizeCheck.error };
+      }
+    } else if (totalCount > env.MAX_TEAM_SIZE) {
+      return {
+        valid: false,
+        error: `A team cannot have more than ${env.MAX_TEAM_SIZE} members (including the leader). Current: ${totalCount}.`
+      };
     }
 
     // 3. Validate leader active status
@@ -104,9 +111,10 @@ export class TeamService {
   /**
    * Register a new team — tim langsung ACTIVE, undangan dikirim ke anggota yang dipilih.
    * @param {boolean} skipInvitations - Jika true, anggota langsung ditambah tanpa undangan (staff override)
+   * @param {boolean} [allowSolo=false] - Jika true, izinkan pendaftaran dengan 1 leader saja (staff override)
    */
-  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null, skipInvitations = false }) {
-    const validation = await this.validateRegistration({ teamName, leaderMember, memberIds, guild });
+  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null, skipInvitations = false, allowSolo = false }) {
+    const validation = await this.validateRegistration({ teamName, leaderMember, memberIds, guild, allowSolo });
     if (!validation.valid) {
       return { success: false, error: validation.error };
     }

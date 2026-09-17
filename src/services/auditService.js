@@ -36,15 +36,48 @@ export class AuditService {
 
     // 2. PostgreSQL Insert
     try {
+      let safeActorId = null;
+      let actorDiscordId = null;
+      if (typeof actorId === 'number' && Number.isInteger(actorId) && actorId > 0 && actorId <= 2147483647) {
+        safeActorId = actorId;
+      } else if (typeof actorId === 'string') {
+        if (/^\d{1,9}$/.test(actorId)) {
+          safeActorId = parseInt(actorId, 10);
+        } else {
+          actorDiscordId = actorId;
+        }
+      }
+
+      let safeTargetUserId = null;
+      let targetDiscordId = null;
+      if (typeof targetUserId === 'number' && Number.isInteger(targetUserId) && targetUserId > 0 && targetUserId <= 2147483647) {
+        safeTargetUserId = targetUserId;
+      } else if (typeof targetUserId === 'string') {
+        if (/^\d{1,9}$/.test(targetUserId)) {
+          safeTargetUserId = parseInt(targetUserId, 10);
+        } else {
+          targetDiscordId = targetUserId;
+        }
+      }
+
+      let safeTeamId = null;
+      if (typeof teamId === 'number' && Number.isInteger(teamId) && teamId > 0 && teamId <= 2147483647) {
+        safeTeamId = teamId;
+      } else if (typeof teamId === 'string' && /^\d{1,9}$/.test(teamId)) {
+        safeTeamId = parseInt(teamId, 10);
+      }
+
       await createAuditLog({
         action: safeAction,
-        actorId,
-        targetUserId,
-        teamId,
+        actorId: safeActorId,
+        targetUserId: safeTargetUserId,
+        teamId: safeTeamId,
         metadata: {
           title,
           actorTag,
           targetTag,
+          actorDiscordId: actorDiscordId || undefined,
+          targetDiscordId: targetDiscordId || undefined,
           teamName,
           details
         }

@@ -28,7 +28,8 @@ import {
   createRecruitment,
   getRecruitmentById,
   closeRecruitment,
-  closeAllRecruitmentsByTeam
+  closeAllRecruitmentsByTeam,
+  decrementRecruitmentSlot
 } from '../database/queries/recruitmentQueries.js';
 import { buildTeamPanelDashboard } from '../commands/team/team.js';
 import { validateTeamName } from '../utils/validators.js';
@@ -170,8 +171,11 @@ function buildStaffRegEmbed({ teamName, memberIds = [], step }) {
 
 /**
  * Build member select dropdown for a given eligible members list and team name.
+ * Returns null if eligibleMembers is empty (caller should handle gracefully).
  */
-function buildMemberSelectRow({ eligibleMembers, encodedName, min, max, isStaff = false }) {
+function buildMemberSelectRow({ eligibleMembers, min, max, isStaff = false }) {
+  if (!eligibleMembers || eligibleMembers.length === 0) return null;
+
   const selectOptions = eligibleMembers.slice(0, 25).map((m) => {
     const displayName = (m.displayName || m.user.username).substring(0, 100);
     const tag = `@${m.user.username}`.substring(0, 100);
@@ -185,9 +189,8 @@ function buildMemberSelectRow({ eligibleMembers, encodedName, min, max, isStaff 
   const actualMax = Math.min(max, selectOptions.length);
   const actualMin = Math.min(min, actualMax);
 
-  const customId = isStaff
-    ? `select_staff_reg_members_${encodedName}`
-    : `select_unreg_members_${encodedName}`;
+  // Use static customIds to avoid 100-char Discord limit from encoded team names
+  const customId = isStaff ? 'select_staff_reg_members' : 'select_unreg_members';
 
   const select = new StringSelectMenuBuilder()
     .setCustomId(customId)
@@ -556,10 +559,12 @@ export default {
           return true;
         });
 
-        const encodedName = encodeURIComponent(session.teamName);
         const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
         const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
-        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minSelect, max: maxSelect });
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
+        if (!selectRow) {
+          return await interaction.update({ embeds: [errorEmbed('Tidak Ada Anggota', 'Tidak ada anggota yang tersedia untuk dipilih.')], components: [] });
+        }
 
         const cancelRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),

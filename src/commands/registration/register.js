@@ -123,6 +123,7 @@ export default {
 
         // 3. Upsert user in database
         const dbUser = await upsertUser(targetMember.id, targetMember.user.tag || targetMember.user.username);
+        const actorUser = await upsertUser(interaction.user.id, interaction.user.tag || interaction.user.username);
 
         // 4. Log to AuditService
         const addedNames = rolesToAdd.map((id) => {
@@ -133,7 +134,8 @@ export default {
         await AuditService.log(interaction.client, {
           action: AUDIT_ACTIONS.ROLE_ASSIGNED,
           title: 'Manual Member Registration via /register',
-          actorId: interaction.user.id,
+          actorId: actorUser.id,
+          actorTag: interaction.user.tag,
           targetUserId: dbUser.id,
           targetTag: targetMember.user.tag,
           details: `Staff ${interaction.user.tag} manually registered ${targetMember.user.tag}.\n` +

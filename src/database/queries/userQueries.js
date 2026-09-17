@@ -1,6 +1,8 @@
 import { pool } from '../pool.js';
 
 export async function upsertUser(discordId, username, client = pool) {
+  const safeId = String(discordId);
+  const safeUsername = String(username || discordId || 'Unknown');
   const sql = `
     INSERT INTO users (discord_id, username, updated_at)
     VALUES ($1, $2, NOW())
@@ -8,7 +10,7 @@ export async function upsertUser(discordId, username, client = pool) {
     DO UPDATE SET username = EXCLUDED.username, updated_at = NOW()
     RETURNING *;
   `;
-  const res = await client.query(sql, [discordId, username]);
+  const res = await client.query(sql, [safeId, safeUsername]);
   return res.rows[0];
 }
 

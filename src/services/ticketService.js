@@ -5,7 +5,7 @@ import { createTicket, getTicketByChannelId, getActiveUserTicket, closeTicket } 
 import { upsertUser } from '../database/queries/userQueries.js';
 import { getUserActiveTeamByDiscordId } from '../database/queries/memberQueries.js';
 import { registrationTicketEmbed, supportTicketEmbed, errorEmbed, successEmbed } from '../utils/embeds.js';
-import { sanitizeChannelName } from '../utils/validators.js';
+import { sanitizeChannelName, deduplicateOverwrites } from '../utils/validators.js';
 import { AuditService } from './auditService.js';
 import { logger } from '../utils/logger.js';
 
@@ -53,7 +53,7 @@ export class TicketService {
       const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
       const regCategoryId = GuildConfigService.get('REGISTRATION_CATEGORY_ID');
 
-      // Overwrite permissions
+      const botMemberId = guild.members.me?.id ?? interaction.client.user.id;
       const permissionOverwrites = [
         {
           id: guild.id,
@@ -70,7 +70,7 @@ export class TicketService {
           ]
         },
         {
-          id: guild.members.me.id,
+          id: botMemberId,
           allow: [
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
@@ -108,7 +108,7 @@ export class TicketService {
         name: channelName,
         type: ChannelType.GuildText,
         parent: regCategoryId || undefined,
-        permissionOverwrites,
+        permissionOverwrites: deduplicateOverwrites(permissionOverwrites),
         topic: `Team registration ticket for ${user.tag} (${user.id})`
       });
 
@@ -187,6 +187,7 @@ export class TicketService {
       const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
       const supportCategoryId = GuildConfigService.get('SUPPORT_CATEGORY_ID');
 
+      const botMemberId = guild.members.me?.id ?? interaction.client.user.id;
       const permissionOverwrites = [
         {
           id: guild.id,
@@ -203,7 +204,7 @@ export class TicketService {
           ]
         },
         {
-          id: guild.members.me.id,
+          id: botMemberId,
           allow: [
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
@@ -237,7 +238,7 @@ export class TicketService {
         name: channelName,
         type: ChannelType.GuildText,
         parent: supportCategoryId || undefined,
-        permissionOverwrites,
+        permissionOverwrites: deduplicateOverwrites(permissionOverwrites),
         topic: `Support ticket for ${user.tag} (${user.id})`
       });
 

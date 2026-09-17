@@ -67,3 +67,19 @@ export function sanitizeChannelName(name) {
     .replace(/^-|-$/g, '')
     .substring(0, 30);
 }
+
+/**
+ * Deduplicate permission overwrites by entity ID to prevent Discord API 50035 error
+ * @param {Array<{ id: string, allow?: any, deny?: any }>} overwrites 
+ * @returns {Array<{ id: string, allow?: any, deny?: any }>}
+ */
+export function deduplicateOverwrites(overwrites) {
+  const map = new Map();
+  for (const overwrite of overwrites) {
+    if (overwrite && overwrite.id) {
+      map.set(overwrite.id, overwrite);
+    }
+  }
+  return Array.from(map.values());
+}
+

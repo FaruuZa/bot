@@ -42,7 +42,16 @@ export async function getTeamByName(name, client = pool) {
     SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
-    WHERE LOWER(t.name) = LOWER($1) AND t.status IN ('PENDING', 'ACTIVE', 'ARCHIVED');
+    WHERE LOWER(t.name) = LOWER($1) AND t.status IN ('PENDING', 'ACTIVE', 'ARCHIVED')
+    ORDER BY 
+      CASE t.status
+        WHEN 'ACTIVE' THEN 1
+        WHEN 'PENDING' THEN 2
+        WHEN 'ARCHIVED' THEN 3
+        ELSE 4
+      END,
+      t.created_at DESC
+    LIMIT 1;
   `;
   const res = await client.query(sql, [name.trim()]);
   return res.rows[0] || null;

@@ -295,14 +295,19 @@ export default {
           targetId = channelOption.id;
           displayTarget = `<#${targetId}> (\`${targetId}\`)`;
         } else if (rawIdOption) {
-          const cleanId = rawIdOption.replace(/[^0-9]/g, '');
-          if (!cleanId || cleanId.length < 15) {
-            return await interaction.editReply({
-              embeds: [errorEmbed('Invalid ID', 'ID Discord yang dimasukkan tidak valid. Masukkan ID numerik yang benar.')]
-            });
+          if (def.type === 'TEXT') {
+            targetId = rawIdOption.trim();
+            displayTarget = `\`${targetId}\``;
+          } else {
+            const cleanId = rawIdOption.replace(/[^0-9]/g, '');
+            if (!cleanId || cleanId.length < 15) {
+              return await interaction.editReply({
+                embeds: [errorEmbed('Invalid ID', 'ID Discord yang dimasukkan tidak valid. Masukkan ID numerik yang benar.')]
+              });
+            }
+            targetId = cleanId;
+            displayTarget = `\`${targetId}\``;
           }
-          targetId = cleanId;
-          displayTarget = `\`${targetId}\``;
         }
 
         if (!targetId) {

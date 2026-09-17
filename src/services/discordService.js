@@ -1,7 +1,7 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
 import { GuildConfigService } from './guildConfigService.js';
 import { logger } from '../utils/logger.js';
-import { sanitizeChannelName } from '../utils/validators.js';
+import { sanitizeChannelName, deduplicateOverwrites } from '../utils/validators.js';
 
 export class DiscordService {
   /**
@@ -127,7 +127,7 @@ export class DiscordService {
       created.category = await guild.channels.create({
         name: `📁 ${teamName.toUpperCase()}`,
         type: ChannelType.GuildCategory,
-        permissionOverwrites,
+        permissionOverwrites: deduplicateOverwrites(permissionOverwrites),
         reason: `Hackathon Team Category for ${teamName}`
       });
       logger.info(`[Discord Provisioning] Created Category: ${created.category.name} (${created.category.id})`);
@@ -237,18 +237,19 @@ export class DiscordService {
       }
 
       const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
+      const fallbackRoleId = noTeamRoleId || GuildConfigService.get('UNREGISTERED_ROLE_ID');
 
       // 1. Remove Team Role only (keep @Participant — it's an identity, not status)
       if (teamRoleId && member.roles.cache.has(teamRoleId)) {
         await member.roles.remove(teamRoleId, 'Removed Hackathon Team role').catch(() => {});
       }
 
-      // 2. Restore @No-Team status role (@Participant stays untouched)
-      if (restoreNoTeam && noTeamRoleId && !member.roles.cache.has(noTeamRoleId)) {
-        await member.roles.add(noTeamRoleId, 'Restored No-Team status role on team leave/delete').catch(() => {});
+      // 2. Restore @No-Team status role (or fallback to @Unregistered if NO_TEAM_ROLE_ID not configured)
+      if (restoreNoTeam && fallbackRoleId && !member.roles.cache.has(fallbackRoleId)) {
+        await member.roles.add(fallbackRoleId, 'Restored status role on team leave/delete').catch(() => {});
       }
 
-      logger.info(`[DiscordService] Restored @No-Team (kept @Participant) for ${member.user.tag}`);
+      logger.info(`[DiscordService] Restored status role for ${member.user.tag}`);
     } catch (error) {
       logger.error(`[DiscordService] Failed to remove team roles for member ${discordId}: ${error.message}`);
     }

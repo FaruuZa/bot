@@ -31,7 +31,11 @@ export async function replyAutoDismiss(interaction, payload, timeoutMs = 7000) {
   } else {
     // Component interaction (button / select menu)
     // NEVER call deleteReply() here as it would delete the component's parent message!
-    response = await interaction.followUp({ ...payload, flags: MessageFlags.Ephemeral }).catch(() => null);
+    if (interaction.deferred || interaction.replied) {
+      response = await interaction.followUp({ ...payload, flags: MessageFlags.Ephemeral }).catch(() => null);
+    } else {
+      response = await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral }).catch(() => null);
+    }
   }
 
   return response;
