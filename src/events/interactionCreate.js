@@ -543,6 +543,48 @@ export default {
         });
       }
 
+      // N2. Create Team Immediately (member) — skip member selection, register solo
+      if (customId === CUSTOM_IDS.BTN_REG_CREATE_SOLO) {
+        const sessionKey = `member_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang dari awal.')], components: [] });
+        }
+
+        await interaction.update({
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: [], step: 'processing' })],
+          components: []
+        });
+
+        try {
+          const result = await TeamService.startRegistration({
+            teamName: session.teamName,
+            leaderMember: interaction.member,
+            memberIds: [],
+            guild: interaction.guild,
+            client: interaction.client,
+            ticketChannel: interaction.channel,
+            allowSolo: true
+          });
+
+          deleteSession(sessionKey);
+
+          if (!result.success) {
+            return await interaction.editReply({ embeds: [errorEmbed('Pendaftaran Gagal', result.error)], components: [] });
+          }
+
+          await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
+
+          return await interaction.editReply({
+            embeds: [successEmbed('Tim Berhasil Dibuat', `Tim **${session.teamName}** telah aktif dan channel tim siap digunakan.`)],
+            components: []
+          });
+        } catch (err) {
+          logger.error(`[Reg Create Solo Error] ${err.message}`);
+          return await interaction.editReply({ embeds: [errorEmbed('Error', `Gagal memproses pendaftaran: ${err.message}`)], components: [] });
+        }
+      }
+
       // O. Reselect Members (member) — go back to dropdown state
       if (customId === CUSTOM_IDS.BTN_REG_RESELECT) {
         const sessionKey = `member_${interaction.user.id}`;
@@ -567,6 +609,7 @@ export default {
         }
 
         const cancelRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
@@ -665,7 +708,51 @@ export default {
         });
       }
 
-      // S. Reselect Members (staff) — go back to dropdown
+      // R2. Create Team Immediately (staff) — skip member selection, register with leader only
+      if (customId === CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO) {
+        const sessionKey = `staff_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang.')], components: [] });
+        }
+
+        await interaction.update({
+          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: [], step: 'processing' })],
+          components: []
+        });
+
+        try {
+          // For staff solo create, interaction.member is the staff, but we need a leader
+          // Session has no leaderId yet — staff flow requires at least one member selected as leader
+          // We use interaction.member as the leader in this path
+          const result = await TeamService.startRegistration({
+            teamName: session.teamName,
+            leaderMember: interaction.member,
+            memberIds: [],
+            guild: interaction.guild,
+            client: interaction.client,
+            skipInvitations: true,
+            allowSolo: true
+          });
+
+          deleteSession(sessionKey);
+
+          if (!result.success) {
+            return await interaction.editReply({ embeds: [errorEmbed('Gagal Membuat Tim', result.error)], components: [] });
+          }
+
+          await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
+
+          return await interaction.editReply({
+            embeds: [successEmbed('✅ Tim Berhasil Dibuat!', `Tim **${session.teamName}** berhasil dibuat dengan leader <@${interaction.user.id}>!`)],
+            components: []
+          });
+        } catch (err) {
+          logger.error(`[Staff Reg Create Solo Error] ${err.message}`);
+          return await interaction.editReply({ embeds: [errorEmbed('Error', err.message)], components: [] });
+        }
+      }
+
       if (customId === CUSTOM_IDS.BTN_STAFF_REG_RESELECT) {
         const sessionKey = `staff_${interaction.user.id}`;
         const session = getSession(sessionKey);
@@ -681,17 +768,18 @@ export default {
           return true;
         });
 
-        const encodedName = encodeURIComponent(session.teamName);
-        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
 
         const cancelRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
+        const components = selectRow ? [selectRow, cancelRow] : [cancelRow];
         return await interaction.update({
           embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: [], step: 'select_members' })],
-          components: [selectRow, cancelRow]
+          components
         });
       }
 
@@ -1405,15 +1493,17 @@ export default {
         }
 
         // Show the single registration embed with member dropdown
-        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minMembersToSelect, max: maxMembersToSelect });
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: minMembersToSelect, max: maxMembersToSelect });
         const buttonRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
+        const replyComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
         const reply = await interaction.reply({
           embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName, memberIds: [], step: 'select_members' })],
-          components: [selectRow, buttonRow],
+          components: replyComponents,
           fetchReply: true
         });
 
@@ -1452,27 +1542,17 @@ export default {
           return true;
         });
 
-        if (eligibleMembers.length === 0) {
-          return await interaction.reply({
-            embeds: [errorEmbed(
-              'Tidak Ada Anggota Tersedia',
-              `Tidak ditemukan anggota yang memenuhi syarat.\n` +
-              (filterRoleId ? `Pastikan ada user dengan role <@&${filterRoleId}> di server.` : '')
-            )],
-            flags: MessageFlags.Ephemeral
-          });
-        }
-
-        const encodedName = encodeURIComponent(teamName);
-        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
         const buttonRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
+        const replyComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
         const reply = await interaction.reply({
           embeds: [buildStaffRegEmbed({ teamName, memberIds: [], step: 'select_members' })],
-          components: [selectRow, buttonRow],
+          components: replyComponents,
           flags: MessageFlags.Ephemeral,
           fetchReply: true
         });
@@ -1513,11 +1593,11 @@ export default {
             return true;
           });
 
-          const encodedName = encodeURIComponent(newName);
           const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
           const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
-          const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minSelect, max: maxSelect });
+          const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
           const buttonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
             new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
             new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
           );
@@ -1527,9 +1607,10 @@ export default {
             if (channel) {
               const msg = await channel.messages.fetch(session.messageId).catch(() => null);
               if (msg) {
+                const editComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
                 await msg.edit({
                   embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: newName, memberIds: [], step: 'select_members' })],
-                  components: [selectRow, buttonRow]
+                  components: editComponents
                 });
               }
             }
@@ -1565,9 +1646,9 @@ export default {
             return true;
           });
 
-          const encodedName = encodeURIComponent(newName);
-          const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+          const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
           const buttonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
             new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
             new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
           );
@@ -1577,9 +1658,10 @@ export default {
             if (channel) {
               const msg = await channel.messages.fetch(session.messageId).catch(() => null);
               if (msg) {
+                const editComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
                 await msg.edit({
                   embeds: [buildStaffRegEmbed({ teamName: newName, memberIds: [], step: 'select_members' })],
-                  components: [selectRow, buttonRow]
+                  components: editComponents
                 });
               }
             }
@@ -1903,18 +1985,19 @@ export default {
 
       // B. Member: Select Anggota Tim → show CONFIRMATION step (not register directly)
       if (
-        interaction.customId.startsWith('select_unreg_members_') ||
-        interaction.customId.startsWith('select_team_members_')
+        interaction.customId === 'select_unreg_members' ||
+        interaction.customId === 'select_team_members'
       ) {
-        const rawName = interaction.customId
-          .replace('select_unreg_members_', '')
-          .replace('select_team_members_', '');
-        const teamName = decodeURIComponent(rawName);
         const selectedMemberIds = interaction.values;
         const sessionKey = `member_${interaction.user.id}`;
 
+        // Read teamName from session (customId no longer encodes it)
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis. Silakan mulai ulang dari awal.')], components: [] });
+        }
+
         // Update session with selected members
-        const session = getSession(sessionKey) || { teamName, channelId: interaction.channelId };
         session.memberIds = selectedMemberIds;
         session.messageId = interaction.message.id;
         setSession(sessionKey, session);
@@ -1928,10 +2011,9 @@ export default {
           return true;
         });
 
-        const encodedName = encodeURIComponent(teamName);
         const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
         const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
-        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: minSelect, max: maxSelect });
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
 
         // Confirmation buttons row
         const confirmRow = new ActionRowBuilder().addComponents(
@@ -1941,21 +2023,25 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
+        const updateComponents = selectRow ? [selectRow, confirmRow] : [confirmRow];
         return await interaction.update({
-          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName, memberIds: selectedMemberIds, step: 'confirm' })],
-          components: [selectRow, confirmRow]
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: selectedMemberIds, step: 'confirm' })],
+          components: updateComponents
         });
       }
 
       // C. Staff: Select Anggota Tim → show CONFIRMATION step
-      if (interaction.customId.startsWith('select_staff_reg_members_')) {
-        const rawName = interaction.customId.replace('select_staff_reg_members_', '');
-        const teamName = decodeURIComponent(rawName);
+      if (interaction.customId === 'select_staff_reg_members') {
         const selectedMemberIds = interaction.values;
         const sessionKey = `staff_${interaction.user.id}`;
 
+        // Read teamName from session (customId no longer encodes it)
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis. Silakan mulai ulang.')], components: [] });
+        }
+
         // Update session
-        const session = getSession(sessionKey) || { teamName, channelId: interaction.channelId };
         session.memberIds = selectedMemberIds;
         session.messageId = interaction.message.id;
         setSession(sessionKey, session);
@@ -1969,8 +2055,7 @@ export default {
           return true;
         });
 
-        const encodedName = encodeURIComponent(teamName);
-        const selectRow = buildMemberSelectRow({ eligibleMembers, encodedName, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
 
         const confirmRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
@@ -1979,9 +2064,10 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
+        const updateComponents = selectRow ? [selectRow, confirmRow] : [confirmRow];
         return await interaction.update({
-          embeds: [buildStaffRegEmbed({ teamName, memberIds: selectedMemberIds, step: 'confirm' })],
-          components: [selectRow, confirmRow]
+          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: selectedMemberIds, step: 'confirm' })],
+          components: updateComponents
         });
       }
 

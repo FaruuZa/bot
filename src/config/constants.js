@@ -98,6 +98,7 @@ export const CUSTOM_IDS = {
   BTN_REG_RESELECT: 'btn_reg_reselect',             // Pilih ulang anggota (member)
   MODAL_REG_CHANGE_NAME: 'modal_reg_change_name',   // Modal ubah nama (member)
   INPUT_REG_NEW_NAME: 'input_reg_new_name',          // Input di modal ubah nama
+  BTN_REG_CREATE_SOLO: 'btn_reg_create_solo',        // Buat tim langsung tanpa pilih anggota (member)
 
   // === STAFF Registration Flow (single-embed, ephemeral) ===
   MODAL_STAFF_ADD_TEAM: 'modal_staff_add_team',
@@ -108,6 +109,7 @@ export const CUSTOM_IDS = {
   BTN_STAFF_REG_RESELECT: 'btn_staff_reg_reselect',           // Pilih ulang (staff)
   MODAL_STAFF_REG_CHANGE_NAME: 'modal_staff_reg_change_name', // Modal ubah nama (staff)
   INPUT_STAFF_REG_NEW_NAME: 'input_staff_reg_new_name',
+  BTN_STAFF_REG_CREATE_SOLO: 'btn_staff_reg_create_solo',     // Buat tim langsung tanpa pilih anggota (staff)
 
   // === Dashboard Role Selects ===
   ROLESELECT_DASHBOARD_PARTICIPANT: 'dashboard_roleselect_participant', // Set Participant role
