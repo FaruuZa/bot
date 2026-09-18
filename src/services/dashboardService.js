@@ -82,7 +82,7 @@ export class DashboardService {
 
     // 3. Build Embed
     const embed = new EmbedBuilder()
-      .setTitle('🎛️ NSAC Admin Dashboard — Overview & Tim')
+      .setTitle('NSAC Admin Dashboard — Overview & Tim')
       .setDescription(
         'Panel kendali status operasional server, pembukaan pendaftaran tim, ' +
         'dan monitoring statistik tim peserta hackathon.'
@@ -90,14 +90,14 @@ export class DashboardService {
       .setColor(regOpen ? EMBED_COLORS.SUCCESS : EMBED_COLORS.DANGER)
       .addFields(
         {
-          name: '📢 Status Pendaftaran Tim',
+          name: 'Status Pendaftaran Tim',
           value: regOpen
-            ? '🟢 **BUKA (OPEN)** — Peserta dapat mendaftarkan tim baru'
-            : '🔴 **TUTUP (CLOSED)** — Pendaftaran tim sedang dinonaktifkan',
+            ? '**BUKA (OPEN)** — Peserta dapat mendaftarkan tim baru'
+            : '**TUTUP (CLOSED)** — Pendaftaran tim sedang dinonaktifkan',
           inline: false
         },
         {
-          name: '📊 Ringkasan Tim Hackathon',
+          name: 'Ringkasan Tim Hackathon',
           value:
             `• **Tim Aktif:** \`${s.active_count}\` tim\n` +
             `• **Menunggu Verifikasi:** \`${s.pending_count}\` tim\n` +
@@ -105,7 +105,7 @@ export class DashboardService {
           inline: true
         },
         {
-          name: '🎯 Challenge & Pendataan Web',
+          name: 'Challenge & Pendataan Web',
           value:
             `• **Challenge Terdaftar:** \`${s.challenge_count}\` challenge\n` +
             `• **Sudah Pilih Challenge:** \`${s.with_challenge_count}\` tim\n` +
@@ -122,18 +122,15 @@ export class DashboardService {
       new ButtonBuilder()
         .setCustomId('dashboard_toggle_reg')
         .setLabel(regOpen ? 'Tutup Pendaftaran' : 'Buka Pendaftaran')
-        .setStyle(regOpen ? ButtonStyle.Danger : ButtonStyle.Success)
-        .setEmoji(regOpen ? '🔒' : '🔓'),
+        .setStyle(regOpen ? ButtonStyle.Danger : ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId('dashboard_open_team_panel')
         .setLabel('Kelola Tim')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🛡️'),
+        .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId('dashboard_refresh_all')
         .setLabel('Refresh Semua Panel')
         .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🔄')
     );
 
     return {
@@ -151,14 +148,14 @@ export class DashboardService {
     const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
     const selectRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
 
-    const participantDisplay = participantRoleId ? `<@&${participantRoleId}> ✅` : '*(Belum diatur)* ❌';
-    const noTeamDisplay = noTeamRoleId ? `<@&${noTeamRoleId}> ✅` : '*(Belum diatur)* ❌';
+    const participantDisplay = participantRoleId ? `<@&${participantRoleId}>` : '*(Belum diatur)*';
+    const noTeamDisplay = noTeamRoleId ? `<@&${noTeamRoleId}>` : '*(Belum diatur)*';
     const filterDisplay = selectRoleId
       ? `<@&${selectRoleId}> *(Member dengan role ini yang tampil di dropdown pendaftaran)*`
       : '*(Belum diatur — default: semua member)*';
 
     const embed = new EmbedBuilder()
-      .setTitle('🎭 NSAC Admin Dashboard — Pengaturan Role Sistem')
+      .setTitle('NSAC Admin Dashboard — Pengaturan Role Sistem')
       .setDescription(
         'Atur role sistem yang digunakan oleh bot untuk identitas peserta dan filter dropdown pembentukan tim. ' +
         'Pilih role melalui menu dropdown di bawah.'
@@ -166,17 +163,17 @@ export class DashboardService {
       .setColor(EMBED_COLORS.PRIMARY)
       .addFields(
         {
-          name: '🎖️ Role Participant (Identitas Peserta)',
+          name: 'Role Participant (Identitas Peserta)',
           value: `${participantDisplay}\n*Role permanen sebagai identitas peserta resmi hackathon.*`,
           inline: false
         },
         {
-          name: '🚫 Role No-Team (Belum Memiliki Tim)',
+          name: 'Role No-Team (Belum Memiliki Tim)',
           value: `${noTeamDisplay}\n*Role sementara untuk peserta yang belum terdaftar di tim mana pun.*`,
           inline: false
         },
         {
-          name: '🎯 Filter Dropdown Pemilihan Anggota',
+          name: 'Filter Dropdown Pemilihan Anggota',
           value: `${filterDisplay}`,
           inline: false
         }
@@ -186,19 +183,19 @@ export class DashboardService {
 
     const participantRoleSelect = new RoleSelectMenuBuilder()
       .setCustomId('dashboard_roleselect_participant')
-      .setPlaceholder('🎭 Set Role: Participant (Identitas Peserta)...')
+      .setPlaceholder('Set Role: Participant (Identitas Peserta)...')
       .setMinValues(1)
       .setMaxValues(1);
 
     const noTeamRoleSelect = new RoleSelectMenuBuilder()
       .setCustomId('dashboard_roleselect_noteam')
-      .setPlaceholder('🚫 Set Role: No-Team (Belum Punya Tim)...')
+      .setPlaceholder('Set Role: No-Team (Belum Punya Tim)...')
       .setMinValues(1)
       .setMaxValues(1);
 
     const filterRoleSelect = new RoleSelectMenuBuilder()
       .setCustomId('dashboard_select_member_role')
-      .setPlaceholder('🎯 Set Filter Dropdown Pemilihan Anggota Tim...')
+      .setPlaceholder('Set Filter Dropdown Pemilihan Anggota Tim...')
       .setMinValues(1)
       .setMaxValues(1);
 
@@ -250,7 +247,7 @@ export class DashboardService {
       (listText.length > 3500 ? listText.substring(0, 3500) + '...\n*(dan lainnya)*' : listText);
 
     const embed = new EmbedBuilder()
-      .setTitle('🎟️ NSAC Admin Dashboard — Dynamic Invites & Auto-Role')
+      .setTitle('NSAC Admin Dashboard — Dynamic Invites & Auto-Role')
       .setDescription(description)
       .setColor(EMBED_COLORS.PRIMARY)
       .setFooter({ text: 'Panel 3/3 • Dynamic Invites' })
@@ -260,19 +257,16 @@ export class DashboardService {
       new ButtonBuilder()
         .setCustomId('dashboard_invite_create')
         .setLabel('Buat Link Baru')
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('➕'),
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId('dashboard_invite_delete')
         .setLabel('Hapus Link')
         .setStyle(ButtonStyle.Danger)
-        .setEmoji('🗑️')
         .setDisabled(!dynamicInvites || dynamicInvites.length === 0),
       new ButtonBuilder()
         .setCustomId('dashboard_invite_refresh')
         .setLabel('Refresh Invite')
         .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🔄')
     );
 
     return {

@@ -938,16 +938,12 @@ export default {
           });
         }
 
+        await interaction.deferUpdate().catch(() => {});
         const current = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
         const nextState = current ? 'false' : 'true';
         await GuildConfigService.set('REGISTRATION_OPEN', nextState);
 
-        const payload = await DashboardService.buildOverviewPayload(interaction.guild);
-        try {
-          await interaction.update(payload);
-        } catch {
-          await DashboardService.refreshOverviewPanel(interaction.guild);
-        }
+        await DashboardService.refreshOverviewPanel(interaction.guild);
         return;
       }
 
@@ -959,13 +955,8 @@ export default {
           });
         }
 
+        await interaction.deferUpdate().catch(() => {});
         await DashboardService.refreshAllPanels(interaction.guild);
-        const payload = await DashboardService.buildOverviewPayload(interaction.guild);
-        try {
-          await interaction.update(payload);
-        } catch {
-          await interaction.reply({ content: '✅ Seluruh panel berhasil diperbarui.', flags: MessageFlags.Ephemeral });
-        }
         return;
       }
 
@@ -973,12 +964,8 @@ export default {
         if (!PermissionService.isStaff(interaction.member)) {
           return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
         }
-        const payload = await DashboardService.buildInvitesPayload(interaction.guild);
-        try {
-          await interaction.update(payload);
-        } catch {
-          await DashboardService.refreshInvitesPanel(interaction.guild);
-        }
+        await interaction.deferUpdate().catch(() => {});
+        await DashboardService.refreshInvitesPanel(interaction.guild);
         return;
       }
 
@@ -2549,7 +2536,7 @@ export default {
 
         const chText = result.team.challenge_title ? `**${result.team.challenge_title}**` : '*(Belum memilih)*';
         return await interaction.followUp({
-          embeds: [successEmbed('Challenge Diperbarui 🎯', `Challenge tim **${result.team.name}** berhasil diatur menjadi: ${chText}`)],
+          embeds: [successEmbed('Challenge Diperbarui', `Challenge tim **${result.team.name}** berhasil diatur menjadi: ${chText}`)],
           flags: MessageFlags.Ephemeral
         });
       }
