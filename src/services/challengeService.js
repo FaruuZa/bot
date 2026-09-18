@@ -12,15 +12,15 @@ import { logger } from '../utils/logger.js';
 
 export class ChallengeService {
   /**
-   * Build embed daftar semua challenge
+   * Build embed daftar semua challenge (bersih untuk peserta: tanpa ID dan team count)
    */
   static buildChallengeListEmbed(challenges) {
     if (!challenges || challenges.length === 0) {
       return new EmbedBuilder()
         .setTitle('Daftar Challenge NSAC')
         .setColor(EMBED_COLORS.INFO)
-        .setDescription('*(Belum ada challenge yang terdaftar. Hubungi panitia atau gunakan `/challenge add` untuk menambahkan.)*')
-        .setFooter({ text: 'NSAC Hackathon • Challenge Management' })
+        .setDescription('*(Belum ada challenge yang terdaftar. Hubungi panitia untuk informasi lebih lanjut.)*')
+        .setFooter({ text: 'NSAC Hackathon • Challenge' })
         .setTimestamp();
     }
 
@@ -28,17 +28,18 @@ export class ChallengeService {
       let desc = '';
       if (c.description) {
         const cleanDesc = c.description.trim();
-        const shortDesc = cleanDesc.length > 120 ? `${cleanDesc.substring(0, 117)}...` : cleanDesc;
+        const shortDesc = cleanDesc.length > 140 ? `${cleanDesc.substring(0, 137)}...` : cleanDesc;
         desc = `\n   > ${shortDesc}`;
       }
-      const teamCount = c.team_count !== undefined ? ` • ${c.team_count} tim` : '';
-      return `**${idx + 1}. ${c.title}** \`[ID: ${c.id}]\`${teamCount}${desc}`;
+      return `**${idx + 1}. ${c.title}**${desc}`;
     });
 
     let descriptionText = lines.join('\n\n');
-    if (descriptionText.length > 4000) {
-      descriptionText = descriptionText.substring(0, 3900) + '\n\n*(Daftar dipotong karena terlalu panjang. Gunakan `/challenge detail <id>` untuk melihat rincian challenge.)*';
+    if (descriptionText.length > 3700) {
+      descriptionText = descriptionText.substring(0, 3650) + '\n\n*(Daftar dipotong karena batas panjang tampilan).*';
     }
+
+    descriptionText += '\n\n*Gunakan command `/challenge detail` untuk membaca rincian lengkap setiap challenge.*';
 
     return new EmbedBuilder()
       .setTitle('Daftar Challenge NSAC')
@@ -51,17 +52,30 @@ export class ChallengeService {
   /**
    * Build embed detail untuk satu challenge
    */
-  static buildChallengeDetailEmbed(challenge) {
-    return new EmbedBuilder()
+  static buildChallengeDetailEmbed(challenge, isStaff = false) {
+    const embed = new EmbedBuilder()
       .setTitle(`Detail Challenge: ${challenge.title}`)
       .setColor(EMBED_COLORS.PRIMARY)
-      .addFields(
-        { name: 'ID Challenge', value: `\`${challenge.id}\``, inline: true },
-        { name: 'Total Tim Terdaftar', value: `${challenge.team_count ?? 0} tim`, inline: true },
-        { name: 'Deskripsi', value: challenge.description || '*(Tidak ada deskripsi)*', inline: false }
-      )
-      .setFooter({ text: 'NSAC Hackathon • Challenge Management' })
+      .setDescription(challenge.description || '*(Tidak ada deskripsi rinci untuk challenge ini)*')
+      .setFooter({ text: 'NSAC Hackathon • Detail Challenge' })
       .setTimestamp();
+
+    if (isStaff) {
+      embed.addFields(
+        { name: 'ID Challenge', value: `\`${challenge.id}\``, inline: true },
+        { name: 'Total Tim Terdaftar', value: `${challenge.team_count ?? 0} tim`, inline: true }
+      );
+    } else {
+      embed.addFields(
+        {
+          name: 'Cara Memilih Challenge',
+          value: 'Ketua tim dapat memilih challenge ini melalui tombol di channel tim atau command `/team set-challenge`.',
+          inline: false
+        }
+      );
+    }
+
+    return embed;
   }
 
   /**

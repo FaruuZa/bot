@@ -24,7 +24,7 @@ export class TicketService {
       const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
       if (!regOpen) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Pendaftaran Ditutup', '❌ Pendaftaran tim saat ini sedang ditutup oleh panitia.')]
+          embeds: [errorEmbed('Pendaftaran Ditutup', 'Pendaftaran tim saat ini sedang ditutup oleh panitia.')]
         });
       }
 
@@ -32,7 +32,7 @@ export class TicketService {
       const activeTeam = await getUserActiveTeamByDiscordId(user.id);
       if (activeTeam) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Already Registered', `❌ You are already registered in team **${activeTeam.name}**!`)]
+          embeds: [errorEmbed('Sudah Terdaftar', `Kamu sudah terdaftar di tim **${activeTeam.name}**!`)]
         });
       }
 
@@ -43,11 +43,11 @@ export class TicketService {
       const existingTicket = await getActiveUserTicket(dbUser.id, TICKET_TYPE.TEAM_REGISTRATION);
       if (existingTicket) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Ticket Exists', `You already have an open registration ticket: <#${existingTicket.discord_channel_id}>`)]
+          embeds: [errorEmbed('Tiket Sudah Ada', `Kamu sudah memiliki tiket pendaftaran yang masih terbuka: <#${existingTicket.discord_channel_id}>`)]
         });
       }
 
-      const channelName = `🎫・reg-${sanitizeChannelName(user.username)}`;
+      const channelName = `reg-${sanitizeChannelName(user.username)}`;
 
       const staffRoleId = GuildConfigService.get('STAFF_ROLE_ID');
       const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
@@ -123,14 +123,12 @@ export class TicketService {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(CUSTOM_IDS.BTN_OPEN_REG_MODAL)
-          .setLabel('Register Team')
-          .setStyle(ButtonStyle.Primary)
-          .setEmoji('📝'),
+          .setLabel('Daftarkan Tim')
+          .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId(CUSTOM_IDS.BTN_CLOSE_TICKET)
-          .setLabel('Close Ticket')
+          .setLabel('Tutup Tiket')
           .setStyle(ButtonStyle.Danger)
-          .setEmoji('🔒')
       );
 
       // Ping staff & user so staff gets notified
@@ -138,7 +136,7 @@ export class TicketService {
       if (staffRoleId) pings.push(`<@&${staffRoleId}>`);
 
       const ticketMsg = await channel.send({
-        content: pings.join(' ') + ' 🔔 **Tiket Registrasi Baru Dibuat!**',
+        content: pings.join(' ') + ' **Tiket Pendaftaran Tim Baru**',
         embeds: [registrationTicketEmbed(user)],
         components: [row]
       });
@@ -153,12 +151,12 @@ export class TicketService {
       });
 
       return await interaction.editReply({
-        content: `✅ Your registration ticket has been created: <#${channel.id}>`
+        content: `Tiket pendaftaranmu telah dibuat: <#${channel.id}>`
       });
     } catch (error) {
       logger.error(`[TicketService] Failed to create registration ticket: ${error.message}`);
       return await interaction.editReply({
-        content: `❌ Failed to create ticket: ${error.message}`
+        content: `Gagal membuat tiket pendaftaran: ${error.message}`
       });
     }
   }
@@ -178,11 +176,11 @@ export class TicketService {
       const existingTicket = await getActiveUserTicket(dbUser.id, TICKET_TYPE.SUPPORT);
       if (existingTicket) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Ticket Exists', `You already have an open support ticket: <#${existingTicket.discord_channel_id}>`)]
+          embeds: [errorEmbed('Tiket Sudah Ada', `Kamu sudah memiliki tiket bantuan yang masih terbuka: <#${existingTicket.discord_channel_id}>`)]
         });
       }
 
-      const channelName = `🎫・support-${sanitizeChannelName(user.username)}`;
+      const channelName = `support-${sanitizeChannelName(user.username)}`;
       const staffRoleId = GuildConfigService.get('STAFF_ROLE_ID');
       const techSupportRoleId = GuildConfigService.get('TECHNICAL_SUPPORT_ROLE_ID');
       const adminRoleId = GuildConfigService.get('ADMINISTRATOR_ROLE_ID');
@@ -252,9 +250,8 @@ export class TicketService {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(CUSTOM_IDS.BTN_CLOSE_TICKET)
-          .setLabel('Close Ticket')
+          .setLabel('Tutup Tiket')
           .setStyle(ButtonStyle.Danger)
-          .setEmoji('🔒')
       );
 
       // Ping tech support & staff so they get notified instantly
@@ -263,7 +260,7 @@ export class TicketService {
       else if (staffRoleId) pings.push(`<@&${staffRoleId}>`);
 
       const ticketMsg = await channel.send({
-        content: pings.join(' ') + ' 🆘 **Tiket Bantuan / Support Baru!** Mohon staff/tech support segera merespons.',
+        content: pings.join(' ') + ' **Tiket Bantuan / Support Baru**',
         embeds: [supportTicketEmbed(user)],
         components: [row]
       });
@@ -278,12 +275,12 @@ export class TicketService {
       });
 
       return await interaction.editReply({
-        content: `✅ Your support ticket has been created: <#${channel.id}>`
+        content: `Tiket bantuanmu telah berhasil dibuat: <#${channel.id}>`
       });
     } catch (error) {
       logger.error(`[TicketService] Failed to create support ticket: ${error.message}`);
       return await interaction.editReply({
-        content: `❌ Failed to create support ticket: ${error.message}`
+        content: `Gagal membuat tiket bantuan: ${error.message}`
       });
     }
   }
@@ -295,7 +292,7 @@ export class TicketService {
     const channel = interaction.channel;
 
     await interaction.reply({
-      embeds: [successEmbed('Ticket Closed', 'This ticket has been marked as closed and will be deleted in 5 seconds.')]
+      embeds: [successEmbed('Tiket Ditutup', 'Tiket ini telah ditandai selesai dan channel akan otomatis dihapus dalam 5 detik.')]
     });
 
     await closeTicket(channel.id).catch(() => {});

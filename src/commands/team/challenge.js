@@ -8,6 +8,18 @@ import { PermissionService } from '../../services/permissionService.js';
 import { successEmbed, errorEmbed, infoEmbed } from '../../utils/embeds.js';
 import { getAllChallenges, getChallengeById } from '../../database/queries/challengeQueries.js';
 
+async function resolveChallenge(interaction, paramName = 'challenge') {
+  const val = interaction.options.getString(paramName);
+  if (!val) return null;
+  const parsedId = parseInt(val, 10);
+  if (!isNaN(parsedId)) {
+    const byId = await getChallengeById(parsedId);
+    if (byId) return byId;
+  }
+  const all = await getAllChallenges();
+  return all.find((c) => c.title.toLowerCase() === val.toLowerCase()) || null;
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName('challenge')
@@ -23,11 +35,12 @@ export default {
       sub
         .setName('detail')
         .setDescription('Lihat rincian lengkap suatu challenge')
-        .addIntegerOption((opt) =>
+        .addStringOption((opt) =>
           opt
-            .setName('id')
-            .setDescription('ID challenge yang ingin dilihat')
+            .setName('challenge')
+            .setDescription('Pilih challenge yang ingin dilihat')
             .setRequired(true)
+            .setAutocomplete(true)
         )
     )
     // ================= Subcommand: add (Staff) =================
@@ -55,11 +68,12 @@ export default {
       sub
         .setName('edit')
         .setDescription('[Staff] Edit challenge yang sudah ada')
-        .addIntegerOption((opt) =>
+        .addStringOption((opt) =>
           opt
-            .setName('id')
-            .setDescription('ID challenge yang ingin diedit')
+            .setName('challenge')
+            .setDescription('Pilih challenge yang ingin diedit')
             .setRequired(true)
+            .setAutocomplete(true)
         )
         .addStringOption((opt) =>
           opt
@@ -81,13 +95,30 @@ export default {
       sub
         .setName('delete')
         .setDescription('[Staff] Hapus challenge dari daftar')
-        .addIntegerOption((opt) =>
+        .addStringOption((opt) =>
           opt
-            .setName('id')
-            .setDescription('ID challenge yang ingin dihapus')
+            .setName('challenge')
+            .setDescription('Pilih challenge yang ingin dihapus')
             .setRequired(true)
+            .setAutocomplete(true)
         )
     ),
+
+  async autocomplete(interaction) {
+    const focusedValue = (interaction.options.getFocused() || '').toLowerCase();
+    const challenges = await getAllChallenges();
+    const filtered = challenges.filter((c) =>
+      c.title.toLowerCase().includes(focusedValue) ||
+      c.id.toString().includes(focusedValue)
+    ).slice(0, 25);
+
+    await interaction.respond(
+      filtered.map((c) => ({
+        name: c.title.length > 100 ? `${c.title.substring(0, 97)}...` : c.title,
+        value: c.id.toString()
+      }))
+    );
+  },
 
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
@@ -107,14 +138,13 @@ export default {
     // ==========================================
     if (subcommand === 'detail') {
       await interaction.deferReply();
-      const id = interaction.options.getInteger('id');
-      const challenge = await getChallengeById(id);
+      const challenge = await resolveChallenge(interaction, 'challenge');
       if (!challenge) {
         return await interaction.editReply({
-          embeds: [errorEmbed('Challenge Tidak Ditemukan', `Tidak ada challenge dengan ID #${id}. Gunakan \`/challenge list\` untuk melihat daftar challenge.`)]
+          embeds: [errorEmbed('Challenge Tidak Ditemukan', 'Challenge yang kamu pilih tidak ditemukan. Gunakan `/challenge list` untuk melihat daftar challenge yang tersedia.')]
         });
       }
-      const embed = ChallengeService.buildChallengeDetailEmbed(challenge);
+      const embed = ChallengeService.buildChallengeDetailEmbed(challenge, isStaffUser);
       return await interaction.editReply({ embeds: [embed] });
     }
 
@@ -170,7 +200,14 @@ export default {
     if (subcommand === 'edit') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const id = interaction.options.getInteger('id');
+      const challenge = await resolveChallenge(interaction, 'challenge');
+      if (!challenge) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Challenge Tidak Ditemukan', 'Challenge yang ingin diedit tidak ditemukan.')]
+        });
+      }
+
+      const id = challenge.id;
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
 
@@ -207,12 +244,19 @@ export default {
     }
 
     // ==========================================
-    // 4. DELETE SUBCOMMAND (Staff)
+    // 5. DELETE SUBCOMMAND (Staff)
     // ==========================================
     if (subcommand === 'delete') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const id = interaction.options.getInteger('id');
+      const challenge = await resolveChallenge(interaction, 'challenge');
+      if (!challenge) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Challenge Tidak Ditemukan', 'Challenge yang ingin dihapus tidak ditemukan.')]
+        });
+      }
+
+      const id = challenge.id;
 
       const result = await ChallengeService.remove({
         id,

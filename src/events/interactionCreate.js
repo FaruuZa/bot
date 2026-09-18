@@ -38,7 +38,7 @@ import { validateTeamName } from '../utils/validators.js';
 import { errorEmbed, successEmbed, infoEmbed, warningEmbed, teamInfoEmbed } from '../utils/embeds.js';
 import { DashboardService } from '../services/dashboardService.js';
 import { InviteService } from '../services/inviteService.js';
-import { replyAutoDismiss } from '../utils/interactionUtils.js';
+import { replyDismissable, replyPermanent, replyEphemeral } from '../utils/interactionUtils.js';
 import { logger } from '../utils/logger.js';
 import { pool } from '../database/pool.js';
 
@@ -80,42 +80,42 @@ function buildMemberRegEmbed({ userId, teamName, nsacLink, challengeTitle, membe
     ? memberIds.map((id) => `<@${id}>`).join(', ')
     : '*(Belum dipilih)*';
 
-  const chDisplay = challengeTitle ? `🎯 **${challengeTitle}**` : '*(Belum memilih)*';
+  const chDisplay = challengeTitle ? `**${challengeTitle}**` : '*(Belum memilih)*';
   const linkDisplay = nsacLink ? `[Buka Link Web NSAC](${nsacLink})` : '*(Belum diisi)*';
 
   let statusText, color;
   switch (step) {
     case 'select_members':
-      statusText = '⏳ Pilih challenge & anggota tim dari menu dropdown di bawah.';
+      statusText = 'Pilih challenge & anggota tim dari menu dropdown di bawah.';
       color = EMBED_COLORS.INFO;
       break;
     case 'confirm':
-      statusText = '✅ Semua data siap! Tekan **Konfirmasi** untuk mendaftar, atau **Pilih Ulang** untuk mengubah.';
+      statusText = 'Semua data siap. Tekan **Konfirmasi** untuk mendaftar, atau **Pilih Ulang** untuk mengubah.';
       color = EMBED_COLORS.SUCCESS;
       break;
     case 'processing':
-      statusText = '⏳ Sedang memproses pendaftaran tim...';
+      statusText = 'Sedang memproses pendaftaran tim...';
       color = EMBED_COLORS.WARNING;
       break;
     case 'cancelled':
-      statusText = '❌ Pendaftaran dibatalkan.';
+      statusText = 'Pendaftaran dibatalkan.';
       color = EMBED_COLORS.DANGER;
       break;
     default:
-      statusText = '⏳ Memulai pendaftaran...';
+      statusText = 'Memulai pendaftaran...';
       color = EMBED_COLORS.INFO;
   }
 
   return new EmbedBuilder()
-    .setTitle('📝 Pendaftaran Tim Baru')
+    .setTitle('Pendaftaran Tim Baru')
     .setColor(color)
     .addFields(
-      { name: '👑 Team Leader', value: `<@${userId}>`, inline: true },
-      { name: '📛 Nama Tim', value: `**${teamName}**`, inline: true },
-      { name: '🎯 Challenge', value: chDisplay, inline: true },
-      { name: '🌐 Link Tim NSAC', value: linkDisplay, inline: false },
-      { name: '👥 Anggota', value: memberList, inline: false },
-      { name: '📊 Status', value: statusText, inline: false }
+      { name: 'Team Leader', value: `<@${userId}>`, inline: true },
+      { name: 'Nama Tim', value: `**${teamName}**`, inline: true },
+      { name: 'Challenge', value: chDisplay, inline: true },
+      { name: 'Link Tim NSAC', value: linkDisplay, inline: false },
+      { name: 'Anggota', value: memberList, inline: false },
+      { name: 'Status', value: statusText, inline: false }
     )
     .setFooter({ text: 'NSAC Hackathon • Pendaftaran Tim' })
     .setTimestamp();
@@ -137,43 +137,43 @@ function buildStaffRegEmbed({ teamName, nsacLink, challengeTitle, memberIds = []
     otherMembers = '*(Belum dipilih)*';
   }
 
-  const chDisplay = challengeTitle ? `🎯 **${challengeTitle}**` : '*(Belum memilih)*';
+  const chDisplay = challengeTitle ? `**${challengeTitle}**` : '*(Belum memilih)*';
   const linkDisplay = nsacLink ? `[Buka Link Web NSAC](${nsacLink})` : '*(Belum diatur)*';
 
   let statusText, color;
   switch (step) {
     case 'select_members':
-      statusText = '⏳ Pilih 1–4 anggota & challenge. **Anggota pertama otomatis menjadi Leader.**';
+      statusText = 'Pilih 1–4 anggota & challenge. Anggota pertama otomatis menjadi Leader.';
       color = EMBED_COLORS.INFO;
       break;
     case 'confirm':
-      statusText = '✅ Semua data siap! Tim akan langsung aktif tanpa undangan. Tekan **Konfirmasi** untuk membuat.';
+      statusText = 'Semua data siap. Tim akan langsung aktif tanpa undangan. Tekan **Konfirmasi** untuk membuat.';
       color = EMBED_COLORS.SUCCESS;
       break;
     case 'processing':
-      statusText = '⏳ Sedang membuat tim dan menyiapkan channel...';
+      statusText = 'Sedang membuat tim dan menyiapkan channel...';
       color = EMBED_COLORS.WARNING;
       break;
     case 'cancelled':
-      statusText = '❌ Pembuatan tim dibatalkan.';
+      statusText = 'Pembuatan tim dibatalkan.';
       color = EMBED_COLORS.DANGER;
       break;
     default:
-      statusText = '⏳ Memulai...';
+      statusText = 'Memulai...';
       color = EMBED_COLORS.INFO;
   }
 
   return new EmbedBuilder()
-    .setTitle('➕ Buat Tim Baru (Staff)')
+    .setTitle('Buat Tim Baru (Staff)')
     .setColor(color)
     .addFields(
-      { name: '📛 Nama Tim', value: `**${teamName}**`, inline: true },
-      { name: '🏅 Mode', value: 'Staff Override (No Invite)', inline: true },
-      { name: '🎯 Challenge', value: chDisplay, inline: true },
-      { name: '🌐 Link Tim NSAC', value: linkDisplay, inline: false },
-      { name: '👑 Leader', value: leaderDisplay, inline: false },
-      { name: '👥 Anggota Lain', value: otherMembers, inline: false },
-      { name: '📊 Status', value: statusText, inline: false }
+      { name: 'Nama Tim', value: `**${teamName}**`, inline: true },
+      { name: 'Mode', value: 'Staff Override (No Invite)', inline: true },
+      { name: 'Challenge', value: chDisplay, inline: true },
+      { name: 'Link Tim NSAC', value: linkDisplay, inline: false },
+      { name: 'Leader', value: leaderDisplay, inline: false },
+      { name: 'Anggota Lain', value: otherMembers, inline: false },
+      { name: 'Status', value: statusText, inline: false }
     )
     .setFooter({ text: 'NSAC Hackathon • Staff Team Creation' })
     .setTimestamp();
@@ -192,8 +192,7 @@ function buildMemberSelectRow({ eligibleMembers, min, max, isStaff = false }) {
     return new StringSelectMenuOptionBuilder()
       .setLabel(displayName)
       .setDescription(tag)
-      .setValue(m.id)
-      .setEmoji('👤');
+      .setValue(m.id);
   });
 
   const actualMax = Math.min(max, selectOptions.length);
@@ -226,7 +225,6 @@ function buildChallengeSelectRow({ challenges, selectedChallengeId = null, isSta
       .setLabel('Belum Memilih Challenge')
       .setDescription('Kosongkan/lewati pemilihan challenge saat ini')
       .setValue('none')
-      .setEmoji('❓')
       .setDefault(!selectedChallengeId)
   ];
 
@@ -240,7 +238,6 @@ function buildChallengeSelectRow({ challenges, selectedChallengeId = null, isSta
         .setLabel(c.title.substring(0, 100))
         .setDescription(desc)
         .setValue(c.id.toString())
-        .setEmoji('🎯')
         .setDefault(Boolean(isSelected))
     );
   }
@@ -260,6 +257,20 @@ function buildChallengeSelectRow({ challenges, selectedChallengeId = null, isSta
 export default {
   name: Events.InteractionCreate,
   async execute(interaction) {
+    // ========================================================
+    // 0. AUTOCOMPLETE ROUTER
+    // ========================================================
+    if (interaction.isAutocomplete()) {
+      const command = interaction.client.commands.get(interaction.commandName);
+      if (!command || !command.autocomplete) return;
+      try {
+        await command.autocomplete(interaction);
+      } catch (error) {
+        logger.warn(`[Autocomplete Error /${interaction.commandName}] ${error.message}`);
+      }
+      return;
+    }
+
     // ========================================================
     // 1. SLASH COMMANDS ROUTER
     // ========================================================
@@ -328,17 +339,15 @@ export default {
       if (customId === CUSTOM_IDS.BTN_OPEN_REG_MODAL) {
         const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
         if (!regOpen) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Pendaftaran Ditutup', '❌ Pendaftaran tim saat ini sedang ditutup oleh panitia.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Pendaftaran Ditutup', 'Pendaftaran tim saat ini sedang ditutup oleh panitia.')]
           });
         }
 
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (activeTeam) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Sudah Terdaftar', `❌ Anda sudah terdaftar atau memiliki registrasi aktif di tim **${activeTeam.name}**!`)],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Sudah Terdaftar', `Anda sudah terdaftar atau memiliki registrasi aktif di tim **${activeTeam.name}**!`)]
           });
         }
 
@@ -387,19 +396,19 @@ export default {
       // G. Team Delete Confirmation
       if (customId.startsWith(CUSTOM_IDS.BTN_DELETE_TEAM_CONFIRM)) {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Unauthorized', 'Only staff can confirm team deletion.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Unauthorized', 'Only staff can confirm team deletion.')] });
         }
         const teamId = parseInt(customId.replace(CUSTOM_IDS.BTN_DELETE_TEAM_CONFIRM, ''), 10);
         
         await interaction.update({
-          embeds: [infoEmbed('Menghapus Tim...', '⏳ Sedang menghapus seluruh channel, role, dan mengembalikan role @Unregistered...')],
+          embeds: [infoEmbed('Menghapus Tim...', 'Sedang menghapus seluruh channel, role tim, dan mengembalikan role @No-Team...')],
           components: []
         });
 
         await TeamService.deleteTeam(teamId, interaction.guild, interaction.client, interaction.user.tag);
         
         return await interaction.editReply({
-          embeds: [successEmbed('Tim Berhasil Dihapus', `✅ Tim dan seluruh channel/role telah berhasil dihapus. Seluruh mantan anggota telah dikembalikan ke role **@Unregistered** (dan role **@Participant** telah dicabut).`)],
+          embeds: [successEmbed('Tim Berhasil Dihapus', 'Tim dan seluruh channel/role telah berhasil dihapus. Seluruh mantan anggota telah dikembalikan ke status belum memiliki tim (**@No-Team**).')],
           components: []
         });
       }
@@ -415,7 +424,7 @@ export default {
       // I. Team Panel: Refresh Dashboard
       if (customId === 'team_panel_refresh') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'You do not have permission.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'You do not have permission.')] });
         }
         const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
         return await interaction.update({ embeds: [embed], components });
@@ -424,7 +433,7 @@ export default {
       // J. Team Panel: Export Summary
       if (customId === 'team_panel_export_summary') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'You do not have permission.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'You do not have permission.')] });
         }
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -470,7 +479,7 @@ export default {
         return await interaction.editReply({
           embeds: [
             new EmbedBuilder()
-              .setTitle('📋 Ringkasan Lengkap Seluruh Tim Hackathon')
+              .setTitle('Ringkasan Lengkap Seluruh Tim Hackathon')
               .setDescription(chunks[0])
               .setColor(EMBED_COLORS.PRIMARY)
               .setFooter({ text: `Total Tim: ${allTeams.length}` })
@@ -482,13 +491,13 @@ export default {
       // K. Team Panel: Quick Action (Approve / Archive / Delete from panel)
       if (customId.startsWith('team_panel_action_approve_')) {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
         const teamId = parseInt(customId.replace('team_panel_action_approve_', ''), 10);
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         try {
           await TeamService.finalizeTeamCreation(teamId, interaction.guild, interaction.client);
-          return await interaction.editReply({ embeds: [successEmbed('Approved ✅', `Tim #${teamId} berhasil di-approve dan channels telah dibuat!`)] });
+          return await interaction.editReply({ embeds: [successEmbed('Approved', `Tim #${teamId} berhasil disetujui dan channel telah dibuat.`)] });
         } catch (err) {
           return await interaction.editReply({ embeds: [errorEmbed('Approval Failed', err.message)] });
         }
@@ -496,13 +505,13 @@ export default {
 
       if (customId.startsWith('team_panel_action_archive_')) {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
         const teamId = parseInt(customId.replace('team_panel_action_archive_', ''), 10);
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         try {
           await TeamService.archiveTeam(teamId, interaction.guild, interaction.client, interaction.user.tag);
-          return await interaction.editReply({ embeds: [successEmbed('Archived 📦', `Tim #${teamId} telah diarsipkan.`)] });
+          return await interaction.editReply({ embeds: [successEmbed('Archived', `Tim #${teamId} telah diarsipkan.`)] });
         } catch (err) {
           return await interaction.editReply({ embeds: [errorEmbed('Archive Failed', err.message)] });
         }
@@ -511,12 +520,12 @@ export default {
       // L. Team Panel: Staff Add Team — show modal for team name (new single-embed flow)
       if (customId === CUSTOM_IDS.BTN_STAFF_ADD_TEAM) {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
 
         const modal = new ModalBuilder()
           .setCustomId(CUSTOM_IDS.MODAL_STAFF_ADD_TEAM)
-          .setTitle('➕ Buat Tim Baru (Staff)');
+          .setTitle('Buat Tim Baru (Staff)');
 
         const teamNameInput = new TextInputBuilder()
           .setCustomId(CUSTOM_IDS.INPUT_STAFF_TEAM_NAME)
@@ -703,9 +712,9 @@ export default {
         const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: false });
 
         const cancelRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
         const components = [selectRow, challengeRow, cancelRow].filter(Boolean);
@@ -731,7 +740,7 @@ export default {
         session.channelId = interaction.channelId;
         setSession(sessionKey, session);
 
-        const modal = new ModalBuilder().setCustomId(CUSTOM_IDS.MODAL_REG_CHANGE_NAME).setTitle('✏️ Ubah Nama Tim');
+        const modal = new ModalBuilder().setCustomId(CUSTOM_IDS.MODAL_REG_CHANGE_NAME).setTitle('Ubah Nama Tim');
         modal.addComponents(new ActionRowBuilder().addComponents(
           new TextInputBuilder()
             .setCustomId(CUSTOM_IDS.INPUT_REG_NEW_NAME)
@@ -797,12 +806,12 @@ export default {
 
           return await interaction.editReply({
             embeds: [successEmbed(
-              '✅ Tim Berhasil Dibuat!',
+              'Tim Berhasil Dibuat',
               `Tim **${session.teamName}** berhasil dibuat dan channel telah disiapkan!\n\n` +
-              `👑 **Leader:** <@${leaderId}>\n` +
-              `🎯 **Challenge:** ${session.challengeTitle ? `**${session.challengeTitle}**` : '*(Belum memilih)*'}\n` +
-              `🌐 **Link Tim NSAC:** ${session.nsacLink || '*(Belum diatur)*'}\n` +
-              `👥 **Seluruh Anggota:** ${memberMentions}`
+              `• Leader: <@${leaderId}>\n` +
+              `• Challenge: ${session.challengeTitle ? `**${session.challengeTitle}**` : '*(Belum memilih)*'}\n` +
+              `• Link Tim NSAC: ${session.nsacLink || '*(Belum diatur)*'}\n` +
+              `• Anggota: ${memberMentions}`
             )],
             components: []
           });
@@ -862,7 +871,7 @@ export default {
           await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
 
           return await interaction.editReply({
-            embeds: [successEmbed('✅ Tim Berhasil Dibuat!', `Tim **${session.teamName}** berhasil dibuat dengan leader <@${interaction.user.id}>!`)],
+            embeds: [successEmbed('Tim Berhasil Dibuat', `Tim **${session.teamName}** berhasil dibuat dengan leader <@${interaction.user.id}>!`)],
             components: []
           });
         } catch (err) {
@@ -891,9 +900,9 @@ export default {
         const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: true });
 
         const cancelRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
         const components = [selectRow, challengeRow, cancelRow].filter(Boolean);
@@ -917,7 +926,7 @@ export default {
         session.channelId = interaction.channelId;
         setSession(sessionKey, session);
 
-        const modal = new ModalBuilder().setCustomId(CUSTOM_IDS.MODAL_STAFF_REG_CHANGE_NAME).setTitle('✏️ Ubah Nama Tim (Staff)');
+        const modal = new ModalBuilder().setCustomId(CUSTOM_IDS.MODAL_STAFF_REG_CHANGE_NAME).setTitle('Ubah Nama Tim (Staff)');
         modal.addComponents(new ActionRowBuilder().addComponents(
           new TextInputBuilder()
             .setCustomId(CUSTOM_IDS.INPUT_STAFF_REG_NEW_NAME)
@@ -932,9 +941,8 @@ export default {
       // M. Admin Dashboard Buttons
       if (customId === 'dashboard_toggle_reg') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah status pendaftaran.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat mengubah status pendaftaran.')]
           });
         }
 
@@ -949,9 +957,8 @@ export default {
 
       if (customId === 'dashboard_refresh_all' || customId === 'dashboard_refresh') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat merefresh dashboard.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat merefresh dashboard.')]
           });
         }
 
@@ -962,7 +969,7 @@ export default {
 
       if (customId === 'dashboard_invite_refresh') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
         await interaction.deferUpdate().catch(() => {});
         await DashboardService.refreshInvitesPanel(interaction.guild);
@@ -971,7 +978,7 @@ export default {
 
       if (customId === 'dashboard_invite_create') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')] });
         }
 
         const roleSelect = new RoleSelectMenuBuilder()
@@ -980,30 +987,28 @@ export default {
           .setMinValues(1)
           .setMaxValues(10);
 
-        return await interaction.reply({
+        return await replyPermanent(interaction, {
           embeds: [
             infoEmbed(
-              'Buat Dynamic Auto-Role Invite Link 🎟️',
+              'Buat Dynamic Auto-Role Invite Link',
               'Silakan pilih **satu atau beberapa role** dari menu di bawah (misal: **Participant + No-Team**).\n' +
               'Bot akan membuat link invite Discord permanen baru, dan setiap member yang bergabung dengan link ini akan **otomatis diberikan seluruh role tersebut**.'
             )
           ],
-          components: [new ActionRowBuilder().addComponents(roleSelect)],
-          flags: MessageFlags.Ephemeral
+          components: [new ActionRowBuilder().addComponents(roleSelect)]
         });
       }
 
 
       if (customId === 'dashboard_invite_delete') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
 
         const dynamicInvites = await getAllInviteRoles();
         if (dynamicInvites.length === 0) {
-          return await interaction.reply({
-            embeds: [infoEmbed('Tidak Ada Link Invite', 'Belum ada link invite dinamis yang terdaftar untuk dihapus.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [infoEmbed('Tidak Ada Link Invite', 'Belum ada link invite dinamis yang terdaftar untuk dihapus.')]
           });
         }
 
@@ -1013,8 +1018,7 @@ export default {
           return new StringSelectMenuOptionBuilder()
             .setLabel(`${roleName} (${inv.invite_code})`.substring(0, 100))
             .setDescription(`Role: @${roleName} • Code: ${inv.invite_code}`.substring(0, 100))
-            .setValue(inv.invite_code)
-            .setEmoji('🗑️');
+            .setValue(inv.invite_code);
         });
 
         const deleteSelect = new StringSelectMenuBuilder()
@@ -1024,24 +1028,22 @@ export default {
           .setMaxValues(1)
           .addOptions(options);
 
-        return await interaction.reply({
+        return await replyPermanent(interaction, {
           embeds: [
             warningEmbed(
-              'Hapus Dynamic Invite Link 🗑️',
+              'Hapus Dynamic Invite Link',
               'Pilih link invite dari dropdown di bawah untuk dihapus dari sistem bot dan server Discord.'
             )
           ],
-          components: [new ActionRowBuilder().addComponents(deleteSelect)],
-          flags: MessageFlags.Ephemeral
+          components: [new ActionRowBuilder().addComponents(deleteSelect)]
         });
       }
 
       // Legacy create participant invite
       if (customId === 'dashboard_gen_invite') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat membuat link invite.')]
           });
         }
 
@@ -1049,19 +1051,17 @@ export default {
           const invite = await InviteService.createParticipantInvite(interaction.guild);
           await DashboardService.refreshInvitesPanel(interaction.guild);
 
-          return await interaction.reply({
+          return await replyPermanent(interaction, {
             embeds: [successEmbed(
-              'Link Invite Peserta Dibuat 🎟️',
+              'Link Invite Peserta Dibuat',
               `Link invite khusus peserta berhasil dibuat:\n**${invite.url}**\n\n` +
               `• Kode: \`${invite.code}\`\n` +
               `• *Member baru yang join via link ini otomatis mendapat @Participant + @No-Team.*`
-            )],
-            flags: MessageFlags.Ephemeral
+            )]
           });
         } catch (err) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Gagal Membuat Invite', err.message)],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Gagal Membuat Invite', err.message)]
           });
         }
       }
@@ -1069,10 +1069,10 @@ export default {
       // Dashboard: Open Team Panel (ephemeral)
       if (customId === 'dashboard_open_team_panel') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
         const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
-        return await interaction.reply({ embeds: [embed], components, flags: MessageFlags.Ephemeral });
+        return await replyPermanent(interaction, { embeds: [embed], components });
       }
 
       // ========================================================
@@ -1137,17 +1137,15 @@ export default {
       if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE) {
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
-          return await interaction.reply({
-            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa memilih atau mengubah challenge tim.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa memilih atau mengubah challenge tim.')]
           });
         }
 
         const challenges = await getAllChallenges();
         if (!challenges || challenges.length === 0) {
-          return await interaction.reply({
-            embeds: [infoEmbed('Belum Ada Challenge', 'Saat ini belum ada challenge yang ditambahkan oleh panitia ke sistem.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [infoEmbed('Belum Ada Challenge', 'Saat ini belum ada challenge yang ditambahkan oleh panitia ke sistem.')]
           });
         }
 
@@ -1159,16 +1157,15 @@ export default {
 
         const currentChallenge = activeTeam.challenge_title ? `**${activeTeam.challenge_title}**` : '*(Belum memilih)*';
 
-        return await interaction.reply({
+        return await replyPermanent(interaction, {
           embeds: [
             infoEmbed(
-              'Pilih Challenge Tim 🎯',
+              'Pilih Challenge Tim',
               `Challenge saat ini untuk tim **${activeTeam.name}**: ${currentChallenge}\n\n` +
               `Pilih challenge dari dropdown di bawah untuk memperbarui challenge tim.`
             )
           ],
-          components: [new ActionRowBuilder().addComponents(selectMenu)],
-          flags: MessageFlags.Ephemeral
+          components: [new ActionRowBuilder().addComponents(selectMenu)]
         });
       }
 
@@ -1176,14 +1173,12 @@ export default {
       if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE) {
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
-          return await interaction.reply({
-            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa mengundang anggota. Gunakan command `/team invite @user` untuk mengundang rekanmu.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa mengundang anggota. Gunakan command `/team invite @user` untuk mengundang rekanmu.')]
           });
         }
-        return await interaction.reply({
-          embeds: [infoEmbed('Undang Anggota', 'Gunakan perintah `/team invite @user` di channel untuk mengundang anggota baru ke tim kamu.')],
-          flags: MessageFlags.Ephemeral
+        return await replyDismissable(interaction, {
+          embeds: [infoEmbed('Undang Anggota', 'Gunakan perintah `/team invite @user` di channel untuk mengundang anggota baru ke tim kamu.')]
         });
       }
 
@@ -1191,17 +1186,15 @@ export default {
       if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT) {
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
-          return await interaction.reply({
-            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa membuka rekrutmen tim.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa membuka rekrutmen tim.')]
           });
         }
 
         const existing = await getOpenRecruitmentByTeam(activeTeam.id);
         if (existing) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Rekrutmen Sudah Ada', 'Tim kamu sudah memiliki postingan rekrutmen aktif. Gunakan `/team recruit-close` jika ingin menutupnya.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Rekrutmen Sudah Ada', 'Tim kamu sudah memiliki postingan rekrutmen aktif. Gunakan `/team recruit-close` jika ingin menutupnya.')]
           });
         }
 
@@ -1238,18 +1231,16 @@ export default {
       if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE) {
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
-          return await interaction.reply({
-            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa menutup rekrutmen tim.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa menutup rekrutmen tim.')]
           });
         }
 
         const openRecruit = await getOpenRecruitmentByTeam(activeTeam.id);
         if (!openRecruit) {
           await TeamService.refreshTeamWelcomePanel(activeTeam.id, interaction.guild);
-          return await interaction.reply({
-            embeds: [infoEmbed('Tidak Ada Rekrutmen', 'Tidak ada lowongan rekrutmen aktif untuk tim kamu.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [infoEmbed('Tidak Ada Rekrutmen', 'Tidak ada lowongan rekrutmen aktif untuk tim kamu.')]
           });
         }
 
@@ -1290,9 +1281,8 @@ export default {
           details: `Leader menutup rekrutmen tim "${activeTeam.name}" dari embed panel tim.`
         });
 
-        return await interaction.reply({
-          embeds: [successEmbed('Rekrutmen Ditutup', `Lowongan rekrutmen tim **${activeTeam.name}** berhasil ditutup.`)],
-          flags: MessageFlags.Ephemeral
+        return await replyDismissable(interaction, {
+          embeds: [successEmbed('Rekrutmen Ditutup', `Lowongan rekrutmen tim **${activeTeam.name}** berhasil ditutup.`)]
         });
       }
 
@@ -1300,14 +1290,13 @@ export default {
       if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_INFO) {
         const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (!activeTeam) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Tim Tidak Ditemukan', 'Kamu tidak berada di tim mana pun.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Tim Tidak Ditemukan', 'Kamu tidak berada di tim mana pun.')]
           });
         }
         const members = await getTeamMembers(activeTeam.id);
         const embed = teamInfoEmbed(activeTeam, members);
-        return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        return await replyPermanent(interaction, { embeds: [embed] });
       }
 
       // ========================================================
@@ -1320,27 +1309,24 @@ export default {
         const recruitment = await getRecruitmentById(recruitId);
 
         if (!recruitment || recruitment.status !== 'OPEN') {
-          return await interaction.reply({
-            embeds: [errorEmbed('Rekrutmen Ditutup', 'Lowongan rekrutmen tim ini sudah ditutup.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Rekrutmen Ditutup', 'Lowongan rekrutmen tim ini sudah ditutup.')]
           });
         }
 
         // Cek anti-double-team untuk pemohon
         const userTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
         if (userTeam) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Sudah Punya Tim', `Kamu sudah terdaftar di tim **${userTeam.name}**!`)],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Sudah Punya Tim', `Kamu sudah terdaftar di tim **${userTeam.name}**!`)]
           });
         }
 
         // Cek tim tujuan sudah penuh atau belum
         const currentMembers = await countActiveTeamMembers(recruitment.team_id);
         if (currentMembers >= env.MAX_TEAM_SIZE) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Tim Penuh', 'Tim ini sudah mencapai kapasitas maksimal anggota.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Tim Penuh', 'Tim ini sudah mencapai kapasitas maksimal anggota.')]
           });
         }
 
@@ -1416,16 +1402,15 @@ export default {
         const recruitment = await getRecruitmentById(recruitId);
 
         if (!recruitment) {
-          return await interaction.reply({ embeds: [errorEmbed('Tidak Ditemukan', 'Data rekrutmen tidak ditemukan.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Tidak Ditemukan', 'Data rekrutmen tidak ditemukan.')] });
         }
 
         const isLeader = recruitment.leader_discord_id === interaction.user.id;
         const isStaff = PermissionService.isStaff(interaction.member);
 
         if (!isLeader && !isStaff) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Akses Ditolak', 'Hanya leader tim bersangkutan atau staf yang dapat menutup rekrutmen ini.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Akses Ditolak', 'Hanya leader tim bersangkutan atau staf yang dapat menutup rekrutmen ini.')]
           });
         }
 
@@ -1682,16 +1667,14 @@ export default {
 
         const nameValidation = validateTeamName(teamName);
         if (!nameValidation.valid) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)]
           });
         }
 
         if (!nsacLink || (!nsacLink.startsWith('http://') && !nsacLink.startsWith('https://'))) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Link NSAC Tidak Valid', 'Anda wajib memasukkan tautan tim yang terdaftar di situs web resmi NSAC (harus diawali http:// atau https://).')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Link NSAC Tidak Valid', 'Anda wajib memasukkan tautan tim yang terdaftar di situs web resmi NSAC (harus diawali http:// atau https://).')]
           });
         }
 
@@ -1704,9 +1687,8 @@ export default {
               const updatedRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                   .setCustomId(CUSTOM_IDS.BTN_CLOSE_TICKET)
-                  .setLabel('Close Ticket')
+                  .setLabel('Tutup Tiket')
                   .setStyle(ButtonStyle.Danger)
-                  .setEmoji('🔒')
               );
               await ticketMsg.edit({ components: [updatedRow] }).catch(() => {});
             }
@@ -1730,15 +1712,14 @@ export default {
 
         // If no eligible members and members required, solo team path
         if (eligibleMembers.length === 0 && minMembersToSelect > 0) {
-          return await interaction.reply({
+          return await replyDismissable(interaction, {
             embeds: [errorEmbed(
               'Tidak Ada Anggota Tersedia',
-              `❌ Tidak ditemukan anggota yang memenuhi syarat di server untuk diundang ke tim **${teamName}**.\n\n` +
+              `Tidak ditemukan anggota yang memenuhi syarat di server untuk diundang ke tim **${teamName}**.\n\n` +
               (filterRoleId
                 ? `Pastikan rekan tim Anda sudah bergabung ke server ini dan memiliki role <@&${filterRoleId}>.`
                 : 'Pastikan rekan tim Anda sudah bergabung ke server Discord ini.')
-            )],
-            flags: MessageFlags.Ephemeral
+            )]
           });
         }
 
@@ -1756,11 +1737,11 @@ export default {
             challengeId: null
           });
           if (!result.success) {
-            return await interaction.reply({ embeds: [errorEmbed('Gagal Registrasi', result.error)], flags: MessageFlags.Ephemeral });
+            return await replyDismissable(interaction, { embeds: [errorEmbed('Gagal Registrasi', result.error)] });
           }
           await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
           return await interaction.reply({
-            embeds: [successEmbed('🎉 Tim Berhasil Dibuat!', `Tim **${teamName}** telah dibuat dan channels telah siap!`)]
+            embeds: [successEmbed('Tim Berhasil Dibuat', `Tim **${teamName}** telah dibuat dan channel telah siap!`)]
           });
         }
 
@@ -1770,9 +1751,9 @@ export default {
         const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: null, isStaff: false });
 
         const buttonRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
         const replyComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
@@ -1815,11 +1796,11 @@ export default {
 
         const nameValidation = validateTeamName(teamName);
         if (!nameValidation.valid) {
-          return await interaction.reply({ embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)] });
         }
 
         if (nsacLink && (!nsacLink.startsWith('http://') && !nsacLink.startsWith('https://'))) {
-          return await interaction.reply({ embeds: [errorEmbed('Link NSAC Tidak Valid', 'Tautan tim harus diawali http:// atau https://.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Link NSAC Tidak Valid', 'Tautan tim harus diawali http:// atau https://.')] });
         }
 
         // Build eligible members list (role-filtered, staff themselves NOT excluded)
@@ -1837,9 +1818,9 @@ export default {
         const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: null, isStaff: true });
 
         const buttonRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
         const replyComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
@@ -1878,7 +1859,7 @@ export default {
 
         const nameValidation = validateTeamName(newName);
         if (!nameValidation.valid) {
-          return await interaction.reply({ embeds: [errorEmbed('Nama Tidak Valid', nameValidation.error)], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Nama Tidak Valid', nameValidation.error)] });
         }
 
         if (session) {
@@ -1899,9 +1880,9 @@ export default {
           const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
           const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
           const buttonRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
           );
 
           try {
@@ -1921,7 +1902,7 @@ export default {
           }
         }
 
-        return await interaction.reply({ content: `✅ Nama tim diperbarui menjadi **${newName}**.`, flags: MessageFlags.Ephemeral });
+        return await replyDismissable(interaction, { content: `Nama tim diperbarui menjadi **${newName}**.` });
       }
 
       // Change Team Name modal submit (staff)
@@ -1932,7 +1913,7 @@ export default {
 
         const nameValidation = validateTeamName(newName);
         if (!nameValidation.valid) {
-          return await interaction.reply({ embeds: [errorEmbed('Nama Tidak Valid', nameValidation.error)], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Nama Tidak Valid', nameValidation.error)] });
         }
 
         if (session) {
@@ -1950,9 +1931,9 @@ export default {
 
           const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
           const buttonRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
           );
 
           try {
@@ -1972,7 +1953,7 @@ export default {
           }
         }
 
-        return await interaction.reply({ content: `✅ Nama tim diperbarui menjadi **${newName}**.`, flags: MessageFlags.Ephemeral });
+        return await replyDismissable(interaction, { content: `Nama tim diperbarui menjadi **${newName}**.` });
       }
 
       // Handler Modal Buka Lowongan Rekrutmen Tim
@@ -1985,47 +1966,43 @@ export default {
 
         const slots = parseInt(slotsStr, 10);
         if (isNaN(slots) || slots <= 0) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Jumlah Tidak Valid', 'Jumlah anggota yang dibutuhkan harus berupa angka positif minimal 1.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Jumlah Tidak Valid', 'Jumlah anggota yang dibutuhkan harus berupa angka positif minimal 1.')]
           });
         }
 
         const team = await getTeamById(teamId);
         if (!team) {
-          return await interaction.reply({ embeds: [errorEmbed('Tim Tidak Ditemukan', 'Data tim tidak ditemukan.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Tim Tidak Ditemukan', 'Data tim tidak ditemukan.')] });
         }
 
         // Cek kuota sisa yang valid
         const currentCount = await countActiveTeamMembers(team.id);
         const maxAvailable = env.MAX_TEAM_SIZE - currentCount;
         if (maxAvailable <= 0) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Tim Penuh', `Tim kamu sudah penuh (${currentCount}/${env.MAX_TEAM_SIZE} anggota). Tidak bisa membuka rekrutmen.`)],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Tim Penuh', `Tim kamu sudah penuh (${currentCount}/${env.MAX_TEAM_SIZE} anggota). Tidak bisa membuka rekrutmen.`)]
           });
         }
 
         if (slots > maxAvailable) {
-          return await interaction.reply({
+          return await replyDismissable(interaction, {
             embeds: [errorEmbed(
               'Jumlah Melebihi Kuota',
               `Tim kamu saat ini memiliki ${currentCount} anggota. Kuota maksimal adalah ${env.MAX_TEAM_SIZE}.\n` +
               `Kamu hanya bisa mencari maksimal **${maxAvailable}** anggota baru.`
-            )],
-            flags: MessageFlags.Ephemeral
+            )]
           });
         }
 
         // Ambil channel rekrutmen dari GuildConfig
         const recruitChannelId = GuildConfigService.get('RECRUITMENT_CHANNEL_ID');
         if (!recruitChannelId) {
-          return await interaction.reply({
+          return await replyDismissable(interaction, {
             embeds: [warningEmbed(
               'Channel Belum Diatur',
               'Channel board rekrutmen tim belum dikonfigurasi oleh panitia (`RECRUITMENT_CHANNEL_ID`). Silakan laporkan hal ini kepada panitia.'
-            )],
-            flags: MessageFlags.Ephemeral
+            )]
           });
         }
 
@@ -2033,9 +2010,8 @@ export default {
           || await interaction.guild.channels.fetch(recruitChannelId).catch(() => null);
 
         if (!recruitChannel || !recruitChannel.isTextBased()) {
-          return await interaction.reply({
-            embeds: [errorEmbed('Channel Tidak Valid', 'Channel board rekrutmen tidak dapat diakses atau bukan text channel.')],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Channel Tidak Valid', 'Channel board rekrutmen tidak dapat diakses atau bukan text channel.')]
           });
         }
 
@@ -2156,7 +2132,7 @@ export default {
       // Dashboard: Set No-Team Role
       if (interaction.customId === 'dashboard_roleselect_noteam') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
         const selectedRoleId = interaction.values[0];
         await GuildConfigService.set('NO_TEAM_ROLE_ID', selectedRoleId);
@@ -2172,7 +2148,7 @@ export default {
       // Dashboard: Dynamic Invite Role Selection (Create)
       if (interaction.customId === 'dashboard_invite_select_role') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
 
         const selectedRoleIds = interaction.values;
@@ -2193,12 +2169,12 @@ export default {
           return await interaction.editReply({
             embeds: [
               successEmbed(
-                'Dynamic Invite Link Berhasil Dibuat 🎟️',
+                'Dynamic Invite Link Berhasil Dibuat',
                 `Link invite khusus untuk role **[${label}]** (${roleMentions}) berhasil dibuat:\n\n` +
-                `🔗 **${invite.url}**\n` +
+                `**${invite.url}**\n` +
                 `• Kode: \`${invite.code}\`\n` +
                 `• Auto-Role: ${roleMentions}\n\n` +
-                `*Setiap anggota yang bergabung menggunakan link ini akan langsung mendapatkan seluruh role tersebut!*`
+                `*Setiap anggota yang bergabung menggunakan link ini akan langsung mendapatkan seluruh role tersebut.*`
               )
             ],
             components: []
@@ -2215,7 +2191,7 @@ export default {
       // Dashboard: Dynamic Invite Delete Selection
       if (interaction.customId === 'dashboard_invite_select_delete') {
         if (!PermissionService.isStaff(interaction.member)) {
-          return await interaction.reply({ embeds: [errorEmbed('Staff Only', 'Unauthorized')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
         }
 
         const selectedCode = interaction.values[0];
@@ -2228,7 +2204,7 @@ export default {
           return await interaction.editReply({
             embeds: [
               successEmbed(
-                'Link Invite Berhasil Dihapus 🗑️',
+                'Link Invite Berhasil Dihapus',
                 `Link invite dengan kode \`${selectedCode}\` telah dihapus dari sistem bot dan server Discord.`
               )
             ],
@@ -2249,7 +2225,7 @@ export default {
         const team = await getTeamById(teamId);
 
         if (!team) {
-          return await interaction.reply({ embeds: [errorEmbed('Not Found', 'Tim tidak ditemukan.')], flags: MessageFlags.Ephemeral });
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Not Found', 'Tim tidak ditemukan.')] });
         }
 
         const members = await getActiveTeamMembers(team.id);
@@ -2263,7 +2239,6 @@ export default {
               .setCustomId(`team_panel_action_approve_${team.id}`)
               .setLabel('Force Approve Tim')
               .setStyle(ButtonStyle.Success)
-              .setEmoji('🟢')
           );
         }
 
@@ -2273,7 +2248,6 @@ export default {
               .setCustomId(`team_panel_action_archive_${team.id}`)
               .setLabel('Arsipkan Tim')
               .setStyle(ButtonStyle.Secondary)
-              .setEmoji('📦')
           );
         }
 
@@ -2282,13 +2256,11 @@ export default {
             .setCustomId(`${CUSTOM_IDS.BTN_DELETE_TEAM_CONFIRM}${team.id}`)
             .setLabel('Hapus Tim')
             .setStyle(ButtonStyle.Danger)
-            .setEmoji('🗑️')
         );
 
-        return await interaction.reply({
+        return await replyPermanent(interaction, {
           embeds: [embed],
-          components: [actionButtons],
-          flags: MessageFlags.Ephemeral
+          components: [actionButtons]
         });
       }
 
@@ -2328,10 +2300,10 @@ export default {
 
         // Confirmation buttons row
         const confirmRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
         const updateComponents = [selectRow, challengeRow, confirmRow].filter(Boolean);
@@ -2386,15 +2358,15 @@ export default {
         const isConfirmStep = session.memberIds && session.memberIds.length > 0;
         const buttonRow = isConfirmStep
           ? new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
             )
           : new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
             );
 
         const updateComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
@@ -2440,10 +2412,10 @@ export default {
         const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: true });
 
         const confirmRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
         const updateComponents = [selectRow, challengeRow, confirmRow].filter(Boolean);
@@ -2494,15 +2466,15 @@ export default {
         const isConfirmStep = session.memberIds && session.memberIds.length > 0;
         const buttonRow = isConfirmStep
           ? new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
             )
           : new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
-              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
             );
 
         const updateComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
@@ -2528,16 +2500,14 @@ export default {
         await interaction.deferUpdate();
         const result = await TeamService.setTeamChallenge(teamId, challengeId, interaction.guild, interaction.client, interaction.user.tag);
         if (!result.success) {
-          return await interaction.followUp({
-            embeds: [errorEmbed('Gagal Memilih Challenge', result.error)],
-            flags: MessageFlags.Ephemeral
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Gagal Memilih Challenge', result.error)]
           });
         }
 
         const chText = result.team.challenge_title ? `**${result.team.challenge_title}**` : '*(Belum memilih)*';
-        return await interaction.followUp({
-          embeds: [successEmbed('Challenge Diperbarui', `Challenge tim **${result.team.name}** berhasil diatur menjadi: ${chText}`)],
-          flags: MessageFlags.Ephemeral
+        return await replyDismissable(interaction, {
+          embeds: [successEmbed('Challenge Diperbarui', `Challenge tim **${result.team.name}** berhasil diatur menjadi: ${chText}`)]
         });
       }
 

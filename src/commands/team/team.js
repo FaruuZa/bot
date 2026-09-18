@@ -951,7 +951,7 @@ export default {
             '- Menghapus role Discord tim\n' +
             '- Menghapus Category, Text, dan Voice channel\n' +
             '- Menandai tim sebagai DISBANDED di database\n' +
-            '- Mengembalikan role @Unregistered ke semua mantan anggota'
+            '- Mengembalikan role @No-Team ke semua mantan anggota'
           )
         ],
         components: [row]

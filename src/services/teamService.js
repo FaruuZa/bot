@@ -968,7 +968,7 @@ export class TeamService {
       );
     });
 
-    // 4. Kembalikan role Unregistered ke semua mantan anggota
+    // 4. Kembalikan role status @No-Team ke semua mantan anggota
     for (const m of members) {
       await DiscordService.removeTeamMembershipRoles(guild, m.discord_id, team.role_id, true);
     }
@@ -979,7 +979,7 @@ export class TeamService {
       actorTag,
       teamId: team.id,
       teamName: team.name,
-      details: `Tim "${team.name}" dan seluruh channel/rolenya dihapus. Semua anggota dikembalikan ke @Unregistered.`
+      details: `Tim "${team.name}" dan seluruh channel/rolenya dihapus. Semua anggota dikembalikan ke status belum memiliki tim (@No-Team).`
     });
 
     return { success: true, team };
