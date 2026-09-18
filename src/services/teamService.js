@@ -275,18 +275,31 @@ export class TeamService {
       }
 
       // 4. Kirim welcome panel ke text channel tim
-      const textChannel = guild.channels.cache.get(discordResources.textChannelId);
+      const textChannel = discordResources.textChannel
+        || guild.channels.cache.get(discordResources.textChannelId)
+        || await guild.channels.fetch(discordResources.textChannelId).catch(() => null);
+
       if (textChannel && textChannel.isTextBased()) {
         const { embed, components } = this.buildTeamWelcomePanel(team, activeMembers);
-        const panelMsg = await textChannel.send({
-          content: activeMembers.map((m) => `<@${m.discord_id}>`).join(' '),
-          embeds: [embed],
-          components
-        }).catch(() => null);
+        const mentionContent = activeMembers.length > 0
+          ? activeMembers.map((m) => `<@${m.discord_id}>`).join(' ')
+          : undefined;
 
-        if (panelMsg) {
-          await panelMsg.pin().catch((err) => logger.warn(`[TeamService] Gagal pin welcome panel: ${err.message}`));
+        try {
+          const panelMsg = await textChannel.send({
+            content: mentionContent,
+            embeds: [embed],
+            components
+          });
+
+          if (panelMsg) {
+            await panelMsg.pin().catch((err) => logger.warn(`[TeamService] Gagal pin welcome panel: ${err.message}`));
+          }
+        } catch (sendErr) {
+          logger.error(`[TeamService] Gagal mengirim welcome panel ke channel ${textChannel.id}: ${sendErr.message}`, sendErr);
         }
+      } else {
+        logger.error(`[TeamService] Text channel ${discordResources.textChannelId} tidak ditemukan atau bukan text-based channel.`);
       }
 
       // 5. Auto-close registration ticket jika ada
@@ -349,7 +362,7 @@ export class TeamService {
       })
       .join('\n') || 'Belum ada anggota';
 
-    const challengeDisplay = team.challenge_title ? `🎯 **${team.challenge_title}**` : '*(Belum memilih challenge)*';
+    const challengeDisplay = team.challenge_title ? `**${team.challenge_title}**` : '*(Belum memilih challenge)*';
     const nsacLinkDisplay = team.nsac_link ? `[Buka Link Profil Tim Resmi](${team.nsac_link})` : '*(Belum diatur)*';
 
     const embed = new EmbedBuilder()
@@ -414,14 +427,23 @@ export class TeamService {
 
     const components = [mainRow];
 
-    if (team.nsac_link && (team.nsac_link.startsWith('http://') || team.nsac_link.startsWith('https://'))) {
-      const linkRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel('Buka Web Tim NSAC')
-          .setStyle(ButtonStyle.Link)
-          .setURL(team.nsac_link)
-      );
-      components.push(linkRow);
+    if (team.nsac_link) {
+      let isValidUrl = false;
+      try {
+        const parsed = new URL(team.nsac_link);
+        isValidUrl = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch {
+        isValidUrl = false;
+      }
+      if (isValidUrl) {
+        const linkRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('Buka Web Tim NSAC')
+            .setStyle(ButtonStyle.Link)
+            .setURL(team.nsac_link)
+        );
+        components.push(linkRow);
+      }
     }
 
     return { embed, components };
@@ -502,6 +524,14 @@ export class TeamService {
         await panelMsg.edit({ embeds: [embed], components }).catch(() => {});
         if (!panelMsg.pinned) {
           await panelMsg.pin().catch(() => {});
+        }
+      } else {
+        const newMsg = await channel.send({ embeds: [embed], components }).catch((err) => {
+          logger.error(`[TeamService] Gagal kirim welcome panel baru ke channel tim ${teamId}: ${err.message}`);
+          return null;
+        });
+        if (newMsg) {
+          await newMsg.pin().catch(() => {});
         }
       }
     } catch (err) {

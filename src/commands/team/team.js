@@ -20,7 +20,8 @@ import { pool } from '../../database/pool.js';
 import {
   getTeamByName,
   getTeamById,
-  updateTeamStatus
+  updateTeamStatus,
+  purgeDisbandedTeams
 } from '../../database/queries/teamQueries.js';
 import {
   getTeamMembers,
@@ -59,6 +60,7 @@ export async function buildTeamPanelDashboard(guild) {
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
     LEFT JOIN challenges c ON t.challenge_id = c.id
+    WHERE t.status != 'DISBANDED'
     ORDER BY 
       CASE t.status
         WHEN 'PENDING' THEN 1
@@ -97,8 +99,7 @@ export async function buildTeamPanelDashboard(guild) {
       return new StringSelectMenuOptionBuilder()
         .setLabel(`${t.name} (ID: ${t.id})`.substring(0, 100))
         .setDescription(desc.substring(0, 100))
-        .setValue(t.id.toString())
-        .setEmoji(t.status === 'ACTIVE' ? '🛡️' : t.status === 'PENDING' ? '⏳' : '📁');
+        .setValue(t.id.toString());
     });
 
     const selectMenu = new StringSelectMenuBuilder()
@@ -108,7 +109,7 @@ export async function buildTeamPanelDashboard(guild) {
 
     components.push(new ActionRowBuilder().addComponents(selectMenu));
   } else {
-    embed.addFields({ name: 'Daftar Tim', value: '*(Belum ada tim yang terdaftar)*', inline: false });
+    embed.addFields({ name: 'Daftar Tim', value: '*(Belum ada tim aktif/pending yang terdaftar)*', inline: false });
   }
 
   const buttonRow = new ActionRowBuilder().addComponents(
@@ -122,9 +123,18 @@ export async function buildTeamPanelDashboard(guild) {
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('team_panel_export_summary')
-      .setLabel('Export Ringkasan Tim')
+      .setLabel('Export Ringkasan')
       .setStyle(ButtonStyle.Primary)
   );
+
+  if (parseInt(s.disbanded_count, 10) > 0) {
+    buttonRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId('team_panel_purge_disbanded')
+        .setLabel(`Bersihkan Tim Bubar (${s.disbanded_count})`)
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
 
   components.push(buttonRow);
 
@@ -295,6 +305,11 @@ export default {
       sub
         .setName('panel')
         .setDescription('[Staff] Buka dashboard manajemen tim')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('purge-disbanded')
+        .setDescription('[Staff] Hapus permanen seluruh tim berstatus DISBANDED dari database')
     ),
 
   async execute(interaction) {
@@ -311,6 +326,43 @@ export default {
       }
       const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
       return await interaction.editReply({ embeds: [embed], components });
+    }
+
+    // ========================================================
+    // 0B. PURGE-DISBANDED SUBCOMMAND (Staff Clean-up)
+    // ========================================================
+    if (subcommand === 'purge-disbanded') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      if (!isStaffUser) {
+        return await interaction.editReply({ embeds: [errorEmbed('Staff Only', 'Hanya staff yang dapat membersihkan tim bubar.')] });
+      }
+
+      const purgedTeams = await purgeDisbandedTeams();
+      if (purgedTeams.length === 0) {
+        return await interaction.editReply({
+          embeds: [infoEmbed('Tidak Ada Tim Bubar', 'Tidak ada data tim berstatus DISBANDED di database.')]
+        });
+      }
+
+      const count = purgedTeams.length;
+      const teamList = purgedTeams.map((t) => `• **${t.name}** (ID: ${t.id})`).join('\n');
+
+      await AuditService.log(interaction.client, {
+        action: AUDIT_ACTIONS.TEAMS_PURGED,
+        title: 'Pembersihan Tim Bubar',
+        actorTag: interaction.user.tag,
+        details: `${count} tim berstatus DISBANDED dihapus permanen dari database.`
+      });
+
+      return await interaction.editReply({
+        embeds: [
+          successEmbed(
+            'Pembersihan Berhasil',
+            `Sebanyak **${count}** tim berstatus DISBANDED telah berhasil dihapus permanen dari database:\n\n` +
+            `${teamList.length > 3000 ? teamList.substring(0, 3000) + '...' : teamList}`
+          )
+        ]
+      });
     }
 
     // ========================================================

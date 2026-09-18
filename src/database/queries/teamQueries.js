@@ -170,3 +170,24 @@ export async function getAllTeams(client = pool) {
   const res = await client.query(sql);
   return res.rows;
 }
+
+export async function purgeDisbandedTeams(client = pool) {
+  const sql = `
+    DELETE FROM teams
+    WHERE status = 'DISBANDED'
+    RETURNING id, name;
+  `;
+  const res = await client.query(sql);
+  return res.rows;
+}
+
+export async function purgeTeamById(teamId, client = pool) {
+  const sql = `
+    DELETE FROM teams
+    WHERE id = $1
+    RETURNING id, name;
+  `;
+  const res = await client.query(sql, [teamId]);
+  return res.rows[0] || null;
+}
+

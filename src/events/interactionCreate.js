@@ -21,7 +21,7 @@ import { TeamService } from '../services/teamService.js';
 import { AuditService } from '../services/auditService.js';
 import { PermissionService } from '../services/permissionService.js';
 import { getUserActiveTeamByDiscordId, getActiveTeamMembers, countActiveTeamMembers, getTeamMembers } from '../database/queries/memberQueries.js';
-import { getTeamById } from '../database/queries/teamQueries.js';
+import { getTeamById, purgeDisbandedTeams } from '../database/queries/teamQueries.js';
 import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
 import { getAllChallenges, getChallengeById } from '../database/queries/challengeQueries.js';
 import { ChallengeService } from '../services/challengeService.js';
@@ -486,6 +486,76 @@ export default {
               .setTimestamp()
           ]
         });
+      }
+
+      // JA. Team Panel: Purge Disbanded Prompt
+      if (customId === 'team_panel_purge_disbanded') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
+        }
+
+        const { rows } = await pool.query(`SELECT COUNT(*) as count FROM teams WHERE status = 'DISBANDED'`);
+        const count = parseInt(rows[0]?.count || 0, 10);
+
+        if (count === 0) {
+          const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
+          return await interaction.update({ embeds: [embed], components });
+        }
+
+        const confirmRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('team_panel_purge_confirm')
+            .setLabel(`Konfirmasi Hapus (${count} Tim)`)
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId('team_panel_purge_cancel')
+            .setLabel('Batal')
+            .setStyle(ButtonStyle.Secondary)
+        );
+
+        return await interaction.update({
+          embeds: [
+            warningEmbed(
+              'Konfirmasi Pembersihan Tim Bubar',
+              `Terdapat **${count}** tim berstatus DISBANDED di database.\n\n` +
+              'Tindakan ini akan **menghapus permanen** data tim tersebut beserta riwayat anggota dan undangannya dari database.\n\n' +
+              'Apakah kamu yakin ingin melanjutkan?'
+            )
+          ],
+          components: [confirmRow]
+        });
+      }
+
+      // JB. Team Panel: Purge Disbanded Confirm
+      if (customId === 'team_panel_purge_confirm') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
+        }
+
+        const purged = await purgeDisbandedTeams();
+
+        await AuditService.log(interaction.client, {
+          action: AUDIT_ACTIONS.TEAMS_PURGED,
+          title: 'Pembersihan Tim Bubar',
+          actorTag: interaction.user.tag,
+          details: `${purged.length} tim berstatus DISBANDED dihapus permanen dari database.`
+        });
+
+        const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
+        await interaction.update({ embeds: [embed], components });
+        return await replyDismissable(interaction, {
+          embeds: [successEmbed('Pembersihan Berhasil', `Sebanyak **${purged.length}** tim berstatus DISBANDED telah berhasil dihapus permanen dari database.`)]
+        });
+      }
+
+      // JC. Team Panel: Purge Disbanded Cancel
+      if (customId === 'team_panel_purge_cancel') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
+        }
+
+        const { embed, components } = await buildTeamPanelDashboard(interaction.guild);
+        return await interaction.update({ embeds: [embed], components });
       }
 
       // K. Team Panel: Quick Action (Approve / Archive / Delete from panel)
@@ -1757,7 +1827,7 @@ export default {
         );
 
         const replyComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
-        const reply = await interaction.reply({
+        await interaction.reply({
           embeds: [buildMemberRegEmbed({
             userId: interaction.user.id,
             teamName,
@@ -1766,9 +1836,9 @@ export default {
             memberIds: [],
             step: 'select_members'
           })],
-          components: replyComponents,
-          fetchReply: true
+          components: replyComponents
         });
+        const reply = await interaction.fetchReply();
 
         // Store session
         setSession(`member_${interaction.user.id}`, {
@@ -1824,7 +1894,7 @@ export default {
         );
 
         const replyComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
-        const reply = await interaction.reply({
+        await interaction.reply({
           embeds: [buildStaffRegEmbed({
             teamName,
             nsacLink,
@@ -1833,9 +1903,9 @@ export default {
             step: 'select_members'
           })],
           components: replyComponents,
-          flags: MessageFlags.Ephemeral,
-          fetchReply: true
+          flags: MessageFlags.Ephemeral
         });
+        const reply = await interaction.fetchReply();
 
         // Store session
         setSession(`staff_${interaction.user.id}`, {
@@ -1864,10 +1934,9 @@ export default {
 
         if (session) {
           session.teamName = newName;
-          session.memberIds = []; // Reset member selection when name changes
           setSession(sessionKey, session);
 
-          // Rebuild dropdown with new name and update original message
+          // Rebuild dropdowns with new name and update original message
           await interaction.guild.members.fetch().catch(() => {});
           const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
           const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
@@ -1879,20 +1948,39 @@ export default {
           const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
           const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
           const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
-          const buttonRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
-          );
+
+          const challenges = await getAllChallenges();
+          const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: false });
+
+          const isConfirmStep = session.memberIds && session.memberIds.length > 0;
+          const buttonRow = isConfirmStep
+            ? new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
+              )
+            : new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
+              );
 
           try {
             const channel = await interaction.client.channels.fetch(session.channelId).catch(() => null);
             if (channel) {
               const msg = await channel.messages.fetch(session.messageId).catch(() => null);
               if (msg) {
-                const editComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
+                const editComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
                 await msg.edit({
-                  embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: newName, memberIds: [], step: 'select_members' })],
+                  embeds: [buildMemberRegEmbed({
+                    userId: interaction.user.id,
+                    teamName: newName,
+                    nsacLink: session.nsacLink,
+                    challengeTitle: session.challengeTitle,
+                    memberIds: session.memberIds || [],
+                    step: isConfirmStep ? 'confirm' : 'select_members'
+                  })],
                   components: editComponents
                 });
               }
@@ -1918,7 +2006,6 @@ export default {
 
         if (session) {
           session.teamName = newName;
-          session.memberIds = [];
           setSession(sessionKey, session);
 
           await interaction.guild.members.fetch().catch(() => {});
@@ -1930,20 +2017,37 @@ export default {
           });
 
           const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
-          const buttonRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
-          );
+          const challenges = await getAllChallenges();
+          const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: true });
+
+          const isConfirmStep = session.memberIds && session.memberIds.length > 0;
+          const buttonRow = isConfirmStep
+            ? new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
+              )
+            : new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
+              );
 
           try {
             const channel = await interaction.client.channels.fetch(session.channelId).catch(() => null);
             if (channel) {
               const msg = await channel.messages.fetch(session.messageId).catch(() => null);
               if (msg) {
-                const editComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
+                const editComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
                 await msg.edit({
-                  embeds: [buildStaffRegEmbed({ teamName: newName, memberIds: [], step: 'select_members' })],
+                  embeds: [buildStaffRegEmbed({
+                    teamName: newName,
+                    nsacLink: session.nsacLink,
+                    challengeTitle: session.challengeTitle,
+                    memberIds: session.memberIds || [],
+                    step: isConfirmStep ? 'confirm' : 'select_members'
+                  })],
                   components: editComponents
                 });
               }

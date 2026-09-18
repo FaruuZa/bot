@@ -35,7 +35,7 @@ export class DiscordService {
       // 1. Create Team Role
       created.role = await guild.roles.create({
         name: teamName,
-        color: 0x3498DB,
+        colors: { primaryColor: 0x3498DB },
         mentionable: true,
         reason: `Hackathon Team Role for ${teamName}`
       });
@@ -81,9 +81,15 @@ export class DiscordService {
           allow: [
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.AttachFiles,
+            PermissionFlagsBits.ReadMessageHistory,
+            PermissionFlagsBits.ManageMessages,
             PermissionFlagsBits.ManageChannels,
             PermissionFlagsBits.ManageRoles,
-            PermissionFlagsBits.Connect
+            PermissionFlagsBits.Connect,
+            PermissionFlagsBits.Speak,
+            PermissionFlagsBits.UseVAD
           ]
         }
       ];
@@ -155,7 +161,8 @@ export class DiscordService {
         roleId: created.role.id,
         categoryId: created.category.id,
         textChannelId: created.textChannel.id,
-        voiceChannelId: created.voiceChannelId || created.voiceChannel.id
+        voiceChannelId: created.voiceChannel.id,
+        textChannel: created.textChannel
       };
     } catch (error) {
       logger.error(`[Discord Provisioning Failed] Error creating resources for "${teamName}": ${error.message}`);
