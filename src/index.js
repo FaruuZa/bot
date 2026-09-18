@@ -11,6 +11,7 @@ import setupCmd from './commands/admin/setup.js';
 import faqCmd from './commands/admin/faq.js';
 import announceCmd from './commands/admin/announce.js';
 import purgeCmd from './commands/admin/purge.js';
+import challengeCmd from './commands/team/challenge.js';
 
 // Import Events
 import readyEvent from './events/ready.js';
@@ -45,7 +46,8 @@ const commandList = [
   setupCmd,
   faqCmd,
   announceCmd,
-  purgeCmd
+  purgeCmd,
+  challengeCmd
 ];
 
 for (const cmd of commandList) {

@@ -55,15 +55,27 @@ export class DashboardService {
    * @param {import('discord.js').Guild} guild 
    */
   static async buildOverviewPayload(guild) {
-    // 1. Fetch team statistics
+    // 1. Fetch team and challenge statistics
     const { rows: stats } = await pool.query(`
       SELECT
         COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_count,
         COUNT(*) FILTER (WHERE status = 'PENDING') as pending_count,
-        COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived_count
+        COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived_count,
+        COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NOT NULL) as with_challenge_count,
+        COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NULL) as no_challenge_count,
+        COUNT(*) FILTER (WHERE status = 'ACTIVE' AND nsac_link IS NOT NULL AND nsac_link != '') as with_link_count,
+        (SELECT COUNT(*) FROM challenges) as challenge_count
       FROM teams
     `);
-    const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0 };
+    const s = stats[0] || {
+      active_count: 0,
+      pending_count: 0,
+      archived_count: 0,
+      with_challenge_count: 0,
+      no_challenge_count: 0,
+      with_link_count: 0,
+      challenge_count: 0
+    };
 
     // 2. Fetch configurations
     const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
@@ -90,7 +102,16 @@ export class DashboardService {
             `• **Tim Aktif:** \`${s.active_count}\` tim\n` +
             `• **Menunggu Verifikasi:** \`${s.pending_count}\` tim\n` +
             `• **Diarsipkan:** \`${s.archived_count}\` tim`,
-          inline: false
+          inline: true
+        },
+        {
+          name: '🎯 Challenge & Pendataan Web',
+          value:
+            `• **Challenge Terdaftar:** \`${s.challenge_count}\` challenge\n` +
+            `• **Sudah Pilih Challenge:** \`${s.with_challenge_count}\` tim\n` +
+            `• **Belum Pilih Challenge:** \`${s.no_challenge_count}\` tim\n` +
+            `• **Tautan NSAC Terisi:** \`${s.with_link_count}\` tim`,
+          inline: true
         }
       )
       .setFooter({ text: 'Panel 1/3 • Overview & Tim' })

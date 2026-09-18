@@ -51,6 +51,9 @@ export function teamInfoEmbed(team, members) {
     return `${idx + 1}. ${roleBadge} <@${m.discord_id}> (${m.username}) - ${statusBadge}`;
   }).join('\n') || '*No members listed*';
 
+  const challengeText = team.challenge_title ? `🎯 **${team.challenge_title}**` : '*(Belum memilih)*';
+  const nsacLinkText = team.nsac_link ? `[Buka Web Tim NSAC](${team.nsac_link})` : '*(Belum diatur)*';
+
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
     .setTitle(`🏆 Team: ${team.name}`)
@@ -59,6 +62,9 @@ export function teamInfoEmbed(team, members) {
       { name: '📊 Status', value: `\`${team.status}\``, inline: true },
       { name: '👑 Leader', value: leader.discord_id ? `<@${leader.discord_id}>` : 'None', inline: true },
       { name: '👥 Total Members', value: `${members.length}`, inline: true },
+      { name: '🎯 Challenge', value: challengeText, inline: true },
+      { name: '🌐 Web NSAC', value: nsacLinkText, inline: true },
+      { name: '\u200B', value: '\u200B', inline: true },
       { name: '📜 Roster', value: memberList, inline: false },
       { name: '📁 Category ID', value: team.category_id ? `\`${team.category_id}\`` : 'None', inline: true },
       { name: '💬 Text Channel', value: team.text_channel_id ? `<#${team.text_channel_id}>` : 'None', inline: true },

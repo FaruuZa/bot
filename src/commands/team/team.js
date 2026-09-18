@@ -35,7 +35,8 @@ import {
   getOpenRecruitmentByTeam,
   closeAllRecruitmentsByTeam
 } from '../../database/queries/recruitmentQueries.js';
-import { getUserByDiscordId, upsertUser } from '../../database/queries/userQueries.js';
+import { ChallengeService } from '../../services/challengeService.js';
+import { getAllChallenges } from '../../database/queries/challengeQueries.js';
 import { errorEmbed, successEmbed, teamInfoEmbed, warningEmbed, infoEmbed } from '../../utils/embeds.js';
 import { AUDIT_ACTIONS, CUSTOM_IDS, MEMBER_ROLE, MEMBER_STATUS, TEAM_STATUS, EMBED_COLORS } from '../../config/constants.js';
 import { env } from '../../config/env.js';
@@ -46,15 +47,18 @@ export async function buildTeamPanelDashboard(guild) {
       COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_count,
       COUNT(*) FILTER (WHERE status = 'PENDING') as pending_count,
       COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived_count,
-      COUNT(*) FILTER (WHERE status = 'DISBANDED') as disbanded_count
+      COUNT(*) FILTER (WHERE status = 'DISBANDED') as disbanded_count,
+      COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NOT NULL) as with_challenge_count
     FROM teams
   `);
 
   const { rows: teams } = await pool.query(`
     SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
+           c.title as challenge_title,
            (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'ACTIVE') as member_count
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     ORDER BY 
       CASE t.status
         WHEN 'PENDING' THEN 1
@@ -66,7 +70,7 @@ export async function buildTeamPanelDashboard(guild) {
     LIMIT 25
   `);
 
-  const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0, disbanded_count: 0 };
+  const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0, disbanded_count: 0, with_challenge_count: 0 };
 
   const embed = new EmbedBuilder()
     .setTitle('Hackathon Team Admin Panel')
@@ -76,7 +80,7 @@ export async function buildTeamPanelDashboard(guild) {
     )
     .setColor(EMBED_COLORS.PRIMARY)
     .addFields(
-      { name: 'Tim Aktif', value: `**${s.active_count}** Tim`, inline: true },
+      { name: 'Tim Aktif', value: `**${s.active_count}** Tim (${s.with_challenge_count || 0} ber-challenge)`, inline: true },
       { name: 'Menunggu Konfirmasi', value: `**${s.pending_count}** Tim`, inline: true },
       { name: 'Diarsipkan / Bubar', value: `**${s.archived_count}** / **${s.disbanded_count}**`, inline: true }
     )
@@ -88,7 +92,8 @@ export async function buildTeamPanelDashboard(guild) {
   if (teams.length > 0) {
     const options = teams.map((t) => {
       const leaderTag = t.leader_username ? `@${t.leader_username}` : 'Unknown';
-      const desc = `Leader: ${leaderTag} | ${t.member_count} anggota | Status: ${t.status}`;
+      const chInfo = t.challenge_title ? `[${t.challenge_title}] ` : '';
+      const desc = `${chInfo}Leader: ${leaderTag} | ${t.member_count} anggota | Status: ${t.status}`;
       return new StringSelectMenuOptionBuilder()
         .setLabel(`${t.name} (ID: ${t.id})`.substring(0, 100))
         .setDescription(desc.substring(0, 100))
@@ -171,6 +176,27 @@ export default {
       sub
         .setName('recruit-close')
         .setDescription('Tutup lowongan rekrutmen tim yang sedang aktif (hanya untuk Team Leader)')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('set-challenge')
+        .setDescription('Pilih atau ubah challenge yang diikuti timmu (hanya untuk Team Leader)')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('set-link')
+        .setDescription('Atur atau ubah link resmi tim di web NSAC (hanya untuk Team Leader)')
+        .addStringOption((opt) =>
+          opt
+            .setName('url')
+            .setDescription('URL profil tim resmi di situs NSAC (https://...)')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('challenge')
+        .setDescription('Lihat daftar seluruh challenge yang tersedia')
     )
     // ================= Staff Subcommands =================
     .addSubcommand((sub) =>
@@ -631,6 +657,95 @@ export default {
 
       return await interaction.editReply({
         embeds: [successEmbed('Rekrutmen Ditutup', `Lowongan rekrutmen tim **${activeTeam.name}** telah ditutup.`)]
+      });
+    }
+
+    // ========================================================
+    // 7.1 CHALLENGE SUBCOMMAND (View Available Challenges)
+    // ========================================================
+    if (subcommand === 'challenge') {
+      await interaction.deferReply();
+      const { embed } = await ChallengeService.getChallengesEmbed();
+      return await interaction.editReply({ embeds: [embed] });
+    }
+
+    // ========================================================
+    // 7.2 SET-CHALLENGE SUBCOMMAND (Leader Only)
+    // ========================================================
+    if (subcommand === 'set-challenge') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+      if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Bukan Leader', 'Hanya Team Leader yang bisa memilih atau mengubah challenge tim.')]
+        });
+      }
+
+      const challenges = await getAllChallenges();
+      if (!challenges || challenges.length === 0) {
+        return await interaction.editReply({
+          embeds: [infoEmbed('Belum Ada Challenge', 'Saat ini belum ada challenge yang ditambahkan oleh panitia ke sistem.')]
+        });
+      }
+
+      const options = ChallengeService.buildChallengeSelectOptions(challenges);
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId(`${CUSTOM_IDS.SELECT_TEAM_PANEL_CHALLENGE}${activeTeam.id}`)
+        .setPlaceholder('Pilih challenge yang akan diikuti timmu...')
+        .addOptions(options);
+
+      const row = new ActionRowBuilder().addComponents(selectMenu);
+
+      const currentChallenge = activeTeam.challenge_title ? `**${activeTeam.challenge_title}**` : '*(Belum memilih)*';
+
+      return await interaction.editReply({
+        embeds: [
+          infoEmbed(
+            'Pilih Challenge Tim 🎯',
+            `Challenge saat ini untuk tim **${activeTeam.name}**: ${currentChallenge}\n\n` +
+            `Silakan pilih challenge dari menu dropdown di bawah. Pilihan challenge ini akan otomatis ditampilkan di channel tim dan board rekrutmen.`
+          )
+        ],
+        components: [row]
+      });
+    }
+
+    // ========================================================
+    // 7.3 SET-LINK SUBCOMMAND (Leader Only)
+    // ========================================================
+    if (subcommand === 'set-link') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+      if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Bukan Leader', 'Hanya Team Leader yang bisa mengatur link resmi tim.')]
+        });
+      }
+
+      const url = interaction.options.getString('url').trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('URL Tidak Valid', 'Link tim harus dimulai dengan `http://` atau `https://`.')]
+        });
+      }
+
+      const result = await TeamService.setTeamNsacLink(activeTeam.id, url, interaction.guild, interaction.client, interaction.user.tag);
+      if (!result.success) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Gagal Menyimpan Link', result.error)]
+        });
+      }
+
+      return await interaction.editReply({
+        embeds: [
+          successEmbed(
+            'Link Tim Diperbarui 🌐',
+            `Link resmi tim **${activeTeam.name}** di web NSAC berhasil diperbarui:\n${url}\n\n` +
+            `Tombol tautan di channel tim dan board rekrutmen telah disesuaikan.`
+          )
+        ]
       });
     }
 

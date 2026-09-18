@@ -10,7 +10,9 @@ import {
   updateTeamDiscordResources,
   updateTeamStatus,
   updateTeamName,
-  updateTeamLeader
+  updateTeamLeader,
+  updateTeamChallenge,
+  updateTeamNsacLink
 } from '../database/queries/teamQueries.js';
 import {
   addTeamMember,
@@ -114,8 +116,10 @@ export class TeamService {
    * Register a new team — tim langsung ACTIVE, undangan dikirim ke anggota yang dipilih.
    * @param {boolean} skipInvitations - Jika true, anggota langsung ditambah tanpa undangan (staff override)
    * @param {boolean} [allowSolo=false] - Jika true, izinkan pendaftaran dengan 1 leader saja (staff override)
+   * @param {string|null} [nsacLink=null] - Link tim yang terdaftar di web NSAC resmi
+   * @param {number|null} [challengeId=null] - ID challenge yang dipilih oleh ketua tim
    */
-  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null, skipInvitations = false, allowSolo = false }) {
+  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null, skipInvitations = false, allowSolo = false, nsacLink = null, challengeId = null }) {
     const validation = await this.validateRegistration({ teamName, leaderMember, memberIds, guild, allowSolo });
     if (!validation.valid) {
       return { success: false, error: validation.error };
@@ -132,7 +136,9 @@ export class TeamService {
       const team = await createTeam({
         name: teamName,
         leaderId: leaderUser.id,
-        status: TEAM_STATUS.ACTIVE  // <-- langsung ACTIVE, tidak perlu approval
+        status: TEAM_STATUS.ACTIVE,  // <-- langsung ACTIVE, tidak perlu approval
+        nsacLink,
+        challengeId
       }, dbClient);
 
       // 3. Tambah leader sebagai anggota ACTIVE
@@ -343,6 +349,9 @@ export class TeamService {
       })
       .join('\n') || 'Belum ada anggota';
 
+    const challengeDisplay = team.challenge_title ? `🎯 **${team.challenge_title}**` : '*(Belum memilih challenge)*';
+    const nsacLinkDisplay = team.nsac_link ? `[Buka Link Profil Tim Resmi](${team.nsac_link})` : '*(Belum diatur)*';
+
     const embed = new EmbedBuilder()
       .setTitle(`Selamat datang di tim ${team.name}!`)
       .setColor(EMBED_COLORS.SUCCESS)
@@ -351,10 +360,14 @@ export class TeamService {
         'Gunakan channel ini untuk diskusi, koordinasi, dan berbagi progres.'
       )
       .addFields(
-        { name: 'Anggota Tim', value: memberList, inline: false },
+        { name: '🎯 Challenge', value: challengeDisplay, inline: true },
+        { name: '🌐 Link Tim NSAC', value: nsacLinkDisplay, inline: true },
+        { name: '\u200B', value: '\u200B', inline: true },
+        { name: '👥 Anggota Tim', value: memberList, inline: false },
         {
           name: 'Yang bisa dilakukan leader',
           value:
+            '`/team set-challenge` — Pilih atau ubah challenge tim\n' +
             '`/team invite @user` — Undang anggota baru\n' +
             '`/team kick @user` — Keluarkan anggota dari tim\n' +
             '`/team recruit` — Buka lowongan anggota di channel rekrutmen\n' +
@@ -383,19 +396,36 @@ export class TeamService {
           .setLabel('Buka Rekrutmen')
           .setStyle(ButtonStyle.Secondary);
 
-    const components = [
-      new ActionRowBuilder().addComponents(
+    const mainRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE)
+        .setLabel('Pilih Challenge')
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji('🎯'),
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INVITE)
+        .setLabel('Undang Anggota')
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji('➕'),
+      recruitBtn,
+      new ButtonBuilder()
+        .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INFO)
+        .setLabel('Info Tim')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    const components = [mainRow];
+
+    if (team.nsac_link && (team.nsac_link.startsWith('http://') || team.nsac_link.startsWith('https://'))) {
+      const linkRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INVITE)
-          .setLabel('Undang Anggota')
-          .setStyle(ButtonStyle.Primary),
-        recruitBtn,
-        new ButtonBuilder()
-          .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INFO)
-          .setLabel('Info Tim')
-          .setStyle(ButtonStyle.Secondary)
-      )
-    ];
+          .setLabel('Buka Web Tim NSAC')
+          .setStyle(ButtonStyle.Link)
+          .setURL(team.nsac_link)
+          .setEmoji('🌐')
+      );
+      components.push(linkRow);
+    }
 
     return { embed, components };
   }
@@ -425,7 +455,8 @@ export class TeamService {
           row.components.some((c) =>
             c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT ||
             c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE ||
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE ||
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE
           )
         )
       );
@@ -439,6 +470,101 @@ export class TeamService {
     } catch (err) {
       logger.warn(`[TeamService] Gagal refresh welcome panel tim ${teamId}: ${err.message}`);
     }
+  }
+
+  /**
+   * Leader / Staff mengubah challenge tim (otomatis update panel & recruitment board jika ada)
+   */
+  static async setTeamChallenge(teamId, challengeId, guild, client, actorTag) {
+    const team = await getTeamById(teamId);
+    if (!team) return { success: false, error: 'Tim tidak ditemukan.' };
+
+    await updateTeamChallenge(team.id, challengeId || null);
+    const updatedTeam = await getTeamById(team.id);
+
+    // 1. Refresh welcome panel di text channel tim
+    await TeamService.refreshTeamWelcomePanel(team.id, guild);
+
+    // 2. Refresh recruitment board jika sedang OPEN
+    const openRecruit = await getOpenRecruitmentByTeam(team.id);
+    if (openRecruit) {
+      try {
+        const recruitChannel = guild.channels.cache.get(openRecruit.channel_id)
+          || await guild.channels.fetch(openRecruit.channel_id).catch(() => null);
+        if (recruitChannel && recruitChannel.isTextBased()) {
+          const bMsg = await recruitChannel.messages.fetch(openRecruit.message_id).catch(() => null);
+          if (bMsg) {
+            const currentCount = await countActiveTeamMembers(team.id);
+            const remainingSlots = openRecruit.slots_needed;
+            const updatedBoardEmbed = new EmbedBuilder()
+              .setTitle(`Lowongan Tim — ${updatedTeam.name}`)
+              .setColor(EMBED_COLORS.PRIMARY)
+              .setDescription(openRecruit.description ? `"${openRecruit.description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.')
+              .addFields(
+                { name: 'Leader Tim', value: `<@${updatedTeam.leader_discord_id}>`, inline: true },
+                { name: '🎯 Challenge', value: updatedTeam.challenge_title ? `**${updatedTeam.challenge_title}**` : '*(Belum memilih)*', inline: true },
+                { name: 'Slot Dibutuhkan', value: `**${remainingSlots}** orang`, inline: true },
+                { name: 'Anggota Saat Ini', value: `**${currentCount}** / ${env.MAX_TEAM_SIZE}`, inline: true }
+              )
+              .setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' })
+              .setTimestamp();
+
+            const boardButtons = [
+              new ButtonBuilder()
+                .setCustomId(`${CUSTOM_IDS.BTN_RECRUIT_REQUEST_JOIN}${openRecruit.id}`)
+                .setLabel('Minta Bergabung')
+                .setStyle(ButtonStyle.Success)
+            ];
+
+            if (updatedTeam.nsac_link && (updatedTeam.nsac_link.startsWith('http://') || updatedTeam.nsac_link.startsWith('https://'))) {
+              boardButtons.push(
+                new ButtonBuilder()
+                  .setLabel('Profil Tim (NSAC Web)')
+                  .setStyle(ButtonStyle.Link)
+                  .setURL(updatedTeam.nsac_link)
+                  .setEmoji('🌐')
+              );
+            }
+
+            await bMsg.edit({
+              embeds: [updatedBoardEmbed],
+              components: [new ActionRowBuilder().addComponents(boardButtons)]
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        logger.warn(`[TeamService] Gagal update recruitment board saat ganti challenge: ${err.message}`);
+      }
+    }
+
+    if (client) {
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.TEAM_CHALLENGE_UPDATED,
+        title: 'Challenge Tim Diperbarui',
+        actorTag,
+        teamId: team.id,
+        teamName: team.name,
+        details: `Challenge tim "${team.name}" diubah menjadi: ${updatedTeam.challenge_title || 'Belum memilih'}.`
+      });
+    }
+
+    return { success: true, team: updatedTeam };
+  }
+
+  /**
+   * Update Link Tim NSAC Resmi
+   */
+  static async setTeamNsacLink(teamId, nsacLink, guild, client, actorTag) {
+    const team = await getTeamById(teamId);
+    if (!team) return { success: false, error: 'Tim tidak ditemukan.' };
+
+    await updateTeamNsacLink(team.id, nsacLink);
+    const updatedTeam = await getTeamById(team.id);
+
+    // Refresh welcome panel di text channel tim
+    await TeamService.refreshTeamWelcomePanel(team.id, guild);
+
+    return { success: true, team: updatedTeam };
   }
 
   /**

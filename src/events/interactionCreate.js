@@ -23,6 +23,8 @@ import { PermissionService } from '../services/permissionService.js';
 import { getUserActiveTeamByDiscordId, getActiveTeamMembers, countActiveTeamMembers, getTeamMembers } from '../database/queries/memberQueries.js';
 import { getTeamById } from '../database/queries/teamQueries.js';
 import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
+import { getAllChallenges, getChallengeById } from '../database/queries/challengeQueries.js';
+import { ChallengeService } from '../services/challengeService.js';
 import {
   getOpenRecruitmentByTeam,
   createRecruitment,
@@ -44,7 +46,7 @@ import { pool } from '../database/pool.js';
 // ============================================================
 // REGISTRATION SESSION STORE
 // In-memory, keyed by `member_${userId}` or `staff_${userId}`
-// Value: { teamName, memberIds, channelId, messageId, expiresAt }
+// Value: { teamName, nsacLink, challengeId, challengeTitle, memberIds, channelId, messageId, expiresAt }
 // TTL: 10 minutes
 // ============================================================
 const registrationSessions = new Map();
@@ -73,19 +75,22 @@ function deleteSession(key) {
 /**
  * Build the single registration embed for member flow.
  */
-function buildMemberRegEmbed({ userId, teamName, memberIds = [], step }) {
+function buildMemberRegEmbed({ userId, teamName, nsacLink, challengeTitle, memberIds = [], step }) {
   const memberList = memberIds.length > 0
     ? memberIds.map((id) => `<@${id}>`).join(', ')
     : '*(Belum dipilih)*';
 
+  const chDisplay = challengeTitle ? `🎯 **${challengeTitle}**` : '*(Belum memilih)*';
+  const linkDisplay = nsacLink ? `[Buka Link Web NSAC](${nsacLink})` : '*(Belum diisi)*';
+
   let statusText, color;
   switch (step) {
     case 'select_members':
-      statusText = '⏳ Pilih anggota tim dari dropdown di bawah.';
+      statusText = '⏳ Pilih challenge & anggota tim dari menu dropdown di bawah.';
       color = EMBED_COLORS.INFO;
       break;
     case 'confirm':
-      statusText = '✅ Semua data siap! Tekan **Konfirmasi** untuk mendaftar, atau **Pilih Ulang** untuk mengubah anggota.';
+      statusText = '✅ Semua data siap! Tekan **Konfirmasi** untuk mendaftar, atau **Pilih Ulang** untuk mengubah.';
       color = EMBED_COLORS.SUCCESS;
       break;
     case 'processing':
@@ -107,7 +112,8 @@ function buildMemberRegEmbed({ userId, teamName, memberIds = [], step }) {
     .addFields(
       { name: '👑 Team Leader', value: `<@${userId}>`, inline: true },
       { name: '📛 Nama Tim', value: `**${teamName}**`, inline: true },
-      { name: '\u200B', value: '\u200B', inline: true },
+      { name: '🎯 Challenge', value: chDisplay, inline: true },
+      { name: '🌐 Link Tim NSAC', value: linkDisplay, inline: false },
       { name: '👥 Anggota', value: memberList, inline: false },
       { name: '📊 Status', value: statusText, inline: false }
     )
@@ -119,7 +125,7 @@ function buildMemberRegEmbed({ userId, teamName, memberIds = [], step }) {
  * Build the single registration embed for staff flow.
  * First member selected = leader.
  */
-function buildStaffRegEmbed({ teamName, memberIds = [], step }) {
+function buildStaffRegEmbed({ teamName, nsacLink, challengeTitle, memberIds = [], step }) {
   let leaderDisplay, otherMembers;
   if (memberIds.length > 0) {
     leaderDisplay = `<@${memberIds[0]}> *(Leader — anggota pertama)*`;
@@ -131,10 +137,13 @@ function buildStaffRegEmbed({ teamName, memberIds = [], step }) {
     otherMembers = '*(Belum dipilih)*';
   }
 
+  const chDisplay = challengeTitle ? `🎯 **${challengeTitle}**` : '*(Belum memilih)*';
+  const linkDisplay = nsacLink ? `[Buka Link Web NSAC](${nsacLink})` : '*(Belum diatur)*';
+
   let statusText, color;
   switch (step) {
     case 'select_members':
-      statusText = '⏳ Pilih 1–4 anggota. **Anggota pertama otomatis menjadi Leader.**';
+      statusText = '⏳ Pilih 1–4 anggota & challenge. **Anggota pertama otomatis menjadi Leader.**';
       color = EMBED_COLORS.INFO;
       break;
     case 'confirm':
@@ -160,7 +169,8 @@ function buildStaffRegEmbed({ teamName, memberIds = [], step }) {
     .addFields(
       { name: '📛 Nama Tim', value: `**${teamName}**`, inline: true },
       { name: '🏅 Mode', value: 'Staff Override (No Invite)', inline: true },
-      { name: '\u200B', value: '\u200B', inline: true },
+      { name: '🎯 Challenge', value: chDisplay, inline: true },
+      { name: '🌐 Link Tim NSAC', value: linkDisplay, inline: false },
       { name: '👑 Leader', value: leaderDisplay, inline: false },
       { name: '👥 Anggota Lain', value: otherMembers, inline: false },
       { name: '📊 Status', value: statusText, inline: false }
@@ -200,6 +210,47 @@ function buildMemberSelectRow({ eligibleMembers, min, max, isStaff = false }) {
     .setMinValues(actualMin === 0 ? 0 : 1)
     .setMaxValues(actualMax)
     .addOptions(selectOptions);
+
+  return new ActionRowBuilder().addComponents(select);
+}
+
+/**
+ * Build challenge select dropdown for registration.
+ */
+function buildChallengeSelectRow({ challenges, selectedChallengeId = null, isStaff = false }) {
+  if (!challenges || challenges.length === 0) return null;
+
+  const customId = isStaff ? CUSTOM_IDS.SELECT_STAFF_TEAM_CHALLENGE : CUSTOM_IDS.SELECT_TEAM_CHALLENGE;
+  const options = [
+    new StringSelectMenuOptionBuilder()
+      .setLabel('Belum Memilih Challenge')
+      .setDescription('Kosongkan/lewati pemilihan challenge saat ini')
+      .setValue('none')
+      .setEmoji('❓')
+      .setDefault(!selectedChallengeId)
+  ];
+
+  for (const c of challenges.slice(0, 24)) {
+    const isSelected = selectedChallengeId && String(selectedChallengeId) === String(c.id);
+    const desc = c.description
+      ? c.description.substring(0, 50) + (c.description.length > 50 ? '...' : '')
+      : 'Lihat web NSAC untuk detail selengkapnya';
+    options.push(
+      new StringSelectMenuOptionBuilder()
+        .setLabel(c.title.substring(0, 100))
+        .setDescription(desc)
+        .setValue(c.id.toString())
+        .setEmoji('🎯')
+        .setDefault(Boolean(isSelected))
+    );
+  }
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(customId)
+    .setPlaceholder('Pilih challenge yang akan diikuti timmu (opsional)...')
+    .setMinValues(1)
+    .setMaxValues(1)
+    .addOptions(options);
 
   return new ActionRowBuilder().addComponents(select);
 }
@@ -299,13 +350,24 @@ export default {
           .setCustomId(CUSTOM_IDS.INPUT_TEAM_NAME)
           .setLabel('Team Name')
           .setStyle(TextInputStyle.Short)
-          .setPlaceholder('e.g., Code Wizards, Team Alpha')
+          .setPlaceholder('Contoh: Code Wizards, Team Alpha')
           .setRequired(true)
           .setMinLength(3)
           .setMaxLength(32);
 
-        const firstActionRow = new ActionRowBuilder().addComponents(teamNameInput);
-        modal.addComponents(firstActionRow);
+        const teamLinkInput = new TextInputBuilder()
+          .setCustomId(CUSTOM_IDS.INPUT_TEAM_LINK)
+          .setLabel('Link Tim Terdaftar di NSAC Resmi')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('https://...')
+          .setRequired(true)
+          .setMinLength(8)
+          .setMaxLength(300);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(teamNameInput),
+          new ActionRowBuilder().addComponents(teamLinkInput)
+        );
 
         return await interaction.showModal(modal);
       }
@@ -368,13 +430,15 @@ export default {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const { rows: allTeams } = await pool.query(`
-          SELECT t.id, t.name, t.status, u.username as leader_name, u.discord_id as leader_discord_id,
+          SELECT t.id, t.name, t.status, t.nsac_link, c.title as challenge_title,
+                 u.username as leader_name, u.discord_id as leader_discord_id,
                  ARRAY_TO_STRING(ARRAY_AGG(mu.username || ' (<@' || mu.discord_id || '>)'), ', ') as member_list
           FROM teams t
           LEFT JOIN users u ON t.leader_id = u.id
+          LEFT JOIN challenges c ON t.challenge_id = c.id
           LEFT JOIN team_members tm ON tm.team_id = t.id AND tm.status = 'ACTIVE'
           LEFT JOIN users mu ON tm.user_id = mu.id
-          GROUP BY t.id, t.name, t.status, u.username, u.discord_id
+          GROUP BY t.id, t.name, t.status, t.nsac_link, c.title, u.username, u.discord_id
           ORDER BY t.status, t.name
         `);
 
@@ -383,11 +447,12 @@ export default {
         }
 
         const lines = allTeams.map((t, idx) => {
-          return `**${idx + 1}. ${t.name}** [Status: \`${t.status}\`]
-` +
-                 `   • Leader: <@${t.leader_discord_id}> (${t.leader_name})
-` +
-                 `   • Anggota: ${t.member_list || 'Belum ada anggota'}`;
+          const ch = t.challenge_title ? `[Challenge: ${t.challenge_title}]` : '[Challenge: Belum memilih]';
+          const link = t.nsac_link ? `\n   • Web NSAC: ${t.nsac_link}` : '';
+          return `**${idx + 1}. ${t.name}** [Status: \`${t.status}\`] ${ch}\n` +
+                 `   • Leader: <@${t.leader_discord_id}> (${t.leader_name})\n` +
+                 `   • Anggota: ${t.member_list || 'Belum ada anggota'}` +
+                 link;
         });
 
         const chunks = [];
@@ -462,7 +527,18 @@ export default {
           .setMinLength(3)
           .setMaxLength(32);
 
-        modal.addComponents(new ActionRowBuilder().addComponents(teamNameInput));
+        const teamLinkInput = new TextInputBuilder()
+          .setCustomId(CUSTOM_IDS.INPUT_STAFF_TEAM_LINK)
+          .setLabel('Link Tim Terdaftar di NSAC Resmi (Opsional)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('https://...')
+          .setRequired(false)
+          .setMaxLength(300);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(teamNameInput),
+          new ActionRowBuilder().addComponents(teamLinkInput)
+        );
         return await interaction.showModal(modal);
       }
 
@@ -480,7 +556,14 @@ export default {
         }
 
         await interaction.update({
-          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: session.memberIds, step: 'processing' })],
+          embeds: [buildMemberRegEmbed({
+            userId: interaction.user.id,
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: session.memberIds,
+            step: 'processing'
+          })],
           components: []
         });
 
@@ -491,7 +574,9 @@ export default {
             memberIds: session.memberIds,
             guild: interaction.guild,
             client: interaction.client,
-            ticketChannel: interaction.channel
+            ticketChannel: interaction.channel,
+            nsacLink: session.nsacLink,
+            challengeId: session.challengeId
           });
 
           deleteSession(sessionKey);
@@ -538,7 +623,7 @@ export default {
       if (customId === CUSTOM_IDS.BTN_REG_CANCEL) {
         deleteSession(`member_${interaction.user.id}`);
         return await interaction.update({
-          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: '—', memberIds: [], step: 'cancelled' })],
+          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: '—', nsacLink: null, challengeTitle: null, memberIds: [], step: 'cancelled' })],
           components: []
         });
       }
@@ -552,7 +637,14 @@ export default {
         }
 
         await interaction.update({
-          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: [], step: 'processing' })],
+          embeds: [buildMemberRegEmbed({
+            userId: interaction.user.id,
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: [],
+            step: 'processing'
+          })],
           components: []
         });
 
@@ -564,7 +656,9 @@ export default {
             guild: interaction.guild,
             client: interaction.client,
             ticketChannel: interaction.channel,
-            allowSolo: true
+            allowSolo: true,
+            nsacLink: session.nsacLink,
+            challengeId: session.challengeId
           });
 
           deleteSession(sessionKey);
@@ -604,9 +698,9 @@ export default {
         const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
         const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
-        if (!selectRow) {
-          return await interaction.update({ embeds: [errorEmbed('Tidak Ada Anggota', 'Tidak ada anggota yang tersedia untuk dipilih.')], components: [] });
-        }
+
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: false });
 
         const cancelRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
@@ -614,9 +708,18 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
+        const components = [selectRow, challengeRow, cancelRow].filter(Boolean);
+
         return await interaction.update({
-          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: [], step: 'select_members' })],
-          components: [selectRow, cancelRow]
+          embeds: [buildMemberRegEmbed({
+            userId: interaction.user.id,
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: [],
+            step: 'select_members'
+          })],
+          components
         });
       }
 
@@ -651,7 +754,13 @@ export default {
         }
 
         await interaction.update({
-          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: session.memberIds, step: 'processing' })],
+          embeds: [buildStaffRegEmbed({
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: session.memberIds,
+            step: 'processing'
+          })],
           components: []
         });
 
@@ -669,7 +778,9 @@ export default {
             guild: interaction.guild,
             client: interaction.client,
             ticketChannel: null,
-            skipInvitations: true
+            skipInvitations: true,
+            nsacLink: session.nsacLink,
+            challengeId: session.challengeId
           });
 
           deleteSession(sessionKey);
@@ -689,6 +800,8 @@ export default {
               '✅ Tim Berhasil Dibuat!',
               `Tim **${session.teamName}** berhasil dibuat dan channel telah disiapkan!\n\n` +
               `👑 **Leader:** <@${leaderId}>\n` +
+              `🎯 **Challenge:** ${session.challengeTitle ? `**${session.challengeTitle}**` : '*(Belum memilih)*'}\n` +
+              `🌐 **Link Tim NSAC:** ${session.nsacLink || '*(Belum diatur)*'}\n` +
               `👥 **Seluruh Anggota:** ${memberMentions}`
             )],
             components: []
@@ -703,7 +816,7 @@ export default {
       if (customId === CUSTOM_IDS.BTN_STAFF_REG_CANCEL) {
         deleteSession(`staff_${interaction.user.id}`);
         return await interaction.update({
-          embeds: [buildStaffRegEmbed({ teamName: '—', memberIds: [], step: 'cancelled' })],
+          embeds: [buildStaffRegEmbed({ teamName: '—', nsacLink: null, challengeTitle: null, memberIds: [], step: 'cancelled' })],
           components: []
         });
       }
@@ -717,14 +830,17 @@ export default {
         }
 
         await interaction.update({
-          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: [], step: 'processing' })],
+          embeds: [buildStaffRegEmbed({
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: [],
+            step: 'processing'
+          })],
           components: []
         });
 
         try {
-          // For staff solo create, interaction.member is the staff, but we need a leader
-          // Session has no leaderId yet — staff flow requires at least one member selected as leader
-          // We use interaction.member as the leader in this path
           const result = await TeamService.startRegistration({
             teamName: session.teamName,
             leaderMember: interaction.member,
@@ -732,7 +848,9 @@ export default {
             guild: interaction.guild,
             client: interaction.client,
             skipInvitations: true,
-            allowSolo: true
+            allowSolo: true,
+            nsacLink: session.nsacLink,
+            challengeId: session.challengeId
           });
 
           deleteSession(sessionKey);
@@ -769,6 +887,8 @@ export default {
         });
 
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: true });
 
         const cancelRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
@@ -776,9 +896,15 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
-        const components = selectRow ? [selectRow, cancelRow] : [cancelRow];
+        const components = [selectRow, challengeRow, cancelRow].filter(Boolean);
         return await interaction.update({
-          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: [], step: 'select_members' })],
+          embeds: [buildStaffRegEmbed({
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: [],
+            step: 'select_members'
+          })],
           components
         });
       }
@@ -1017,6 +1143,45 @@ export default {
         return await interaction.update({
           embeds: [infoEmbed('Dibatalkan', 'Aksi keluar tim dibatalkan.')],
           components: []
+        });
+      }
+
+      // Team Welcome Panel Button: Pilih / Ubah Challenge
+      if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE) {
+        const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+        if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
+          return await interaction.reply({
+            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang bisa memilih atau mengubah challenge tim.')],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        const challenges = await getAllChallenges();
+        if (!challenges || challenges.length === 0) {
+          return await interaction.reply({
+            embeds: [infoEmbed('Belum Ada Challenge', 'Saat ini belum ada challenge yang ditambahkan oleh panitia ke sistem.')],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        const options = ChallengeService.buildChallengeSelectOptions(challenges);
+        const selectMenu = new StringSelectMenuBuilder()
+          .setCustomId(`${CUSTOM_IDS.SELECT_TEAM_PANEL_CHALLENGE}${activeTeam.id}`)
+          .setPlaceholder('Pilih challenge yang akan diikuti timmu...')
+          .addOptions(options);
+
+        const currentChallenge = activeTeam.challenge_title ? `**${activeTeam.challenge_title}**` : '*(Belum memilih)*';
+
+        return await interaction.reply({
+          embeds: [
+            infoEmbed(
+              'Pilih Challenge Tim 🎯',
+              `Challenge saat ini untuk tim **${activeTeam.name}**: ${currentChallenge}\n\n` +
+              `Pilih challenge dari dropdown di bawah untuk memperbarui challenge tim.`
+            )
+          ],
+          components: [new ActionRowBuilder().addComponents(selectMenu)],
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -1422,22 +1587,33 @@ export default {
                   .setDescription(recruitment.description ? `"${recruitment.description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.')
                   .addFields(
                     { name: 'Leader Tim', value: `<@${recruitment.leader_discord_id}>`, inline: true },
+                    { name: '🎯 Challenge', value: recruitment.challenge_title ? `**${recruitment.challenge_title}**` : '*(Belum memilih)*', inline: true },
                     { name: 'Slot Dibutuhkan', value: `**${remainingSlots}** orang`, inline: true },
                     { name: 'Anggota Saat Ini', value: `**${newCount}** / ${env.MAX_TEAM_SIZE}`, inline: true }
                   )
                   .setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' })
                   .setTimestamp();
 
-                const boardRow = new ActionRowBuilder().addComponents(
+                const boardButtons = [
                   new ButtonBuilder()
                     .setCustomId(`${CUSTOM_IDS.BTN_RECRUIT_REQUEST_JOIN}${recruitment.id}`)
                     .setLabel('Minta Bergabung')
                     .setStyle(ButtonStyle.Success)
-                );
+                ];
+
+                if (recruitment.nsac_link && (recruitment.nsac_link.startsWith('http://') || recruitment.nsac_link.startsWith('https://'))) {
+                  boardButtons.push(
+                    new ButtonBuilder()
+                      .setLabel('Profil Tim (NSAC Web)')
+                      .setStyle(ButtonStyle.Link)
+                      .setURL(recruitment.nsac_link)
+                      .setEmoji('🌐')
+                  );
+                }
 
                 await bMsg.edit({
                   embeds: [updatedBoardEmbed],
-                  components: [boardRow]
+                  components: [new ActionRowBuilder().addComponents(boardButtons)]
                 }).catch(() => {});
               }
             }
@@ -1519,11 +1695,19 @@ export default {
     if (interaction.isModalSubmit()) {
       if (interaction.customId === CUSTOM_IDS.MODAL_REGISTER_TEAM) {
         const teamName = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_TEAM_NAME).trim();
+        const nsacLink = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_TEAM_LINK)?.trim();
 
         const nameValidation = validateTeamName(teamName);
         if (!nameValidation.valid) {
           return await interaction.reply({
             embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        if (!nsacLink || (!nsacLink.startsWith('http://') && !nsacLink.startsWith('https://'))) {
+          return await interaction.reply({
+            embeds: [errorEmbed('Link NSAC Tidak Valid', 'Anda wajib memasukkan tautan tim yang terdaftar di situs web resmi NSAC (harus diawali http:// atau https://).')],
             flags: MessageFlags.Ephemeral
           });
         }
@@ -1560,7 +1744,6 @@ export default {
 
         const minMembersToSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
         const maxMembersToSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
-        const encodedName = encodeURIComponent(teamName);
 
         // If no eligible members and members required, solo team path
         if (eligibleMembers.length === 0 && minMembersToSelect > 0) {
@@ -1584,7 +1767,10 @@ export default {
             memberIds: [],
             guild: interaction.guild,
             client: interaction.client,
-            ticketChannel: interaction.channel
+            ticketChannel: interaction.channel,
+            allowSolo: true,
+            nsacLink,
+            challengeId: null
           });
           if (!result.success) {
             return await interaction.reply({ embeds: [errorEmbed('Gagal Registrasi', result.error)], flags: MessageFlags.Ephemeral });
@@ -1595,17 +1781,27 @@ export default {
           });
         }
 
-        // Show the single registration embed with member dropdown
+        // Show the single registration embed with member dropdown & challenge dropdown
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: minMembersToSelect, max: maxMembersToSelect });
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: null, isStaff: false });
+
         const buttonRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
-        const replyComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
+        const replyComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
         const reply = await interaction.reply({
-          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName, memberIds: [], step: 'select_members' })],
+          embeds: [buildMemberRegEmbed({
+            userId: interaction.user.id,
+            teamName,
+            nsacLink,
+            challengeTitle: null,
+            memberIds: [],
+            step: 'select_members'
+          })],
           components: replyComponents,
           fetchReply: true
         });
@@ -1613,6 +1809,9 @@ export default {
         // Store session
         setSession(`member_${interaction.user.id}`, {
           teamName,
+          nsacLink,
+          challengeId: null,
+          challengeTitle: null,
           memberIds: [],
           channelId: interaction.channelId,
           messageId: reply.id
@@ -1629,10 +1828,15 @@ export default {
         }
 
         const teamName = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_TEAM_NAME).trim();
+        const nsacLink = interaction.fields.getTextInputValue(CUSTOM_IDS.INPUT_STAFF_TEAM_LINK)?.trim() || null;
 
         const nameValidation = validateTeamName(teamName);
         if (!nameValidation.valid) {
           return await interaction.reply({ embeds: [errorEmbed('Nama Tim Tidak Valid', nameValidation.error)], flags: MessageFlags.Ephemeral });
+        }
+
+        if (nsacLink && (!nsacLink.startsWith('http://') && !nsacLink.startsWith('https://'))) {
+          return await interaction.reply({ embeds: [errorEmbed('Link NSAC Tidak Valid', 'Tautan tim harus diawali http:// atau https://.')], flags: MessageFlags.Ephemeral });
         }
 
         // Build eligible members list (role-filtered, staff themselves NOT excluded)
@@ -1646,15 +1850,24 @@ export default {
         });
 
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: null, isStaff: true });
+
         const buttonRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
-        const replyComponents = selectRow ? [selectRow, buttonRow] : [buttonRow];
+        const replyComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
         const reply = await interaction.reply({
-          embeds: [buildStaffRegEmbed({ teamName, memberIds: [], step: 'select_members' })],
+          embeds: [buildStaffRegEmbed({
+            teamName,
+            nsacLink,
+            challengeTitle: null,
+            memberIds: [],
+            step: 'select_members'
+          })],
           components: replyComponents,
           flags: MessageFlags.Ephemeral,
           fetchReply: true
@@ -1663,6 +1876,9 @@ export default {
         // Store session
         setSession(`staff_${interaction.user.id}`, {
           teamName,
+          nsacLink,
+          challengeId: null,
+          challengeTitle: null,
           memberIds: [],
           channelId: interaction.channelId,
           messageId: reply.id
@@ -1849,6 +2065,7 @@ export default {
           .setDescription(description ? `"${description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.')
           .addFields(
             { name: 'Leader Tim', value: `<@${team.leader_discord_id}>`, inline: true },
+            { name: '🎯 Challenge', value: team.challenge_title ? `**${team.challenge_title}**` : '*(Belum memilih)*', inline: true },
             { name: 'Slot Dibutuhkan', value: `**${slots}** orang`, inline: true },
             { name: 'Anggota Saat Ini', value: `**${currentCount}** / ${env.MAX_TEAM_SIZE}`, inline: true }
           )
@@ -1869,14 +2086,25 @@ export default {
           description
         });
 
-        // Update board message dengan action buttons (Hanya "Minta Bergabung", tutup board ada di embed tim)
-        const boardRow = new ActionRowBuilder().addComponents(
+        // Update board message dengan action buttons
+        const boardButtons = [
           new ButtonBuilder()
             .setCustomId(`${CUSTOM_IDS.BTN_RECRUIT_REQUEST_JOIN}${recruitmentRecord.id}`)
             .setLabel('Minta Bergabung')
             .setStyle(ButtonStyle.Success)
-        );
+        ];
 
+        if (team.nsac_link && (team.nsac_link.startsWith('http://') || team.nsac_link.startsWith('https://'))) {
+          boardButtons.push(
+            new ButtonBuilder()
+              .setLabel('Profil Tim (NSAC Web)')
+              .setStyle(ButtonStyle.Link)
+              .setURL(team.nsac_link)
+              .setEmoji('🌐')
+          );
+        }
+
+        const boardRow = new ActionRowBuilder().addComponents(boardButtons);
         await boardMsg.edit({ components: [boardRow] }).catch(() => {});
 
         // Refresh welcome panel tim di channel tim agar tombol otomatis berubah menjadi "Tutup Rekrutmen"
@@ -2093,7 +2321,6 @@ export default {
         const selectedMemberIds = interaction.values;
         const sessionKey = `member_${interaction.user.id}`;
 
-        // Read teamName from session (customId no longer encodes it)
         const session = getSession(sessionKey);
         if (!session) {
           return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis. Silakan mulai ulang dari awal.')], components: [] });
@@ -2104,7 +2331,7 @@ export default {
         session.messageId = interaction.message.id;
         setSession(sessionKey, session);
 
-        // Rebuild the dropdown for the "reselect" row (same dropdown, keeps previous selection visible)
+        // Rebuild the dropdowns
         await interaction.guild.members.fetch().catch(() => {});
         const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
         const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
@@ -2117,6 +2344,9 @@ export default {
         const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
 
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: false });
+
         // Confirmation buttons row
         const confirmRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
@@ -2125,9 +2355,79 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
-        const updateComponents = selectRow ? [selectRow, confirmRow] : [confirmRow];
+        const updateComponents = [selectRow, challengeRow, confirmRow].filter(Boolean);
         return await interaction.update({
-          embeds: [buildMemberRegEmbed({ userId: interaction.user.id, teamName: session.teamName, memberIds: selectedMemberIds, step: 'confirm' })],
+          embeds: [buildMemberRegEmbed({
+            userId: interaction.user.id,
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: selectedMemberIds,
+            step: 'confirm'
+          })],
+          components: updateComponents
+        });
+      }
+
+      // B2. Member: Select Challenge Dropdown (during registration)
+      if (interaction.customId === CUSTOM_IDS.SELECT_TEAM_CHALLENGE) {
+        const selectedVal = interaction.values[0];
+        const sessionKey = `member_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis.')], components: [] });
+        }
+
+        if (selectedVal === 'none') {
+          session.challengeId = null;
+          session.challengeTitle = null;
+        } else {
+          const chId = parseInt(selectedVal, 10);
+          const ch = await getChallengeById(chId);
+          session.challengeId = ch ? ch.id : null;
+          session.challengeTitle = ch ? ch.title : null;
+        }
+        setSession(sessionKey, session);
+
+        await interaction.guild.members.fetch().catch(() => {});
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+          if (m.user.bot || m.id === interaction.user.id) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+          return true;
+        });
+
+        const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
+        const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: minSelect, max: maxSelect });
+
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: false });
+
+        const isConfirmStep = session.memberIds && session.memberIds.length > 0;
+        const buttonRow = isConfirmStep
+          ? new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+            )
+          : new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+            );
+
+        const updateComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
+        return await interaction.update({
+          embeds: [buildMemberRegEmbed({
+            userId: interaction.user.id,
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: session.memberIds || [],
+            step: isConfirmStep ? 'confirm' : 'select_members'
+          })],
           components: updateComponents
         });
       }
@@ -2137,7 +2437,6 @@ export default {
         const selectedMemberIds = interaction.values;
         const sessionKey = `staff_${interaction.user.id}`;
 
-        // Read teamName from session (customId no longer encodes it)
         const session = getSession(sessionKey);
         if (!session) {
           return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis. Silakan mulai ulang.')], components: [] });
@@ -2148,7 +2447,7 @@ export default {
         session.messageId = interaction.message.id;
         setSession(sessionKey, session);
 
-        // Rebuild dropdown for reselect
+        // Rebuild dropdowns
         await interaction.guild.members.fetch().catch(() => {});
         const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
         const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
@@ -2158,6 +2457,8 @@ export default {
         });
 
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: true });
 
         const confirmRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
@@ -2166,10 +2467,98 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
         );
 
-        const updateComponents = selectRow ? [selectRow, confirmRow] : [confirmRow];
+        const updateComponents = [selectRow, challengeRow, confirmRow].filter(Boolean);
         return await interaction.update({
-          embeds: [buildStaffRegEmbed({ teamName: session.teamName, memberIds: selectedMemberIds, step: 'confirm' })],
+          embeds: [buildStaffRegEmbed({
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: selectedMemberIds,
+            step: 'confirm'
+          })],
           components: updateComponents
+        });
+      }
+
+      // C2. Staff: Select Challenge Dropdown (during registration)
+      if (interaction.customId === CUSTOM_IDS.SELECT_STAFF_TEAM_CHALLENGE) {
+        const selectedVal = interaction.values[0];
+        const sessionKey = `staff_${interaction.user.id}`;
+        const session = getSession(sessionKey);
+        if (!session) {
+          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis.')], components: [] });
+        }
+
+        if (selectedVal === 'none') {
+          session.challengeId = null;
+          session.challengeTitle = null;
+        } else {
+          const chId = parseInt(selectedVal, 10);
+          const ch = await getChallengeById(chId);
+          session.challengeId = ch ? ch.id : null;
+          session.challengeTitle = ch ? ch.title : null;
+        }
+        setSession(sessionKey, session);
+
+        await interaction.guild.members.fetch().catch(() => {});
+        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
+          if (m.user.bot) return false;
+          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+          return true;
+        });
+
+        const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
+        const challenges = await getAllChallenges();
+        const challengeRow = buildChallengeSelectRow({ challenges, selectedChallengeId: session.challengeId, isStaff: true });
+
+        const isConfirmStep = session.memberIds && session.memberIds.length > 0;
+        const buttonRow = isConfirmStep
+          ? new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CONFIRM).setLabel('Konfirmasi').setStyle(ButtonStyle.Success).setEmoji('✅'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_RESELECT).setLabel('Pilih Ulang').setStyle(ButtonStyle.Primary).setEmoji('↩️'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+            )
+          : new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CREATE_SOLO).setLabel('Buat Tim Langsung').setStyle(ButtonStyle.Success).setEmoji('🚀'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CHANGE_NAME).setLabel('Ubah Nama Tim').setStyle(ButtonStyle.Secondary).setEmoji('✏️'),
+              new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger).setEmoji('❌')
+            );
+
+        const updateComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
+        return await interaction.update({
+          embeds: [buildStaffRegEmbed({
+            teamName: session.teamName,
+            nsacLink: session.nsacLink,
+            challengeTitle: session.challengeTitle,
+            memberIds: session.memberIds || [],
+            step: isConfirmStep ? 'confirm' : 'select_members'
+          })],
+          components: updateComponents
+        });
+      }
+
+      // D. Team Welcome Panel: Select Challenge (by leader in team channel)
+      if (interaction.customId.startsWith(CUSTOM_IDS.SELECT_TEAM_PANEL_CHALLENGE)) {
+        const teamIdStr = interaction.customId.replace(CUSTOM_IDS.SELECT_TEAM_PANEL_CHALLENGE, '');
+        const teamId = parseInt(teamIdStr, 10);
+        const selectedVal = interaction.values[0];
+        const challengeId = selectedVal === 'none' ? null : parseInt(selectedVal, 10);
+
+        await interaction.deferUpdate();
+        const result = await TeamService.setTeamChallenge(teamId, challengeId, interaction.guild, interaction.client, interaction.user.tag);
+        if (!result.success) {
+          return await interaction.followUp({
+            embeds: [errorEmbed('Gagal Memilih Challenge', result.error)],
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        const chText = result.team.challenge_title ? `**${result.team.challenge_title}**` : '*(Belum memilih)*';
+        return await interaction.followUp({
+          embeds: [successEmbed('Challenge Diperbarui 🎯', `Challenge tim **${result.team.name}** berhasil diatur menjadi: ${chText}`)],
+          flags: MessageFlags.Ephemeral
         });
       }
 

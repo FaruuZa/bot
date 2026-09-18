@@ -1,13 +1,13 @@
 import { pool } from '../pool.js';
 import { TEAM_STATUS } from '../../config/constants.js';
 
-export async function createTeam({ name, leaderId, status = TEAM_STATUS.PENDING }, client = pool) {
+export async function createTeam({ name, leaderId, status = TEAM_STATUS.PENDING, nsacLink = null, challengeId = null }, client = pool) {
   const sql = `
-    INSERT INTO teams (name, leader_id, status, created_at, updated_at)
-    VALUES ($1, $2, $3, NOW(), NOW())
+    INSERT INTO teams (name, leader_id, status, nsac_link, challenge_id, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
     RETURNING *;
   `;
-  const res = await client.query(sql, [name.trim(), leaderId, status]);
+  const res = await client.query(sql, [name.trim(), leaderId, status, nsacLink || null, challengeId || null]);
   return res.rows[0];
 }
 
@@ -28,9 +28,11 @@ export async function updateTeamDiscordResources(teamId, { roleId, categoryId, t
 
 export async function getTeamById(id, client = pool) {
   const sql = `
-    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username
+    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
+           c.title as challenge_title, c.description as challenge_description
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     WHERE t.id = $1;
   `;
   const res = await client.query(sql, [id]);
@@ -39,9 +41,11 @@ export async function getTeamById(id, client = pool) {
 
 export async function getTeamByName(name, client = pool) {
   const sql = `
-    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username
+    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
+           c.title as challenge_title, c.description as challenge_description
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     WHERE LOWER(t.name) = LOWER($1) AND t.status IN ('PENDING', 'ACTIVE', 'ARCHIVED')
     ORDER BY 
       CASE t.status
@@ -59,9 +63,11 @@ export async function getTeamByName(name, client = pool) {
 
 export async function getTeamByRoleId(roleId, client = pool) {
   const sql = `
-    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username
+    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
+           c.title as challenge_title, c.description as challenge_description
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     WHERE t.role_id = $1;
   `;
   const res = await client.query(sql, [roleId]);
@@ -70,9 +76,11 @@ export async function getTeamByRoleId(roleId, client = pool) {
 
 export async function getTeamByChannelId(channelId, client = pool) {
   const sql = `
-    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username
+    SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
+           c.title as challenge_title, c.description as challenge_description
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     WHERE t.text_channel_id = $1 OR t.voice_channel_id = $1 OR t.category_id = $1;
   `;
   const res = await client.query(sql, [channelId]);
@@ -112,12 +120,36 @@ export async function updateTeamLeader(teamId, newLeaderId, client = pool) {
   return res.rows[0] || null;
 }
 
+export async function updateTeamChallenge(teamId, challengeId, client = pool) {
+  const sql = `
+    UPDATE teams
+    SET challenge_id = $2, updated_at = NOW()
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const res = await client.query(sql, [teamId, challengeId || null]);
+  return res.rows[0] || null;
+}
+
+export async function updateTeamNsacLink(teamId, nsacLink, client = pool) {
+  const sql = `
+    UPDATE teams
+    SET nsac_link = $2, updated_at = NOW()
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const res = await client.query(sql, [teamId, nsacLink?.trim() || null]);
+  return res.rows[0] || null;
+}
+
 export async function getAllActiveTeams(client = pool) {
   const sql = `
     SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
-      (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id AND tm.status = 'ACTIVE') as member_count
+      (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id AND tm.status = 'ACTIVE') as member_count,
+      c.title as challenge_title
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     WHERE t.status = 'ACTIVE'
     ORDER BY t.created_at ASC;
   `;
@@ -128,9 +160,11 @@ export async function getAllActiveTeams(client = pool) {
 export async function getAllTeams(client = pool) {
   const sql = `
     SELECT t.*, u.discord_id as leader_discord_id, u.username as leader_username,
-      (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id AND tm.status = 'ACTIVE') as member_count
+      (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id AND tm.status = 'ACTIVE') as member_count,
+      c.title as challenge_title
     FROM teams t
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     ORDER BY t.created_at DESC;
   `;
   const res = await client.query(sql);

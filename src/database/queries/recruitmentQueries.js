@@ -33,10 +33,13 @@ export async function getOpenRecruitmentByTeam(teamId, client = pool) {
 export async function getRecruitmentByMessageId(messageId, client = pool) {
   const sql = `
     SELECT r.*, t.name as team_name, t.leader_id, t.role_id, t.text_channel_id,
-           u.discord_id as leader_discord_id
+           t.nsac_link, t.challenge_id,
+           u.discord_id as leader_discord_id,
+           c.title as challenge_title
     FROM team_recruitments r
     JOIN teams t ON r.team_id = t.id
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     WHERE r.message_id = $1;
   `;
   const res = await client.query(sql, [messageId]);
@@ -49,10 +52,13 @@ export async function getRecruitmentByMessageId(messageId, client = pool) {
 export async function getRecruitmentById(id, client = pool) {
   const sql = `
     SELECT r.*, t.name as team_name, t.leader_id, t.role_id, t.text_channel_id,
-           u.discord_id as leader_discord_id
+           t.nsac_link, t.challenge_id,
+           u.discord_id as leader_discord_id,
+           c.title as challenge_title
     FROM team_recruitments r
     JOIN teams t ON r.team_id = t.id
     LEFT JOIN users u ON t.leader_id = u.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     WHERE r.id = $1;
   `;
   const res = await client.query(sql, [id]);
@@ -102,4 +108,3 @@ export async function decrementRecruitmentSlot(id, client = pool) {
   const res = await client.query(sql, [id]);
   return res.rows[0] || null;
 }
-

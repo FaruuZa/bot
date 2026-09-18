@@ -1,0 +1,211 @@
+import {
+  SlashCommandBuilder,
+  MessageFlags,
+  PermissionFlagsBits
+} from 'discord.js';
+import { ChallengeService } from '../../services/challengeService.js';
+import { PermissionService } from '../../services/permissionService.js';
+import { successEmbed, errorEmbed, infoEmbed } from '../../utils/embeds.js';
+import { getAllChallenges } from '../../database/queries/challengeQueries.js';
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName('challenge')
+    .setDescription('Informasi dan manajemen challenge hackathon NSAC')
+    // ================= Subcommand: list =================
+    .addSubcommand((sub) =>
+      sub
+        .setName('list')
+        .setDescription('Lihat daftar seluruh challenge yang tersedia di hackathon NSAC')
+    )
+    // ================= Subcommand: add (Staff) =================
+    .addSubcommand((sub) =>
+      sub
+        .setName('add')
+        .setDescription('[Staff] Tambah challenge baru ke daftar challenge hackathon')
+        .addStringOption((opt) =>
+          opt
+            .setName('title')
+            .setDescription('Judul challenge')
+            .setRequired(true)
+            .setMaxLength(255)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('description')
+            .setDescription('Deskripsi singkat challenge (opsional)')
+            .setRequired(false)
+            .setMaxLength(1000)
+        )
+    )
+    // ================= Subcommand: edit (Staff) =================
+    .addSubcommand((sub) =>
+      sub
+        .setName('edit')
+        .setDescription('[Staff] Edit challenge yang sudah ada')
+        .addIntegerOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('ID challenge yang ingin diedit')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('title')
+            .setDescription('Judul baru challenge')
+            .setRequired(false)
+            .setMaxLength(255)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('description')
+            .setDescription('Deskripsi baru challenge')
+            .setRequired(false)
+            .setMaxLength(1000)
+        )
+    )
+    // ================= Subcommand: delete (Staff) =================
+    .addSubcommand((sub) =>
+      sub
+        .setName('delete')
+        .setDescription('[Staff] Hapus challenge dari daftar')
+        .addIntegerOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('ID challenge yang ingin dihapus')
+            .setRequired(true)
+        )
+    ),
+
+  async execute(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+    const isStaffUser = PermissionService.isStaff(interaction.member);
+
+    // ==========================================
+    // 1. LIST SUBCOMMAND (Untuk Semua User)
+    // ==========================================
+    if (subcommand === 'list') {
+      await interaction.deferReply();
+      const { embed } = await ChallengeService.getChallengesEmbed();
+      return await interaction.editReply({ embeds: [embed] });
+    }
+
+    // ==========================================
+    // STAFF ONLY SUBCOMMANDS
+    // ==========================================
+    if (!isStaffUser) {
+      return await interaction.reply({
+        embeds: [errorEmbed('Staff Only', 'Hanya staf yang dapat mengelola daftar challenge.')],
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    // ==========================================
+    // 2. ADD SUBCOMMAND (Staff)
+    // ==========================================
+    if (subcommand === 'add') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const title = interaction.options.getString('title');
+      const description = interaction.options.getString('description');
+
+      const result = await ChallengeService.create({
+        title,
+        description,
+        actorTag: interaction.user.tag,
+        client: interaction.client
+      });
+
+      if (!result.success) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Gagal Menambah Challenge', result.error)]
+        });
+      }
+
+      return await interaction.editReply({
+        embeds: [
+          successEmbed(
+            'Challenge Berhasil Ditambahkan',
+            `Challenge baru berhasil didaftarkan!\n\n` +
+            `🎯 **Judul:** ${result.challenge.title}\n` +
+            `📝 **Deskripsi:** ${result.challenge.description || '*(Tidak ada deskripsi)*'}\n` +
+            `🔑 **ID:** \`${result.challenge.id}\`\n\n` +
+            `Peserta dan ketua tim kini dapat memilih challenge ini saat pendaftaran tim atau melalui \`/team set-challenge\`.`
+          )
+        ]
+      });
+    }
+
+    // ==========================================
+    // 3. EDIT SUBCOMMAND (Staff)
+    // ==========================================
+    if (subcommand === 'edit') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const id = interaction.options.getInteger('id');
+      const title = interaction.options.getString('title');
+      const description = interaction.options.getString('description');
+
+      if (!title && description === null) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Input Kosong', 'Harap masukkan judul baru atau deskripsi baru yang ingin diubah.')]
+        });
+      }
+
+      const result = await ChallengeService.edit({
+        id,
+        title,
+        description,
+        actorTag: interaction.user.tag,
+        client: interaction.client
+      });
+
+      if (!result.success) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Gagal Mengedit Challenge', result.error)]
+        });
+      }
+
+      return await interaction.editReply({
+        embeds: [
+          successEmbed(
+            'Challenge Berhasil Diperbarui',
+            `Challenge **#${id}** telah diperbarui:\n\n` +
+            `🎯 **Judul:** ${result.challenge.title}\n` +
+            `📝 **Deskripsi:** ${result.challenge.description || '*(Tidak ada deskripsi)*'}`
+          )
+        ]
+      });
+    }
+
+    // ==========================================
+    // 4. DELETE SUBCOMMAND (Staff)
+    // ==========================================
+    if (subcommand === 'delete') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const id = interaction.options.getInteger('id');
+
+      const result = await ChallengeService.remove({
+        id,
+        actorTag: interaction.user.tag,
+        client: interaction.client
+      });
+
+      if (!result.success) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Gagal Menghapus Challenge', result.error)]
+        });
+      }
+
+      return await interaction.editReply({
+        embeds: [
+          successEmbed(
+            'Challenge Berhasil Dihapus',
+            `Challenge **"${result.challenge.title}"** (ID: ${id}) telah dihapus dari sistem.`
+          )
+        ]
+      });
+    }
+  }
+};

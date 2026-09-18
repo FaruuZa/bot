@@ -60,7 +60,11 @@ export const AUDIT_ACTIONS = {
   RECRUITMENT_CLOSED: 'RECRUITMENT_CLOSED',
   RECRUITMENT_REQUEST_SENT: 'RECRUITMENT_REQUEST_SENT',
   RECRUITMENT_REQUEST_ACCEPTED: 'RECRUITMENT_REQUEST_ACCEPTED',
-  RECRUITMENT_REQUEST_REJECTED: 'RECRUITMENT_REQUEST_REJECTED'
+  RECRUITMENT_REQUEST_REJECTED: 'RECRUITMENT_REQUEST_REJECTED',
+  TEAM_CHALLENGE_UPDATED: 'TEAM_CHALLENGE_UPDATED',
+  CHALLENGE_CREATED: 'CHALLENGE_CREATED',
+  CHALLENGE_UPDATED: 'CHALLENGE_UPDATED',
+  CHALLENGE_DELETED: 'CHALLENGE_DELETED'
 };
 
 export const EMBED_COLORS = {
@@ -91,7 +95,9 @@ export const CUSTOM_IDS = {
   // === MEMBER Registration Flow (single-embed) ===
   MODAL_REGISTER_TEAM: 'modal_register_team',
   INPUT_TEAM_NAME: 'input_team_name',
+  INPUT_TEAM_LINK: 'input_team_link',
   SELECT_TEAM_MEMBERS: 'select_team_members',
+  SELECT_TEAM_CHALLENGE: 'select_team_challenge',
   BTN_REG_CHANGE_NAME: 'btn_reg_change_name',       // Ubah nama tim (member)
   BTN_REG_CANCEL: 'btn_reg_cancel',                 // Batal (member)
   BTN_REG_CONFIRM: 'btn_reg_confirm',               // Konfirmasi daftar (member)
@@ -103,6 +109,8 @@ export const CUSTOM_IDS = {
   // === STAFF Registration Flow (single-embed, ephemeral) ===
   MODAL_STAFF_ADD_TEAM: 'modal_staff_add_team',
   INPUT_STAFF_TEAM_NAME: 'input_staff_team_name',
+  INPUT_STAFF_TEAM_LINK: 'input_staff_team_link',
+  SELECT_STAFF_TEAM_CHALLENGE: 'select_staff_team_challenge',
   BTN_STAFF_REG_CHANGE_NAME: 'btn_staff_reg_change_name',     // Ubah nama (staff)
   BTN_STAFF_REG_CANCEL: 'btn_staff_reg_cancel',               // Batal (staff)
   BTN_STAFF_REG_CONFIRM: 'btn_staff_reg_confirm',             // Konfirmasi (staff)
@@ -130,9 +138,11 @@ export const CUSTOM_IDS = {
   BTN_RECRUIT_ACCEPT: 'btn_recruit_accept_',         // prefix + recruitmentId + '_' + requestDiscordId
   BTN_RECRUIT_REJECT: 'btn_recruit_reject_',         // prefix + recruitmentId + '_' + requestDiscordId
 
-  // === Team Panel Info ===
+  // === Team Panel Info & Challenge ===
   BTN_TEAM_PANEL_INVITE: 'btn_team_panel_invite',
   BTN_TEAM_PANEL_RECRUIT: 'btn_team_panel_recruit',
   BTN_TEAM_PANEL_RECRUIT_CLOSE: 'btn_team_panel_recruit_close',
   BTN_TEAM_PANEL_INFO: 'btn_team_panel_info',
+  BTN_TEAM_PANEL_SET_CHALLENGE: 'btn_team_panel_set_challenge',
+  SELECT_TEAM_PANEL_CHALLENGE: 'select_team_panel_challenge_', // prefix + teamId
 };

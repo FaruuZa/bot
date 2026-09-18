@@ -13,7 +13,17 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_discord_id ON users(discord_id);
 
--- 2. Teams Table
+-- 2. Challenges Table (must come before teams to allow FK reference)
+CREATE TABLE IF NOT EXISTS challenges (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_challenges_title ON challenges(title);
+
+-- 3. Teams Table
 CREATE TABLE IF NOT EXISTS teams (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -22,6 +32,8 @@ CREATE TABLE IF NOT EXISTS teams (
     category_id VARCHAR(32),
     text_channel_id VARCHAR(32),
     voice_channel_id VARCHAR(32),
+    nsac_link TEXT,
+    challenge_id INT REFERENCES challenges(id) ON DELETE SET NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -30,13 +42,14 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE INDEX IF NOT EXISTS idx_teams_status ON teams(status);
 CREATE INDEX IF NOT EXISTS idx_teams_leader ON teams(leader_id);
+CREATE INDEX IF NOT EXISTS idx_teams_challenge ON teams(challenge_id);
 
 -- Case-insensitive unique team name for active/pending teams
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_team_name 
 ON teams (LOWER(name)) 
 WHERE status IN ('PENDING', 'ACTIVE');
 
--- 3. Team Members Table
+-- 4. Team Members Table
 CREATE TABLE IF NOT EXISTS team_members (
     id SERIAL PRIMARY KEY,
     team_id INT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -58,7 +71,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS unique_active_user_team
 ON team_members (user_id) 
 WHERE status = 'ACTIVE';
 
--- 4. Invitations Table
+-- 5. Invitations Table
 CREATE TABLE IF NOT EXISTS invitations (
     id SERIAL PRIMARY KEY,
     team_id INT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -75,7 +88,7 @@ CREATE INDEX IF NOT EXISTS idx_invitations_team_id ON invitations(team_id);
 CREATE INDEX IF NOT EXISTS idx_invitations_user_id ON invitations(invited_user_id);
 CREATE INDEX IF NOT EXISTS idx_invitations_status ON invitations(status);
 
--- 5. Tickets Table
+-- 6. Tickets Table
 CREATE TABLE IF NOT EXISTS tickets (
     id SERIAL PRIMARY KEY,
     discord_channel_id VARCHAR(32) UNIQUE NOT NULL,
@@ -91,7 +104,7 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE INDEX IF NOT EXISTS idx_tickets_channel ON tickets(discord_channel_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_created_by ON tickets(created_by);
 
--- 6. Audit Logs Table
+-- 7. Audit Logs Table
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
     action VARCHAR(50) NOT NULL,
@@ -106,14 +119,14 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_team ON audit_logs(team_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
--- 7. Guild Config Table (dynamic bot configuration stored in DB)
+-- 8. Guild Config Table (dynamic bot configuration stored in DB)
 CREATE TABLE IF NOT EXISTS guild_config (
     key        VARCHAR(100) PRIMARY KEY,
     value      VARCHAR(255) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 8. Dynamic Embeds Table (for editable FAQ / Rules / Announcements)
+-- 9. Dynamic Embeds Table (for editable FAQ / Rules / Announcements)
 CREATE TABLE IF NOT EXISTS dynamic_embeds (
     id VARCHAR(50) PRIMARY KEY,
     channel_id VARCHAR(32) NOT NULL,
@@ -127,7 +140,7 @@ CREATE TABLE IF NOT EXISTS dynamic_embeds (
 );
 CREATE INDEX IF NOT EXISTS idx_dynamic_embeds_channel ON dynamic_embeds(channel_id);
 
--- 9. Invite Roles Table (Dynamic invite-to-role mappings)
+-- 10. Invite Roles Table (Dynamic invite-to-role mappings)
 CREATE TABLE IF NOT EXISTS invite_roles (
     id SERIAL PRIMARY KEY,
     invite_code VARCHAR(32) UNIQUE NOT NULL,
@@ -141,7 +154,7 @@ CREATE TABLE IF NOT EXISTS invite_roles (
 CREATE INDEX IF NOT EXISTS idx_invite_roles_code ON invite_roles(invite_code);
 ALTER TABLE invite_roles ADD COLUMN IF NOT EXISTS role_ids JSONB DEFAULT '[]'::jsonb;
 
--- 10. Team Recruitments Table (posting lowongan anggota oleh leader)
+-- 11. Team Recruitments Table (posting lowongan anggota oleh leader)
 CREATE TABLE IF NOT EXISTS team_recruitments (
     id SERIAL PRIMARY KEY,
     team_id INT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -158,5 +171,7 @@ CREATE INDEX IF NOT EXISTS idx_recruitments_team ON team_recruitments(team_id);
 CREATE INDEX IF NOT EXISTS idx_recruitments_status ON team_recruitments(status);
 CREATE INDEX IF NOT EXISTS idx_recruitments_message ON team_recruitments(message_id);
 
-
-
+-- Migration: Add new columns to existing tables (safe for existing databases)
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS nsac_link TEXT;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS challenge_id INT REFERENCES challenges(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_teams_challenge ON teams(challenge_id);

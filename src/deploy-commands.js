@@ -12,6 +12,7 @@ import setupCmd from './commands/admin/setup.js';
 import faqCmd from './commands/admin/faq.js';
 import announceCmd from './commands/admin/announce.js';
 import purgeCmd from './commands/admin/purge.js';
+import challengeCmd from './commands/team/challenge.js';
 
 const commands = [
   registerCmd.data.toJSON(),
@@ -20,7 +21,8 @@ const commands = [
   setupCmd.data.toJSON(),
   faqCmd.data.toJSON(),
   announceCmd.data.toJSON(),
-  purgeCmd.data.toJSON()
+  purgeCmd.data.toJSON(),
+  challengeCmd.data.toJSON()
 ];
 
 export async function deployCommands() {
