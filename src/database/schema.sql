@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS teams (
     CONSTRAINT chk_team_status CHECK (status IN ('PENDING', 'ACTIVE', 'ARCHIVED', 'DISBANDED'))
 );
 
+-- Ensure columns exist for existing databases prior to creating indexes
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS nsac_link TEXT;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS challenge_id INT REFERENCES challenges(id) ON DELETE SET NULL;
+
 CREATE INDEX IF NOT EXISTS idx_teams_status ON teams(status);
 CREATE INDEX IF NOT EXISTS idx_teams_leader ON teams(leader_id);
 CREATE INDEX IF NOT EXISTS idx_teams_challenge ON teams(challenge_id);
@@ -170,8 +174,3 @@ CREATE TABLE IF NOT EXISTS team_recruitments (
 CREATE INDEX IF NOT EXISTS idx_recruitments_team ON team_recruitments(team_id);
 CREATE INDEX IF NOT EXISTS idx_recruitments_status ON team_recruitments(status);
 CREATE INDEX IF NOT EXISTS idx_recruitments_message ON team_recruitments(message_id);
-
--- Migration: Add new columns to existing tables (safe for existing databases)
-ALTER TABLE teams ADD COLUMN IF NOT EXISTS nsac_link TEXT;
-ALTER TABLE teams ADD COLUMN IF NOT EXISTS challenge_id INT REFERENCES challenges(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_teams_challenge ON teams(challenge_id);
