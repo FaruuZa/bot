@@ -315,10 +315,11 @@ export default {
     }
 
     // ========================================================
-    // 2. BUTTON INTERACTIONS ROUTER
+    // 2. COMPONENT INTERACTIONS ROUTER
     // ========================================================
-    if (interaction.isButton()) {
-      const { customId } = interaction;
+    try {
+      if (interaction.isButton()) {
+        const { customId } = interaction;
 
       // A. Create Registration Ticket Button
       if (customId === CUSTOM_IDS.BTN_CREATE_REG_TICKET) {
@@ -403,14 +404,27 @@ export default {
         await interaction.update({
           embeds: [infoEmbed('Menghapus Tim...', 'Sedang menghapus seluruh channel, role tim, dan mengembalikan role @No-Team...')],
           components: []
-        });
+        }).catch(() => {});
 
-        await TeamService.deleteTeam(teamId, interaction.guild, interaction.client, interaction.user.tag);
+        try {
+          await TeamService.deleteTeam(teamId, interaction.guild, interaction.client, interaction.user.tag);
+        } catch (err) {
+          logger.error(`[Team Delete Failed] ${err.message}`);
+          return await interaction.editReply({
+            embeds: [errorEmbed('Gagal Menghapus Tim', err.message)],
+            components: []
+          }).catch(() => {});
+        }
         
-        return await interaction.editReply({
-          embeds: [successEmbed('Tim Berhasil Dihapus', 'Tim dan seluruh channel/role telah berhasil dihapus. Seluruh mantan anggota telah dikembalikan ke status belum memiliki tim (**@No-Team**).')],
-          components: []
-        });
+        try {
+          return await interaction.editReply({
+            embeds: [successEmbed('Tim Berhasil Dihapus', 'Tim dan seluruh channel/role telah berhasil dihapus. Seluruh mantan anggota telah dikembalikan ke status belum memiliki tim (**@No-Team**).')],
+            components: []
+          });
+        } catch (err) {
+          logger.info(`[Team Delete] Pesan balasan tidak dapat diperbarui (kemungkinan channel telah dihapus): ${err.message}`);
+        }
+        return;
       }
 
       // H. Team Delete Cancel
@@ -2614,7 +2628,26 @@ export default {
           embeds: [successEmbed('Challenge Diperbarui', `Challenge tim **${result.team.name}** berhasil diatur menjadi: ${chText}`)]
         });
       }
-
+    } // close isStringSelectMenu
+  } catch (error) {
+    if (error.code === 10008 || error.code === 10062) {
+      logger.info(`[Interaction Ignored] Discord API ${error.code} (${error.message}) for interaction ${interaction.id}`);
+      return;
+    }
+    logger.error(`[Component Interaction Error] ${error.stack || error.message}`);
+    try {
+      const errorPayload = {
+        embeds: [errorEmbed('Terjadi Kesalahan', `Gagal memproses interaksi: ${error.message}`)],
+        flags: MessageFlags.Ephemeral
+      };
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp(errorPayload).catch(() => {});
+      } else {
+        await interaction.reply(errorPayload).catch(() => {});
+      }
+    } catch {
+      // Abaikan jika interaksi sudah tidak dapat dibalas
     }
   }
+}
 };
