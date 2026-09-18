@@ -360,10 +360,10 @@ export class TeamService {
         'Gunakan channel ini untuk diskusi, koordinasi, dan berbagi progres.'
       )
       .addFields(
-        { name: '🎯 Challenge', value: challengeDisplay, inline: true },
-        { name: '🌐 Link Tim NSAC', value: nsacLinkDisplay, inline: true },
-        { name: '\u200B', value: '\u200B', inline: true },
-        { name: '👥 Anggota Tim', value: memberList, inline: false },
+        { name: 'Challenge', value: challengeDisplay, inline: false },
+        { name: 'Link Tim NSAC', value: nsacLinkDisplay, inline: true },
+        { name: 'Leader Tim', value: leaderMention, inline: true },
+        { name: 'Anggota Tim', value: memberList, inline: false },
         {
           name: 'Yang bisa dilakukan leader',
           value:
@@ -383,7 +383,7 @@ export class TeamService {
           inline: false
         }
       )
-      .setFooter({ text: 'NSAC Hackathon — Semoga sukses!' })
+      .setFooter({ text: 'NSAC Hackathon' })
       .setTimestamp();
 
     const recruitBtn = hasActiveRecruitment
@@ -400,13 +400,11 @@ export class TeamService {
       new ButtonBuilder()
         .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE)
         .setLabel('Pilih Challenge')
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('🎯'),
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INVITE)
         .setLabel('Undang Anggota')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('➕'),
+        .setStyle(ButtonStyle.Secondary),
       recruitBtn,
       new ButtonBuilder()
         .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INFO)
@@ -422,12 +420,51 @@ export class TeamService {
           .setLabel('Buka Web Tim NSAC')
           .setStyle(ButtonStyle.Link)
           .setURL(team.nsac_link)
-          .setEmoji('🌐')
       );
       components.push(linkRow);
     }
 
     return { embed, components };
+  }
+
+  /**
+   * Buat embed recruitment board untuk postingan lowongan tim
+   */
+  static buildRecruitmentBoardEmbed({ teamName, description, leaderDiscordId, challengeTitle, slotsNeeded, currentCount, maxTeamSize }) {
+    let challengeValue = '*(Belum memilih)*';
+    if (challengeTitle) {
+      const trimmed = challengeTitle.trim();
+      challengeValue = trimmed.length > 200 ? `**${trimmed.substring(0, 197)}...**` : `**${trimmed}**`;
+    }
+
+    return new EmbedBuilder()
+      .setTitle(`Lowongan Tim — ${teamName}`)
+      .setColor(EMBED_COLORS.PRIMARY)
+      .setDescription(description ? `"${description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.')
+      .addFields(
+        {
+          name: 'Challenge',
+          value: challengeValue,
+          inline: false
+        },
+        {
+          name: 'Leader Tim',
+          value: `<@${leaderDiscordId}>`,
+          inline: true
+        },
+        {
+          name: 'Slot Dibutuhkan',
+          value: `**${slotsNeeded}** orang`,
+          inline: true
+        },
+        {
+          name: 'Anggota Saat Ini',
+          value: `**${currentCount}** / ${maxTeamSize}`,
+          inline: true
+        }
+      )
+      .setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' })
+      .setTimestamp();
   }
 
   /**
@@ -496,18 +533,15 @@ export class TeamService {
           if (bMsg) {
             const currentCount = await countActiveTeamMembers(team.id);
             const remainingSlots = openRecruit.slots_needed;
-            const updatedBoardEmbed = new EmbedBuilder()
-              .setTitle(`Lowongan Tim — ${updatedTeam.name}`)
-              .setColor(EMBED_COLORS.PRIMARY)
-              .setDescription(openRecruit.description ? `"${openRecruit.description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.')
-              .addFields(
-                { name: 'Leader Tim', value: `<@${updatedTeam.leader_discord_id}>`, inline: true },
-                { name: '🎯 Challenge', value: updatedTeam.challenge_title ? `**${updatedTeam.challenge_title}**` : '*(Belum memilih)*', inline: true },
-                { name: 'Slot Dibutuhkan', value: `**${remainingSlots}** orang`, inline: true },
-                { name: 'Anggota Saat Ini', value: `**${currentCount}** / ${env.MAX_TEAM_SIZE}`, inline: true }
-              )
-              .setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' })
-              .setTimestamp();
+            const updatedBoardEmbed = TeamService.buildRecruitmentBoardEmbed({
+              teamName: updatedTeam.name,
+              description: openRecruit.description,
+              leaderDiscordId: updatedTeam.leader_discord_id,
+              challengeTitle: updatedTeam.challenge_title,
+              slotsNeeded: remainingSlots,
+              currentCount,
+              maxTeamSize: env.MAX_TEAM_SIZE
+            });
 
             const boardButtons = [
               new ButtonBuilder()
@@ -522,7 +556,6 @@ export class TeamService {
                   .setLabel('Profil Tim (NSAC Web)')
                   .setStyle(ButtonStyle.Link)
                   .setURL(updatedTeam.nsac_link)
-                  .setEmoji('🌐')
               );
             }
 

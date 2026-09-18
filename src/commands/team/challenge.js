@@ -6,7 +6,7 @@ import {
 import { ChallengeService } from '../../services/challengeService.js';
 import { PermissionService } from '../../services/permissionService.js';
 import { successEmbed, errorEmbed, infoEmbed } from '../../utils/embeds.js';
-import { getAllChallenges } from '../../database/queries/challengeQueries.js';
+import { getAllChallenges, getChallengeById } from '../../database/queries/challengeQueries.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -17,6 +17,18 @@ export default {
       sub
         .setName('list')
         .setDescription('Lihat daftar seluruh challenge yang tersedia di hackathon NSAC')
+    )
+    // ================= Subcommand: detail =================
+    .addSubcommand((sub) =>
+      sub
+        .setName('detail')
+        .setDescription('Lihat rincian lengkap suatu challenge')
+        .addIntegerOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('ID challenge yang ingin dilihat')
+            .setRequired(true)
+        )
     )
     // ================= Subcommand: add (Staff) =================
     .addSubcommand((sub) =>
@@ -91,6 +103,22 @@ export default {
     }
 
     // ==========================================
+    // 2. DETAIL SUBCOMMAND (Untuk Semua User)
+    // ==========================================
+    if (subcommand === 'detail') {
+      await interaction.deferReply();
+      const id = interaction.options.getInteger('id');
+      const challenge = await getChallengeById(id);
+      if (!challenge) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Challenge Tidak Ditemukan', `Tidak ada challenge dengan ID #${id}. Gunakan \`/challenge list\` untuk melihat daftar challenge.`)]
+        });
+      }
+      const embed = ChallengeService.buildChallengeDetailEmbed(challenge);
+      return await interaction.editReply({ embeds: [embed] });
+    }
+
+    // ==========================================
     // STAFF ONLY SUBCOMMANDS
     // ==========================================
     if (!isStaffUser) {
@@ -101,7 +129,7 @@ export default {
     }
 
     // ==========================================
-    // 2. ADD SUBCOMMAND (Staff)
+    // 3. ADD SUBCOMMAND (Staff)
     // ==========================================
     if (subcommand === 'add') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -127,9 +155,9 @@ export default {
           successEmbed(
             'Challenge Berhasil Ditambahkan',
             `Challenge baru berhasil didaftarkan!\n\n` +
-            `🎯 **Judul:** ${result.challenge.title}\n` +
-            `📝 **Deskripsi:** ${result.challenge.description || '*(Tidak ada deskripsi)*'}\n` +
-            `🔑 **ID:** \`${result.challenge.id}\`\n\n` +
+            `**Judul:** ${result.challenge.title}\n` +
+            `**Deskripsi:** ${result.challenge.description || '*(Tidak ada deskripsi)*'}\n` +
+            `**ID:** \`${result.challenge.id}\`\n\n` +
             `Peserta dan ketua tim kini dapat memilih challenge ini saat pendaftaran tim atau melalui \`/team set-challenge\`.`
           )
         ]
@@ -137,7 +165,7 @@ export default {
     }
 
     // ==========================================
-    // 3. EDIT SUBCOMMAND (Staff)
+    // 4. EDIT SUBCOMMAND (Staff)
     // ==========================================
     if (subcommand === 'edit') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -171,8 +199,8 @@ export default {
           successEmbed(
             'Challenge Berhasil Diperbarui',
             `Challenge **#${id}** telah diperbarui:\n\n` +
-            `🎯 **Judul:** ${result.challenge.title}\n` +
-            `📝 **Deskripsi:** ${result.challenge.description || '*(Tidak ada deskripsi)*'}`
+            `**Judul:** ${result.challenge.title}\n` +
+            `**Deskripsi:** ${result.challenge.description || '*(Tidak ada deskripsi)*'}`
           )
         ]
       });

@@ -17,7 +17,7 @@ export class ChallengeService {
   static buildChallengeListEmbed(challenges) {
     if (!challenges || challenges.length === 0) {
       return new EmbedBuilder()
-        .setTitle('🎯 Daftar Challenge NSAC')
+        .setTitle('Daftar Challenge NSAC')
         .setColor(EMBED_COLORS.INFO)
         .setDescription('*(Belum ada challenge yang terdaftar. Hubungi panitia atau gunakan `/challenge add` untuk menambahkan.)*')
         .setFooter({ text: 'NSAC Hackathon • Challenge Management' })
@@ -25,16 +25,42 @@ export class ChallengeService {
     }
 
     const lines = challenges.map((c, idx) => {
-      const desc = c.description ? `\n   > ${c.description}` : '';
+      let desc = '';
+      if (c.description) {
+        const cleanDesc = c.description.trim();
+        const shortDesc = cleanDesc.length > 120 ? `${cleanDesc.substring(0, 117)}...` : cleanDesc;
+        desc = `\n   > ${shortDesc}`;
+      }
       const teamCount = c.team_count !== undefined ? ` • ${c.team_count} tim` : '';
       return `**${idx + 1}. ${c.title}** \`[ID: ${c.id}]\`${teamCount}${desc}`;
     });
 
+    let descriptionText = lines.join('\n\n');
+    if (descriptionText.length > 4000) {
+      descriptionText = descriptionText.substring(0, 3900) + '\n\n*(Daftar dipotong karena terlalu panjang. Gunakan `/challenge detail <id>` untuk melihat rincian challenge.)*';
+    }
+
     return new EmbedBuilder()
-      .setTitle('🎯 Daftar Challenge NSAC')
+      .setTitle('Daftar Challenge NSAC')
       .setColor(EMBED_COLORS.PRIMARY)
-      .setDescription(lines.join('\n\n'))
+      .setDescription(descriptionText)
       .setFooter({ text: `Total: ${challenges.length} challenge • NSAC Hackathon` })
+      .setTimestamp();
+  }
+
+  /**
+   * Build embed detail untuk satu challenge
+   */
+  static buildChallengeDetailEmbed(challenge) {
+    return new EmbedBuilder()
+      .setTitle(`Detail Challenge: ${challenge.title}`)
+      .setColor(EMBED_COLORS.PRIMARY)
+      .addFields(
+        { name: 'ID Challenge', value: `\`${challenge.id}\``, inline: true },
+        { name: 'Total Tim Terdaftar', value: `${challenge.team_count ?? 0} tim`, inline: true },
+        { name: 'Deskripsi', value: challenge.description || '*(Tidak ada deskripsi)*', inline: false }
+      )
+      .setFooter({ text: 'NSAC Hackathon • Challenge Management' })
       .setTimestamp();
   }
 
@@ -136,19 +162,18 @@ export class ChallengeService {
         .setLabel('Belum Memilih Challenge')
         .setDescription('Kosongkan/hapus pilihan challenge tim')
         .setValue('none')
-        .setEmoji('❓')
     ];
 
     for (const c of challenges.slice(0, 24)) { // Discord max 25 options
       const desc = c.description
-        ? c.description.substring(0, 50) + (c.description.length > 50 ? '...' : '')
+        ? (c.description.length > 50 ? `${c.description.substring(0, 47)}...` : c.description)
         : 'Lihat web NSAC untuk detail selengkapnya';
+      const label = c.title.length > 100 ? `${c.title.substring(0, 97)}...` : c.title;
       options.push(
         new StringSelectMenuOptionBuilder()
-          .setLabel(c.title.substring(0, 100))
+          .setLabel(label)
           .setDescription(desc)
           .setValue(c.id.toString())
-          .setEmoji('🎯')
       );
     }
 

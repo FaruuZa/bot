@@ -702,7 +702,7 @@ export default {
       return await interaction.editReply({
         embeds: [
           infoEmbed(
-            'Pilih Challenge Tim 🎯',
+            'Pilih Challenge Tim',
             `Challenge saat ini untuk tim **${activeTeam.name}**: ${currentChallenge}\n\n` +
             `Silakan pilih challenge dari menu dropdown di bawah. Pilihan challenge ini akan otomatis ditampilkan di channel tim dan board rekrutmen.`
           )

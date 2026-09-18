@@ -12,3 +12,4 @@ logs
 .DS_Store
 dist/
 coverage/
+GEMINI.md

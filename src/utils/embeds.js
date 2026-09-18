@@ -4,7 +4,7 @@ import { EMBED_COLORS } from '../config/constants.js';
 export function successEmbed(title, description, fields = []) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLORS.SUCCESS)
-    .setTitle(`✅ ${title}`)
+    .setTitle(title)
     .setDescription(description)
     .setTimestamp();
 
@@ -17,7 +17,7 @@ export function successEmbed(title, description, fields = []) {
 export function errorEmbed(title, description) {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.DANGER)
-    .setTitle(`❌ ${title}`)
+    .setTitle(title)
     .setDescription(description)
     .setTimestamp();
 }
@@ -25,7 +25,7 @@ export function errorEmbed(title, description) {
 export function warningEmbed(title, description) {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.WARNING)
-    .setTitle(`⚠️ ${title}`)
+    .setTitle(title)
     .setDescription(description)
     .setTimestamp();
 }
@@ -33,7 +33,7 @@ export function warningEmbed(title, description) {
 export function infoEmbed(title, description, fields = []) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLORS.INFO)
-    .setTitle(`ℹ️ ${title}`)
+    .setTitle(title)
     .setDescription(description)
     .setTimestamp();
 
@@ -46,29 +46,28 @@ export function infoEmbed(title, description, fields = []) {
 export function teamInfoEmbed(team, members) {
   const leader = members.find((m) => m.role === 'LEADER') || { username: team.leader_username, discord_id: team.leader_discord_id };
   const memberList = members.map((m, idx) => {
-    const roleBadge = m.role === 'LEADER' ? '👑 **[Leader]**' : '👤 **[Member]**';
-    const statusBadge = m.status === 'ACTIVE' ? '✅' : '⏳ Pending';
+    const roleBadge = m.role === 'LEADER' ? '**[Leader]**' : '**[Member]**';
+    const statusBadge = m.status === 'ACTIVE' ? 'Aktif' : 'Pending';
     return `${idx + 1}. ${roleBadge} <@${m.discord_id}> (${m.username}) - ${statusBadge}`;
   }).join('\n') || '*No members listed*';
 
-  const challengeText = team.challenge_title ? `🎯 **${team.challenge_title}**` : '*(Belum memilih)*';
+  const challengeText = team.challenge_title ? `**${team.challenge_title}**` : '*(Belum memilih)*';
   const nsacLinkText = team.nsac_link ? `[Buka Web Tim NSAC](${team.nsac_link})` : '*(Belum diatur)*';
 
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
-    .setTitle(`🏆 Team: ${team.name}`)
-    .setDescription(`Official Hackathon Team Details`)
+    .setTitle(`Team: ${team.name}`)
+    .setDescription('Official Hackathon Team Details')
     .addFields(
-      { name: '📊 Status', value: `\`${team.status}\``, inline: true },
-      { name: '👑 Leader', value: leader.discord_id ? `<@${leader.discord_id}>` : 'None', inline: true },
-      { name: '👥 Total Members', value: `${members.length}`, inline: true },
-      { name: '🎯 Challenge', value: challengeText, inline: true },
-      { name: '🌐 Web NSAC', value: nsacLinkText, inline: true },
-      { name: '\u200B', value: '\u200B', inline: true },
-      { name: '📜 Roster', value: memberList, inline: false },
-      { name: '📁 Category ID', value: team.category_id ? `\`${team.category_id}\`` : 'None', inline: true },
-      { name: '💬 Text Channel', value: team.text_channel_id ? `<#${team.text_channel_id}>` : 'None', inline: true },
-      { name: '🔊 Voice Channel', value: team.voice_channel_id ? `<#${team.voice_channel_id}>` : 'None', inline: true }
+      { name: 'Status', value: `\`${team.status}\``, inline: true },
+      { name: 'Leader', value: leader.discord_id ? `<@${leader.discord_id}>` : 'None', inline: true },
+      { name: 'Total Members', value: `${members.length}`, inline: true },
+      { name: 'Challenge', value: challengeText, inline: false },
+      { name: 'Web NSAC', value: nsacLinkText, inline: true },
+      { name: 'Roster', value: memberList, inline: false },
+      { name: 'Category ID', value: team.category_id ? `\`${team.category_id}\`` : 'None', inline: true },
+      { name: 'Text Channel', value: team.text_channel_id ? `<#${team.text_channel_id}>` : 'None', inline: true },
+      { name: 'Voice Channel', value: team.voice_channel_id ? `<#${team.voice_channel_id}>` : 'None', inline: true }
     )
     .setFooter({ text: `Team ID: ${team.id}` })
     .setTimestamp();
@@ -79,7 +78,7 @@ export function teamInfoEmbed(team, members) {
 export function registrationPanelEmbed() {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
-    .setTitle('🎫 Team Registration')
+    .setTitle('Team Registration')
     .setDescription(
       'Ready to compete in the hackathon?\n\n' +
       'Click the button below to open a private registration ticket and register your team!\n\n' +
@@ -94,7 +93,7 @@ export function registrationPanelEmbed() {
 export function supportPanelEmbed() {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.INFO)
-    .setTitle('🆘 Hackathon Support')
+    .setTitle('Hackathon Support')
     .setDescription(
       'Need help with registration, technical issues, or rules?\n\n' +
       'Click the button below to open a private support ticket with our Staff and Technical Support team.'
@@ -105,7 +104,7 @@ export function supportPanelEmbed() {
 export function registrationTicketEmbed(user) {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
-    .setTitle('🎫 Team Registration Ticket')
+    .setTitle('Team Registration Ticket')
     .setDescription(
       `Welcome <@${user.id}>!\n\n` +
       'Please click **Register Team** below to input your **Team Name** and select your **Teammates**.\n\n' +
@@ -118,7 +117,7 @@ export function registrationTicketEmbed(user) {
 export function supportTicketEmbed(user) {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.INFO)
-    .setTitle('🆘 Support Ticket')
+    .setTitle('Support Ticket')
     .setDescription(
       `Hello <@${user.id}>!\n\n` +
       'A member of the Staff or Technical Support team will assist you shortly.\n' +
@@ -132,10 +131,10 @@ export function invitationEmbed(teamName, leaderTag, expiresAt) {
   const unixExpiry = Math.floor(new Date(expiresAt).getTime() / 1000);
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
-    .setTitle('📨 Hackathon Team Invitation')
+    .setTitle('Hackathon Team Invitation')
     .setDescription(
       `You have been invited by **${leaderTag}** to join **${teamName}** as a team member!\n\n` +
-      `⏱️ **Expires:** <t:${unixExpiry}:R> (<t:${unixExpiry}:f>)\n\n` +
+      `**Expires:** <t:${unixExpiry}:R> (<t:${unixExpiry}:f>)\n\n` +
       'Please click **Accept** to join or **Decline** if you cannot join.'
     )
     .setFooter({ text: 'Anti-Double-Team: You can only be an active member of one team.' })
@@ -147,20 +146,20 @@ export function auditLogEmbed({ title, action, actor, target, team, details }) {
   const isDanger = safeAction.includes('DELETED') || safeAction.includes('REMOVED') || safeAction.includes('REJECTED');
   const embed = new EmbedBuilder()
     .setColor(isDanger ? EMBED_COLORS.DANGER : EMBED_COLORS.SUCCESS)
-    .setTitle(`📋 [LOG] ${title || safeAction}`)
+    .setTitle(`[LOG] ${title || safeAction}`)
     .setTimestamp();
 
   if (team) {
-    embed.addFields({ name: '🏆 Team', value: `${team.name || team}`, inline: true });
+    embed.addFields({ name: 'Team', value: `${team.name || team}`, inline: true });
   }
   if (actor) {
-    embed.addFields({ name: '👤 Actor', value: `${actor}`, inline: true });
+    embed.addFields({ name: 'Actor', value: `${actor}`, inline: true });
   }
   if (target) {
-    embed.addFields({ name: '🎯 Target', value: `${target}`, inline: true });
+    embed.addFields({ name: 'Target', value: `${target}`, inline: true });
   }
   if (details) {
-    embed.addFields({ name: '📝 Details', value: typeof details === 'string' ? details : JSON.stringify(details, null, 2), inline: false });
+    embed.addFields({ name: 'Details', value: typeof details === 'string' ? details : JSON.stringify(details, null, 2), inline: false });
   }
 
   return embed;
