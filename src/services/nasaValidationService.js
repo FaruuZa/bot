@@ -1,5 +1,13 @@
+import { Agent } from 'undici';
 import { getAllChallenges } from '../database/queries/challengeQueries.js';
 import { logger } from '../utils/logger.js';
+
+// Custom dispatcher to handle environments with local SSL certificate inspection
+const sslSafeDispatcher = new Agent({
+  connect: {
+    rejectUnauthorized: false
+  }
+});
 
 export class NasaValidationService {
   /**
@@ -10,6 +18,7 @@ export class NasaValidationService {
    *   valid: boolean,
    *   error?: string,
    *   warning?: string,
+   *   inputUrl?: string,
    *   isJember?: boolean,
    *   extractedTitle?: string,
    *   challengeId?: number|null,
@@ -18,7 +27,7 @@ export class NasaValidationService {
    */
   static async validateTeamUrl(url) {
     if (!url || typeof url !== 'string') {
-      return { valid: false, error: 'Tautan URL tidak boleh kosong.' };
+      return { valid: false, inputUrl: url || '', error: 'Tautan URL tidak boleh kosong.' };
     }
 
     const trimmedUrl = url.trim();
@@ -28,13 +37,14 @@ export class NasaValidationService {
     try {
       parsedUrl = new URL(trimmedUrl);
     } catch {
-      return { valid: false, error: 'Format URL tidak valid (harus diawali http:// atau https://).' };
+      return { valid: false, inputUrl: trimmedUrl, error: 'Format URL tidak valid (harus diawali http:// atau https://).' };
     }
 
     const hostname = parsedUrl.hostname.toLowerCase();
     if (hostname !== 'spaceappschallenge.org' && !hostname.endsWith('.spaceappschallenge.org')) {
       return {
         valid: false,
+        inputUrl: trimmedUrl,
         error: 'Tautan harus mengarah ke situs resmi NASA Space Apps Challenge (**spaceappschallenge.org**).'
       };
     }
@@ -42,10 +52,11 @@ export class NasaValidationService {
     // 2. Fetch HTML from NASA website
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000); // 7s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
       const response = await fetch(trimmedUrl, {
         method: 'GET',
+        dispatcher: sslSafeDispatcher,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -59,6 +70,7 @@ export class NasaValidationService {
       if (response.status === 404) {
         return {
           valid: false,
+          inputUrl: trimmedUrl,
           error: 'Halaman tim tidak ditemukan di web NASA Space Apps (Status 404). Pastikan tim sudah dibuat dan link disalin dengan benar.'
         };
       }
@@ -66,6 +78,7 @@ export class NasaValidationService {
       if (!response.ok) {
         return {
           valid: false,
+          inputUrl: trimmedUrl,
           error: `Situs web NASA merespons dengan status HTTP ${response.status}. Mohon coba lagi beberapa saat.`
         };
       }
@@ -78,6 +91,7 @@ export class NasaValidationService {
       if (!hasJember) {
         return {
           valid: false,
+          inputUrl: trimmedUrl,
           error: 'Tautan tim ditemukan di situs NASA, namun tidak terafiliasi dengan lokasi **Jember** (Pastikan tim Anda terdaftar di event lokal Jember).'
         };
       }
@@ -116,6 +130,7 @@ export class NasaValidationService {
 
       return {
         valid: true,
+        inputUrl: trimmedUrl,
         isJember: true,
         extractedTitle,
         challengeId,
@@ -127,12 +142,14 @@ export class NasaValidationService {
       if (err.name === 'AbortError') {
         return {
           valid: false,
+          inputUrl: trimmedUrl,
           error: 'Koneksi ke server web NASA Space Apps mengalami batas waktu (Timeout). Mohon periksa kembali link atau coba lagi sesaat lagi.'
         };
       }
 
       return {
         valid: false,
+        inputUrl: trimmedUrl,
         error: `Gagal melakukan verifikasi ke situs NASA: ${err.message}`
       };
     }

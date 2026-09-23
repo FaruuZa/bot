@@ -1767,6 +1767,7 @@ export default {
 
         // 1. Verify URL on NASA Space Apps website
         const valResult = await NasaValidationService.validateTeamUrl(nsacLink);
+
         if (!valResult.valid) {
           const retryRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -1774,9 +1775,26 @@ export default {
               .setLabel('Perbaiki Link Tim')
               .setStyle(ButtonStyle.Primary)
           );
+
+          const errEmbed = errorEmbed(
+            'Verifikasi Web NASA Gagal',
+            `${valResult.error}\n\n*Pastikan tim sudah dibuat di situs web resmi NASA Space Apps Challenge dan terafiliasi dengan lokasi **Jember**.*`
+          );
+
+          const inputUrl = valResult.inputUrl || nsacLink;
+          const displayLink = inputUrl.startsWith('http')
+            ? `[Klik untuk Membuka Tautan yang Anda Input](${inputUrl})\n\`${inputUrl}\``
+            : `\`${inputUrl}\``;
+
+          errEmbed.addFields({
+            name: 'Tautan yang Diinput',
+            value: displayLink,
+            inline: false
+          });
+
           return await interaction.editReply({
             content: `<@${interaction.user.id}>`,
-            embeds: [errorEmbed('Verifikasi Web NASA Gagal', `${valResult.error}\n\n*Pastikan tim sudah dibuat di web resmi NASA Space Apps Challenge dan terafiliasi dengan lokasi **Jember**.*`)],
+            embeds: [errEmbed],
             components: [retryRow]
           });
         }

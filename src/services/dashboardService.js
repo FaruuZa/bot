@@ -80,17 +80,32 @@ export class DashboardService {
       active_members_count: 0
     };
 
-    // 2. Fetch configurations & Participant metrics
+    // 2. Fetch latest guild members & roles to ensure accurate cache
+    await guild.members.fetch().catch(() => {});
+
     const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
     const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
     const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
 
-    const totalParticipants = participantRoleId && guild.roles.cache.get(participantRoleId)
-      ? guild.roles.cache.get(participantRoleId).members.size
-      : 0;
-    const totalNoTeam = noTeamRoleId && guild.roles.cache.get(noTeamRoleId)
-      ? guild.roles.cache.get(noTeamRoleId).members.size
-      : 0;
+    let participantDisplay = '*(Role belum diatur — pilih di Panel 2)*';
+    if (participantRoleId) {
+      const role = guild.roles.cache.get(participantRoleId);
+      if (role) {
+        participantDisplay = `\`${role.members.size}\` orang (<@&${participantRoleId}>)`;
+      } else {
+        participantDisplay = `\`0\` orang *(Role ID \`${participantRoleId}\` tidak ditemukan)*`;
+      }
+    }
+
+    let noTeamDisplay = '*(Role belum diatur — pilih di Panel 2)*';
+    if (noTeamRoleId) {
+      const role = guild.roles.cache.get(noTeamRoleId);
+      if (role) {
+        noTeamDisplay = `\`${role.members.size}\` orang (<@&${noTeamRoleId}>)`;
+      } else {
+        noTeamDisplay = `\`0\` orang *(Role ID \`${noTeamRoleId}\` tidak ditemukan)*`;
+      }
+    }
 
     const countdown = CountdownService.getCountdownInfo();
 
@@ -113,10 +128,10 @@ export class DashboardService {
         {
           name: 'Statistik Peserta',
           value:
-            `• **Total Peserta Resmi:** \`${totalParticipants}\` orang\n` +
+            `• **Total Peserta Resmi:** ${participantDisplay}\n` +
             `• **Sudah Masuk Tim:** \`${s.active_members_count}\` orang\n` +
-            `• **Solo (@No-Team):** \`${totalNoTeam}\` orang`,
-          inline: true
+            `• **Solo (@No-Team):** ${noTeamDisplay}`,
+          inline: false
         },
         {
           name: 'Ringkasan Tim Hackathon',
