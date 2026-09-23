@@ -5,6 +5,7 @@ import { InvitationService } from '../services/invitationService.js';
 import { GuildConfigService } from '../services/guildConfigService.js';
 import { InviteService } from '../services/inviteService.js';
 import { markExpiredInvitations } from '../database/queries/invitationQueries.js';
+import { CountdownService } from '../services/countdownService.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -59,8 +60,8 @@ export default {
       logger.warn(`[Startup Warning] Failed to initialize invites cache: ${err.message}`);
     }
 
-    // 7. Set bot presence
-    client.user.setActivity('Hackathon Teams 🚀', { type: ActivityType.Watching });
+    // 7. Start dynamic bot presence rotation and countdown channel updates
+    CountdownService.start(client);
 
     // 8. Verify Guild and Key Configurations
     if (env.GUILD_ID) {

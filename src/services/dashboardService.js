@@ -11,6 +11,7 @@ import { GuildConfigService } from './guildConfigService.js';
 import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
 import { pool } from '../database/pool.js';
 import { EMBED_COLORS } from '../config/constants.js';
+import { CountdownService } from './countdownService.js';
 import { logger } from '../utils/logger.js';
 
 export class DashboardService {
@@ -64,7 +65,8 @@ export class DashboardService {
         COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NOT NULL) as with_challenge_count,
         COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NULL) as no_challenge_count,
         COUNT(*) FILTER (WHERE status = 'ACTIVE' AND nsac_link IS NOT NULL AND nsac_link != '') as with_link_count,
-        (SELECT COUNT(*) FROM challenges) as challenge_count
+        (SELECT COUNT(*) FROM challenges) as challenge_count,
+        (SELECT COUNT(DISTINCT user_id) FROM team_members WHERE status = 'ACTIVE') as active_members_count
       FROM teams
     `);
     const s = stats[0] || {
@@ -74,11 +76,23 @@ export class DashboardService {
       with_challenge_count: 0,
       no_challenge_count: 0,
       with_link_count: 0,
-      challenge_count: 0
+      challenge_count: 0,
+      active_members_count: 0
     };
 
-    // 2. Fetch configurations
+    // 2. Fetch configurations & Participant metrics
     const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
+    const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+    const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
+
+    const totalParticipants = participantRoleId && guild.roles.cache.get(participantRoleId)
+      ? guild.roles.cache.get(participantRoleId).members.size
+      : 0;
+    const totalNoTeam = noTeamRoleId && guild.roles.cache.get(noTeamRoleId)
+      ? guild.roles.cache.get(noTeamRoleId).members.size
+      : 0;
+
+    const countdown = CountdownService.getCountdownInfo();
 
     // 3. Build Embed
     const embed = new EmbedBuilder()
@@ -90,11 +104,19 @@ export class DashboardService {
       .setColor(regOpen ? EMBED_COLORS.SUCCESS : EMBED_COLORS.DANGER)
       .addFields(
         {
-          name: 'Status Pendaftaran Tim',
-          value: regOpen
-            ? '**BUKA (OPEN)** — Peserta dapat mendaftarkan tim baru'
-            : '**TUTUP (CLOSED)** — Pendaftaran tim sedang dinonaktifkan',
+          name: 'Status Acara & Pendaftaran',
+          value:
+            `• **Countdown / Fase:** ${countdown.label}\n` +
+            `• **Status Registrasi:** ${regOpen ? '**BUKA (OPEN)** — Pendaftaran aktif' : '**TUTUP (CLOSED)** — Pendaftaran nonaktif'}`,
           inline: false
+        },
+        {
+          name: 'Statistik Peserta',
+          value:
+            `• **Total Peserta Resmi:** \`${totalParticipants}\` orang\n` +
+            `• **Sudah Masuk Tim:** \`${s.active_members_count}\` orang\n` +
+            `• **Solo (@No-Team):** \`${totalNoTeam}\` orang`,
+          inline: true
         },
         {
           name: 'Ringkasan Tim Hackathon',
@@ -105,13 +127,13 @@ export class DashboardService {
           inline: true
         },
         {
-          name: 'Challenge & Pendataan Web',
+          name: 'Challenge & Profil Web NASA',
           value:
-            `• **Challenge Terdaftar:** \`${s.challenge_count}\` challenge\n` +
+            `• **Tantangan Terdaftar:** \`${s.challenge_count}\` challenge\n` +
             `• **Sudah Pilih Challenge:** \`${s.with_challenge_count}\` tim\n` +
             `• **Belum Pilih Challenge:** \`${s.no_challenge_count}\` tim\n` +
             `• **Tautan NSAC Terisi:** \`${s.with_link_count}\` tim`,
-          inline: true
+          inline: false
         }
       )
       .setFooter({ text: 'Panel 1/3 • Overview & Tim' })

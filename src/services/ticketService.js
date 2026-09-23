@@ -7,6 +7,7 @@ import { getUserActiveTeamByDiscordId } from '../database/queries/memberQueries.
 import { registrationTicketEmbed, supportTicketEmbed, errorEmbed, successEmbed } from '../utils/embeds.js';
 import { sanitizeChannelName, deduplicateOverwrites } from '../utils/validators.js';
 import { AuditService } from './auditService.js';
+import { PermissionService } from './permissionService.js';
 import { logger } from '../utils/logger.js';
 
 export class TicketService {
@@ -25,6 +26,15 @@ export class TicketService {
       if (!regOpen) {
         return await interaction.editReply({
           embeds: [errorEmbed('Pendaftaran Ditutup', 'Pendaftaran tim saat ini sedang ditutup oleh panitia.')]
+        });
+      }
+
+      // 1b. Check participant role requirement (bypass for staff/admin testing)
+      const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+      const isStaffOrAdmin = PermissionService.isStaff(interaction.member);
+      if (participantRoleId && !isStaffOrAdmin && !interaction.member?.roles?.cache?.has(participantRoleId)) {
+        return await interaction.editReply({
+          embeds: [errorEmbed('Hanya untuk Peserta Resmi', 'Hanya anggota yang telah terdaftar sebagai **Peserta Resmi (Participant)** yang dapat membuat tiket pendaftaran tim.')]
         });
       }
 
@@ -131,12 +141,9 @@ export class TicketService {
           .setStyle(ButtonStyle.Danger)
       );
 
-      // Ping staff & user so staff gets notified
-      const pings = [`<@${user.id}>`];
-      if (staffRoleId) pings.push(`<@&${staffRoleId}>`);
-
+      // Ping only the user initially (staff has access but is not spammed with pings)
       const ticketMsg = await channel.send({
-        content: pings.join(' ') + ' **Tiket Pendaftaran Tim Baru**',
+        content: `<@${user.id}> **Tiket Pendaftaran Tim Baru**`,
         embeds: [registrationTicketEmbed(user)],
         components: [row]
       });

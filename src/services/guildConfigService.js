@@ -39,7 +39,12 @@ export const CONFIG_DEFINITIONS = {
   REGISTRATION_OPEN: { key: 'REGISTRATION_OPEN', type: 'TEXT', label: 'Registration Status', description: 'Whether team registration is open ("true" or "false")' },
   TEAM_MEMBER_SELECT_ROLE_ID: { key: 'TEAM_MEMBER_SELECT_ROLE_ID', type: 'ROLE', label: 'Team Select Role Filter', description: 'Role required for users to appear in the team member invite dropdown' },
   DASHBOARD_CHANNEL_ID: { key: 'DASHBOARD_CHANNEL_ID', type: 'CHANNEL', label: 'Dashboard Channel', description: 'Channel where the Admin Control Panel is deployed' },
-  DASHBOARD_MESSAGE_ID: { key: 'DASHBOARD_MESSAGE_ID', type: 'TEXT', label: 'Dashboard Message ID', description: 'Discord Message ID for live dashboard updates' }
+  DASHBOARD_MESSAGE_ID: { key: 'DASHBOARD_MESSAGE_ID', type: 'TEXT', label: 'Dashboard Message ID', description: 'Discord Message ID for live dashboard updates' },
+
+  // Countdown & Event Schedule
+  COUNTDOWN_CHANNEL_ID: { key: 'COUNTDOWN_CHANNEL_ID', type: 'CHANNEL', label: 'Countdown Voice Channel', description: 'Voice channel di sidebar yang namanya menampilkan countdown' },
+  HACKATHON_START_DATE: { key: 'HACKATHON_START_DATE', type: 'TEXT', label: 'Hackathon Start Date', description: 'Waktu mulai hackathon (contoh: 2026-10-03T09:00:00+07:00)' },
+  HACKATHON_END_DATE: { key: 'HACKATHON_END_DATE', type: 'TEXT', label: 'Hackathon End Date', description: 'Waktu akhir hackathon (contoh: 2026-10-04T23:59:59+07:00)' }
 };
 
 export class GuildConfigService {
