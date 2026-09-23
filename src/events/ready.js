@@ -6,6 +6,7 @@ import { GuildConfigService } from '../services/guildConfigService.js';
 import { InviteService } from '../services/inviteService.js';
 import { markExpiredInvitations } from '../database/queries/invitationQueries.js';
 import { CountdownService } from '../services/countdownService.js';
+import { NasaValidationService } from '../services/nasaValidationService.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -63,7 +64,10 @@ export default {
     // 7. Start dynamic bot presence rotation and countdown channel updates
     CountdownService.start(client);
 
-    // 8. Verify Guild and Key Configurations
+    // 8. Start daily midnight challenge sync from NASA web
+    NasaValidationService.startDailyMidnightSync(client);
+
+    // 9. Verify Guild and Key Configurations
     if (env.GUILD_ID) {
       const guild = client.guilds.cache.get(env.GUILD_ID);
       if (guild) {

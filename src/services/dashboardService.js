@@ -130,7 +130,7 @@ export class DashboardService {
           value:
             `• **Total Peserta Resmi:** ${participantDisplay}\n` +
             `• **Sudah Masuk Tim:** \`${s.active_members_count}\` orang\n` +
-            `• **Solo (@No-Team):** ${noTeamDisplay}`,
+            `• **Belum Memiliki Tim (@No-Team):** ${noTeamDisplay}`,
           inline: false
         },
         {

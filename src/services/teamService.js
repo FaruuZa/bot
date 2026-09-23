@@ -411,13 +411,9 @@ export class TeamService {
 
     const mainRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE)
-        .setLabel('Pilih Challenge')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
         .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INVITE)
         .setLabel('Undang Anggota')
-        .setStyle(ButtonStyle.Secondary),
+        .setStyle(ButtonStyle.Primary),
       recruitBtn,
       new ButtonBuilder()
         .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_INFO)
