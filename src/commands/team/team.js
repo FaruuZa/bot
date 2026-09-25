@@ -16,6 +16,7 @@ import { TeamService } from '../../services/teamService.js';
 import { InvitationService } from '../../services/invitationService.js';
 import { AuditService } from '../../services/auditService.js';
 import { GuildConfigService } from '../../services/guildConfigService.js';
+import { NasaValidationService } from '../../services/nasaValidationService.js';
 import { pool } from '../../database/pool.js';
 import {
   getTeamByName,
@@ -487,7 +488,7 @@ export default {
         status: MEMBER_STATUS.PENDING
       });
 
-      const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+      const targetMember = interaction.guild.members.cache.get(targetUser.id) || await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (targetMember) {
         await InvitationService.sendInvitationMessage({
           guild: interaction.guild,
@@ -777,25 +778,31 @@ export default {
       }
 
       const url = interaction.options.getString('url').trim();
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+
+      // Validasi URL resmi NASA Space Apps Challenge
+      const val = await NasaValidationService.validateTeamUrl(url);
+      if (!val.valid) {
         return await interaction.editReply({
-          embeds: [errorEmbed('URL Tidak Valid', 'Link tim harus dimulai dengan `http://` atau `https://`.')]
+          embeds: [errorEmbed('Verifikasi Web NASA Gagal', val.error || 'Tautan web NASA tidak valid atau tidak terafiliasi dengan lokasi Jember.')]
         });
       }
 
-      const result = await TeamService.setTeamNsacLink(activeTeam.id, url, interaction.guild, interaction.client, interaction.user.tag);
+      const result = await TeamService.setTeamNsacLink(activeTeam.id, val.url, interaction.guild, interaction.client, interaction.user.tag);
       if (!result.success) {
         return await interaction.editReply({
           embeds: [errorEmbed('Gagal Menyimpan Link', result.error)]
         });
       }
 
+      // Otomatis sinkronkan data tim (challenge & rekrutmen)
+      await NasaValidationService.syncTeam(activeTeam.id, interaction.client).catch(() => {});
+
       return await interaction.editReply({
         embeds: [
           successEmbed(
-            'Link Tim Diperbarui 🌐',
-            `Link resmi tim **${activeTeam.name}** di web NSAC berhasil diperbarui:\n${url}\n\n` +
-            `Tombol tautan di channel tim dan board rekrutmen telah disesuaikan.`
+            'Link Tim Diperbarui',
+            `Link resmi tim **${activeTeam.name}** di web NASA berhasil disimpan dan disinkronkan:\n${val.url}\n\n` +
+            `Tantangan tim, panel selamat datang, dan status rekrutmen telah disesuaikan.`
           )
         ]
       });
@@ -818,7 +825,7 @@ export default {
       const name = interaction.options.getString('name');
       const leader = interaction.options.getUser('leader');
 
-      const leaderMember = await interaction.guild.members.fetch(leader.id).catch(() => null);
+      const leaderMember = interaction.guild.members.cache.get(leader.id) || await interaction.guild.members.fetch(leader.id).catch(() => null);
       if (!leaderMember) {
         return await interaction.editReply({ embeds: [errorEmbed('Error', 'Leader tidak ditemukan di server ini.')] });
       }
@@ -1022,14 +1029,14 @@ export default {
         return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
       }
 
-      const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+      const targetMember = interaction.guild.members.cache.get(targetUser.id) || await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       if (!targetMember) {
         return await interaction.editReply({ embeds: [errorEmbed('Error', 'User tidak ditemukan di server.')] });
       }
 
       const expiresAt = new Date(Date.now() + env.INVITATION_EXPIRE_HOURS * 3600 * 1000);
       const leaderMember = team.leader_discord_id
-        ? await interaction.guild.members.fetch(team.leader_discord_id).catch(() => null)
+        ? (interaction.guild.members.cache.get(team.leader_discord_id) || await interaction.guild.members.fetch(team.leader_discord_id).catch(() => null))
         : interaction.member;
 
       await InvitationService.sendInvitationMessage({
@@ -1090,7 +1097,7 @@ export default {
 
       const memberIds = [member1, member2, member3, member4, member5].filter(Boolean).map((u) => u.id);
 
-      const leaderMember = await interaction.guild.members.fetch(leader.id).catch(() => null);
+      const leaderMember = interaction.guild.members.cache.get(leader.id) || await interaction.guild.members.fetch(leader.id).catch(() => null);
       if (!leaderMember) {
         return await interaction.editReply({ embeds: [errorEmbed('Error', 'Leader tidak ditemukan di server.')] });
       }

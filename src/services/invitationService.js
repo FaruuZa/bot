@@ -130,8 +130,7 @@ export class InvitationService {
 
     // 3. Assign Discord role tim langsung
     try {
-      const { env } = await import('../config/env.js');
-      const guild = interaction.guild ?? await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
+      const guild = interaction.guild ?? interaction.client.guilds.cache.get(env.GUILD_ID) ?? await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
 
       if (guild && team.role_id) {
         await DiscordService.assignTeamMembershipRoles(guild, interaction.user.id, team.role_id);
@@ -245,11 +244,10 @@ export class InvitationService {
 
     // Notifikasi ke leader via DM
     try {
-      const { env } = await import('../config/env.js');
-      const guild = interaction.guild ?? await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
+      const guild = interaction.guild ?? interaction.client.guilds.cache.get(env.GUILD_ID) ?? await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
       const team = await getTeamById(invite.team_id);
       if (guild && team) {
-        const leaderMember = await guild.members.fetch(team.leader_discord_id).catch(() => null);
+        const leaderMember = guild.members.cache.get(team.leader_discord_id) || await guild.members.fetch(team.leader_discord_id).catch(() => null);
         if (leaderMember) {
           await leaderMember.send({
             embeds: [

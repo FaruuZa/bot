@@ -138,24 +138,26 @@ export class DiscordService {
       });
       logger.info(`[Discord Provisioning] Created Category: ${created.category.name} (${created.category.id})`);
 
-      // 3. Create Text Channel inside Category
-      created.textChannel = await guild.channels.create({
-        name: `💬・${cleanSlug}`,
-        type: ChannelType.GuildText,
-        parent: created.category.id,
-        topic: `Private Text Channel for Team ${teamName}`,
-        reason: `Hackathon Team Text Channel for ${teamName}`
-      });
-      logger.info(`[Discord Provisioning] Created Text Channel: ${created.textChannel.name} (${created.textChannel.id})`);
+      // 3 & 4. Create Text and Voice Channels inside Category in parallel
+      const [textChannel, voiceChannel] = await Promise.all([
+        guild.channels.create({
+          name: `💬・${cleanSlug}`,
+          type: ChannelType.GuildText,
+          parent: created.category.id,
+          topic: `Private Text Channel for Team ${teamName}`,
+          reason: `Hackathon Team Text Channel for ${teamName}`
+        }),
+        guild.channels.create({
+          name: `🔊・${cleanSlug}`,
+          type: ChannelType.GuildVoice,
+          parent: created.category.id,
+          reason: `Hackathon Team Voice Channel for ${teamName}`
+        })
+      ]);
 
-      // 4. Create Voice Channel inside Category
-      created.voiceChannel = await guild.channels.create({
-        name: `🔊・${cleanSlug}`,
-        type: ChannelType.GuildVoice,
-        parent: created.category.id,
-        reason: `Hackathon Team Voice Channel for ${teamName}`
-      });
-      logger.info(`[Discord Provisioning] Created Voice Channel: ${created.voiceChannel.name} (${created.voiceChannel.id})`);
+      created.textChannel = textChannel;
+      created.voiceChannel = voiceChannel;
+      logger.info(`[Discord Provisioning] Created Text: #${textChannel.name} (${textChannel.id}) & Voice: #${voiceChannel.name} (${voiceChannel.id})`);
 
       return {
         roleId: created.role.id,
@@ -199,7 +201,7 @@ export class DiscordService {
    */
   static async assignTeamMembershipRoles(guild, discordId, teamRoleId) {
     try {
-      const member = await guild.members.fetch(discordId).catch(() => null);
+      const member = guild.members.cache.get(discordId) || await guild.members.fetch(discordId).catch(() => null);
       if (!member) {
         logger.warn(`[DiscordService] Member ${discordId} not found in guild to assign roles.`);
         return;
@@ -267,81 +269,95 @@ export class DiscordService {
    */
   static async renameTeamResources(guild, { roleId, categoryId, textChannelId, voiceChannelId, newName }) {
     const cleanSlug = sanitizeChannelName(newName);
+    const tasks = [];
 
     if (roleId) {
       const role = guild.roles.cache.get(roleId) || await guild.roles.fetch(roleId).catch(() => null);
-      if (role) await role.setName(newName, `Team renamed to ${newName}`).catch(() => {});
+      if (role) tasks.push(role.setName(newName, `Team renamed to ${newName}`).catch(() => {}));
     }
     if (categoryId) {
       const category = guild.channels.cache.get(categoryId) || await guild.channels.fetch(categoryId).catch(() => null);
-      if (category) await category.setName(`📁 ${newName.toUpperCase()}`, `Team renamed to ${newName}`).catch(() => {});
+      if (category) tasks.push(category.setName(`📁 ${newName.toUpperCase()}`, `Team renamed to ${newName}`).catch(() => {}));
     }
     if (textChannelId) {
       const textChannel = guild.channels.cache.get(textChannelId) || await guild.channels.fetch(textChannelId).catch(() => null);
-      if (textChannel) await textChannel.setName(`💬・${cleanSlug}`, `Team renamed to ${newName}`).catch(() => {});
+      if (textChannel) tasks.push(textChannel.setName(`💬・${cleanSlug}`, `Team renamed to ${newName}`).catch(() => {}));
     }
     if (voiceChannelId) {
       const voiceChannel = guild.channels.cache.get(voiceChannelId) || await guild.channels.fetch(voiceChannelId).catch(() => null);
-      if (voiceChannel) await voiceChannel.setName(`🔊・${cleanSlug}`, `Team renamed to ${newName}`).catch(() => {});
+      if (voiceChannel) tasks.push(voiceChannel.setName(`🔊・${cleanSlug}`, `Team renamed to ${newName}`).catch(() => {}));
     }
+
+    await Promise.all(tasks);
   }
 
   /**
    * Archive team channels by locking them to read-only
    */
   static async archiveTeamChannels(guild, { roleId, categoryId, textChannelId, voiceChannelId }) {
+    const tasks = [];
+
     if (roleId && categoryId) {
       const category = guild.channels.cache.get(categoryId) || await guild.channels.fetch(categoryId).catch(() => null);
       if (category) {
-        await category.permissionOverwrites.edit(roleId, {
+        tasks.push(category.permissionOverwrites.edit(roleId, {
           SendMessages: false,
           AddReactions: false,
           Connect: false,
           Speak: false
-        }).catch(() => {});
+        }).catch(() => {}));
       }
     }
 
     if (roleId && textChannelId) {
       const text = guild.channels.cache.get(textChannelId) || await guild.channels.fetch(textChannelId).catch(() => null);
       if (text) {
-        await text.permissionOverwrites.edit(roleId, {
+        tasks.push(text.permissionOverwrites.edit(roleId, {
           SendMessages: false,
           AddReactions: false
-        }).catch(() => {});
+        }).catch(() => {}));
       }
     }
 
-    if (voiceChannelId) {
+    if (voiceChannelId && roleId) {
       const voice = guild.channels.cache.get(voiceChannelId) || await guild.channels.fetch(voiceChannelId).catch(() => null);
-      if (voice && roleId) {
-        await voice.permissionOverwrites.edit(roleId, {
+      if (voice) {
+        tasks.push(voice.permissionOverwrites.edit(roleId, {
           Connect: false,
           Speak: false
-        }).catch(() => {});
+        }).catch(() => {}));
       }
     }
+
+    await Promise.all(tasks);
   }
 
   /**
    * Delete team Discord resources
    */
   static async deleteTeamResources(guild, { roleId, categoryId, textChannelId, voiceChannelId }) {
+    // Delete text & voice channels in parallel first
+    const channelTasks = [];
     if (voiceChannelId) {
       const ch = guild.channels.cache.get(voiceChannelId) || await guild.channels.fetch(voiceChannelId).catch(() => null);
-      if (ch) await ch.delete('Team deleted').catch(() => {});
+      if (ch) channelTasks.push(ch.delete('Team deleted').catch(() => {}));
     }
     if (textChannelId) {
       const ch = guild.channels.cache.get(textChannelId) || await guild.channels.fetch(textChannelId).catch(() => null);
-      if (ch) await ch.delete('Team deleted').catch(() => {});
+      if (ch) channelTasks.push(ch.delete('Team deleted').catch(() => {}));
     }
+    await Promise.all(channelTasks);
+
+    // Delete category and role in parallel
+    const parentTasks = [];
     if (categoryId) {
       const ch = guild.channels.cache.get(categoryId) || await guild.channels.fetch(categoryId).catch(() => null);
-      if (ch) await ch.delete('Team deleted').catch(() => {});
+      if (ch) parentTasks.push(ch.delete('Team deleted').catch(() => {}));
     }
     if (roleId) {
       const r = guild.roles.cache.get(roleId) || await guild.roles.fetch(roleId).catch(() => null);
-      if (r) await r.delete('Team deleted').catch(() => {});
+      if (r) parentTasks.push(r.delete('Team deleted').catch(() => {}));
     }
+    await Promise.all(parentTasks);
   }
 }

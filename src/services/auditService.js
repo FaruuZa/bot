@@ -91,7 +91,8 @@ export class AuditService {
     if (!logChannelId || !client) return;
 
     try {
-      const channel = await client.channels.fetch(logChannelId).catch(() => null);
+      const channel = client.channels.cache.get(logChannelId)
+        || await client.channels.fetch(logChannelId).catch(() => null);
       if (channel && channel.isTextBased()) {
         const embed = auditLogEmbed({
           title: title || action.replace(/_/g, ' '),

@@ -63,7 +63,7 @@ export function teamInfoEmbed(team, members) {
       { name: 'Leader', value: leader.discord_id ? `<@${leader.discord_id}>` : 'Tidak diketahui', inline: true },
       { name: 'Total Anggota', value: `**${members.length}** orang`, inline: true },
       { name: 'Challenge', value: challengeText, inline: false },
-      { name: 'Tautan Web NSAC', value: nsacLinkText, inline: true },
+      { name: 'Tautan Web NSAC', value: nsacLinkText, inline: false },
       { name: 'Daftar Anggota (Roster)', value: memberList, inline: false },
       { name: 'Text Channel', value: team.text_channel_id ? `<#${team.text_channel_id}>` : '*(Tidak ada)*', inline: true },
       { name: 'Voice Channel', value: team.voice_channel_id ? `<#${team.voice_channel_id}>` : '*(Tidak ada)*', inline: true }

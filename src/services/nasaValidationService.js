@@ -80,8 +80,12 @@ export class NasaValidationService {
    * @param {number} teamId
    * @returns {number} remaining ms, 0 if not on cooldown
    */
-  static getSyncCooldown(teamId) {
-    const lastSync = teamSyncCooldowns.get(teamId);
+  static getSyncCooldown(teamId, lastSyncedAt = null) {
+    let lastSync = teamSyncCooldowns.get(teamId);
+    if (!lastSync && lastSyncedAt) {
+      lastSync = new Date(lastSyncedAt).getTime();
+      teamSyncCooldowns.set(teamId, lastSync);
+    }
     if (!lastSync) return 0;
     const remaining = lastSync + COOLDOWN_MS - Date.now();
     return remaining > 0 ? remaining : 0;
@@ -519,7 +523,13 @@ export class NasaValidationService {
       await TeamService.refreshTeamWelcomePanel(team.id, guild).catch(() => {});
     }
 
-    // Update cooldown
+    // Update last_synced_at in database
+    await pool.query(
+      'UPDATE teams SET last_synced_at = NOW(), updated_at = NOW() WHERE id = $1',
+      [team.id]
+    ).catch((err) => logger.warn(`[NasaSync] Gagal update last_synced_at tim ${team.id}: ${err.message}`));
+
+    // Update in-memory cooldown
     this.setSyncCooldown(team.id);
 
     return {
@@ -543,7 +553,7 @@ export class NasaValidationService {
     let teams = [];
     try {
       const { rows } = await pool.query(`
-        SELECT id, name, nsac_link FROM teams
+        SELECT id, name, nsac_link, last_synced_at FROM teams
         WHERE status = 'ACTIVE' AND nsac_link IS NOT NULL AND nsac_link != ''
       `);
       teams = rows;
@@ -558,9 +568,21 @@ export class NasaValidationService {
     }
 
     let updatedCount = 0;
+    let skippedCount = 0;
+    // Ambang batas: Tim yang disinkronkan dalam 4 jam terakhir (misal jam 20:00 - 23:59)
+    // dilewati saat sinkronisasi jam 12 malam agar tidak boros request & tidak spam.
+    const RECENT_SYNC_THRESHOLD_MS = 4 * 60 * 60 * 1000;
 
     for (const team of teams) {
       try {
+        const lastSyncTime = teamSyncCooldowns.get(team.id) || (team.last_synced_at ? new Date(team.last_synced_at).getTime() : 0);
+        if (lastSyncTime && (Date.now() - lastSyncTime < RECENT_SYNC_THRESHOLD_MS)) {
+          const hoursAgo = ((Date.now() - lastSyncTime) / (1000 * 60 * 60)).toFixed(1);
+          logger.info(`[NasaSync] Tim "${team.name}" dilewati karena baru saja disinkronkan (${hoursAgo} jam lalu).`);
+          skippedCount++;
+          continue;
+        }
+
         const res = await this.syncTeam(team.id, client);
         if (res.challengeUpdated || res.recruitmentOpened || res.recruitmentClosed) {
           updatedCount++;
@@ -570,7 +592,7 @@ export class NasaValidationService {
       }
     }
 
-    logger.info(`[NasaSync] Sinkronisasi selesai. Sebanyak ${updatedCount} tim mengalami pembaruan status.`);
+    logger.info(`[NasaSync] Sinkronisasi tengah malam selesai. Sebanyak ${updatedCount} tim diperbarui, ${skippedCount} tim dilewati (sudah sync sebelumnya).`);
   }
 
   /**

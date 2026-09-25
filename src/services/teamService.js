@@ -84,7 +84,7 @@ export class TeamService {
     // 4. Validate each member
     for (const memberId of uniqueMemberIds) {
       // Check in guild
-      const member = await guild.members.fetch(memberId).catch(() => null);
+      const member = guild.members.cache.get(memberId) || await guild.members.fetch(memberId).catch(() => null);
       if (!member) {
         return {
           valid: false,
@@ -153,7 +153,7 @@ export class TeamService {
       const invitedUsers = [];
 
       for (const memberId of uniqueMemberIds) {
-        const member = await guild.members.fetch(memberId);
+        const member = guild.members.cache.get(memberId) || await guild.members.fetch(memberId);
         const memberUser = await upsertUser(member.id, member.user.tag || member.user.username, dbClient);
         invitedUsers.push({ user: memberUser, member });
 
@@ -380,7 +380,6 @@ export class TeamService {
         {
           name: 'Yang bisa dilakukan leader',
           value:
-            '`/team set-challenge` — Pilih atau ubah challenge tim\n' +
             '`/team invite @user` — Undang anggota baru\n' +
             '`/team kick @user` — Keluarkan anggota dari tim\n' +
             '`/team recruit` — Buka lowongan anggota di channel rekrutmen\n' +
@@ -510,22 +509,41 @@ export class TeamService {
       const activeRecruit = await getOpenRecruitmentByTeam(team.id);
       const { embed, components } = this.buildTeamWelcomePanel(team, activeMembers, !!activeRecruit);
 
-      const messages = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-      if (!messages) return;
-
-      const panelMsg = messages.find((m) =>
-        m.author.id === guild.client.user.id &&
-        m.components.some((row) =>
-          row.components.some((c) =>
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT ||
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE ||
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE ||
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE ||
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SYNC_NASA ||
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INFO
+      // Cari panel yang sudah ada (utamakan cek pinned messages terlebih dahulu agar cepat)
+      let panelMsg = null;
+      const pinned = await channel.messages.fetchPinned().catch(() => null);
+      if (pinned && pinned.size > 0) {
+        panelMsg = pinned.find((m) =>
+          m.author.id === guild.client.user.id &&
+          m.components.some((row) =>
+            row.components.some((c) =>
+              c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT ||
+              c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE ||
+              c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE ||
+              c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SYNC_NASA ||
+              c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INFO
+            )
           )
-        )
-      );
+        );
+      }
+
+      if (!panelMsg) {
+        const messages = await channel.messages.fetch({ limit: 15 }).catch(() => null);
+        if (messages) {
+          panelMsg = messages.find((m) =>
+            m.author.id === guild.client.user.id &&
+            m.components.some((row) =>
+              row.components.some((c) =>
+                c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT ||
+                c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE ||
+                c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE ||
+                c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SYNC_NASA ||
+                c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INFO
+              )
+            )
+          );
+        }
+      }
 
       if (panelMsg) {
         await panelMsg.edit({ embeds: [embed], components }).catch(() => {});
@@ -654,7 +672,7 @@ export class TeamService {
       return { success: false, error: `<@${memberDiscordId}> sudah terdaftar di tim "${memberActiveTeam.name}".` };
     }
 
-    const guildMember = await guild.members.fetch(memberDiscordId).catch(() => null);
+    const guildMember = guild.members.cache.get(memberDiscordId) || await guild.members.fetch(memberDiscordId).catch(() => null);
     if (!guildMember) return { success: false, error: 'Pengguna tidak ditemukan di server Discord ini.' };
 
     const user = await upsertUser(memberDiscordId, guildMember.user.tag || guildMember.user.username);

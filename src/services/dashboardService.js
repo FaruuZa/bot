@@ -80,8 +80,10 @@ export class DashboardService {
       active_members_count: 0
     };
 
-    // 2. Fetch latest guild members & roles to ensure accurate cache
-    await guild.members.fetch().catch(() => {});
+    // 2. Fetch latest guild members only if cache is cold
+    if (guild.members.cache.size <= 2) {
+      await guild.members.fetch().catch(() => {});
+    }
 
     const regOpen = GuildConfigService.get('REGISTRATION_OPEN') !== 'false';
     const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');

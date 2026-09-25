@@ -38,16 +38,17 @@ export class TicketService {
         });
       }
 
-      // 2. Check anti-double-team
-      const activeTeam = await getUserActiveTeamByDiscordId(user.id);
+      // 2 & 3. Check anti-double-team and ensure user in DB in parallel
+      const [activeTeam, dbUser] = await Promise.all([
+        getUserActiveTeamByDiscordId(user.id),
+        upsertUser(user.id, user.tag || user.username)
+      ]);
+
       if (activeTeam) {
         return await interaction.editReply({
           embeds: [errorEmbed('Sudah Terdaftar', `Kamu sudah terdaftar di tim **${activeTeam.name}**!`)]
         });
       }
-
-      // 3. Ensure user in DB
-      const dbUser = await upsertUser(user.id, user.tag || user.username);
 
       // 4. Check for existing open registration ticket
       const existingTicket = await getActiveUserTicket(dbUser.id, TICKET_TYPE.TEAM_REGISTRATION);
@@ -304,10 +305,20 @@ export class TicketService {
    */
   static async handleCloseTicket(interaction) {
     const channel = interaction.channel;
+    if (!channel) return;
 
-    await interaction.reply({
-      embeds: [successEmbed('Tiket Ditutup', 'Tiket ini telah ditandai selesai dan channel akan otomatis dihapus dalam 5 detik.')]
-    });
+    try {
+      const payload = {
+        embeds: [successEmbed('Tiket Ditutup', 'Tiket ini telah ditandai selesai dan channel akan otomatis dihapus dalam 5 detik.')]
+      };
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp(payload).catch(() => {});
+      } else {
+        await interaction.reply(payload).catch(() => {});
+      }
+    } catch {
+      // Ignore if interaction failed or was already handled
+    }
 
     await closeTicket(channel.id).catch(() => {});
 
@@ -316,7 +327,7 @@ export class TicketService {
       title: 'Ticket Closed',
       actorTag: interaction.user.tag,
       details: `Ticket channel "${channel.name}" was closed.`
-    });
+    }).catch(() => {});
 
     setTimeout(async () => {
       await channel.delete('Ticket closed').catch(() => {});

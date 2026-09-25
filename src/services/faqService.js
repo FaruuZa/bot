@@ -63,7 +63,8 @@ export class FAQService {
    */
   static async syncDiscordMessage(client, embedRecord) {
     try {
-      const channel = await client.channels.fetch(embedRecord.channel_id).catch(() => null);
+      const channel = client.channels.cache.get(embedRecord.channel_id)
+        || await client.channels.fetch(embedRecord.channel_id).catch(() => null);
       if (!channel || !channel.isTextBased()) {
         throw new Error(`Channel <#${embedRecord.channel_id}> not found or inaccessible.`);
       }

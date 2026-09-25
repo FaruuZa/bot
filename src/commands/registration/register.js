@@ -66,7 +66,7 @@ export default {
       }
 
       const targetUser = interaction.options.getUser('user');
-      const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+      const targetMember = interaction.guild.members.cache.get(targetUser.id) || await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
       if (!targetMember) {
         return await interaction.editReply({

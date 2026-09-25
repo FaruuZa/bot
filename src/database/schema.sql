@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS teams (
 -- Ensure columns exist for existing databases prior to creating indexes
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS nsac_link TEXT;
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS challenge_id INT REFERENCES challenges(id) ON DELETE SET NULL;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP WITH TIME ZONE;
 
 CREATE INDEX IF NOT EXISTS idx_teams_status ON teams(status);
 CREATE INDEX IF NOT EXISTS idx_teams_leader ON teams(leader_id);

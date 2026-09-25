@@ -181,6 +181,35 @@ function buildStaffRegEmbed({ teamName, nsacLink, challengeTitle, memberIds = []
 }
 
 /**
+ * Helper to get eligible team members using guild cache to minimize Discord API roundtrips.
+ * Only falls back to fetch if guild cache is unpopulated.
+ */
+async function getEligibleTeamMembers(guild, { excludeUserId = null } = {}) {
+  if (!guild) return [];
+  if (guild.members.cache.size <= 2) {
+    await guild.members.fetch().catch(() => {});
+  }
+  const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
+  if (filterRoleId) {
+    const role = guild.roles.cache.get(filterRoleId);
+    if (role && role.members.size > 0) {
+      return Array.from(role.members.values()).filter((m) => {
+        if (m.user.bot) return false;
+        if (excludeUserId && m.id === excludeUserId) return false;
+        return true;
+      });
+    }
+  }
+
+  return Array.from(guild.members.cache.values()).filter((m) => {
+    if (m.user.bot) return false;
+    if (excludeUserId && m.id === excludeUserId) return false;
+    if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
+    return true;
+  });
+}
+
+/**
  * Build member select dropdown for a given eligible members list and team name.
  * Returns null if eligibleMembers is empty (caller should handle gracefully).
  */
@@ -789,13 +818,7 @@ export default {
           return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang dari awal.')], components: [] });
         }
 
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot || m.id === interaction.user.id) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild, { excludeUserId: interaction.user.id });
 
         const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
         const minSelect = 0;
@@ -865,7 +888,7 @@ export default {
 
         try {
           const leaderId = session.memberIds[0];
-          const leaderMember = await interaction.guild.members.fetch(leaderId).catch(() => null);
+          const leaderMember = interaction.guild.members.cache.get(leaderId) || await interaction.guild.members.fetch(leaderId).catch(() => null);
           if (!leaderMember) {
             return await interaction.editReply({ embeds: [errorEmbed('Leader Tidak Ditemukan', `<@${leaderId}> tidak ditemukan di server.`)], components: [] });
           }
@@ -977,13 +1000,7 @@ export default {
           return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang.')], components: [] });
         }
 
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild);
 
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
         const challenges = await getAllChallenges();
@@ -1421,7 +1438,7 @@ export default {
         }
 
         // Check 2-hour cooldown (admins bypass for testing)
-        const cooldownMs = NasaValidationService.getSyncCooldown(targetTeam.id);
+        const cooldownMs = NasaValidationService.getSyncCooldown(targetTeam.id, targetTeam.last_synced_at);
         if (cooldownMs > 0 && !isAdmin) {
           const nextAvailableAt = Math.floor((Date.now() + cooldownMs) / 1000);
           return await replyDismissable(interaction, {
@@ -1531,7 +1548,7 @@ export default {
         // Kirim notifikasi DM ke leader tim (Opsi A)
         let leaderMember = null;
         if (recruitment.leader_discord_id) {
-          leaderMember = await interaction.guild.members.fetch(recruitment.leader_discord_id).catch(() => null);
+          leaderMember = interaction.guild.members.cache.get(recruitment.leader_discord_id) || await interaction.guild.members.fetch(recruitment.leader_discord_id).catch(() => null);
         }
 
         if (!leaderMember) {
@@ -1695,7 +1712,7 @@ export default {
         const updatedRecruit = await decrementRecruitmentSlot(recruitment.id);
 
         // Kirim DM konfirmasi ke pemohon
-        const applicantMember = await guild.members.fetch(applicantDiscordId).catch(() => null);
+        const applicantMember = guild.members.cache.get(applicantDiscordId) || await guild.members.fetch(applicantDiscordId).catch(() => null);
         if (applicantMember) {
           await applicantMember.send({
             embeds: [
@@ -1819,7 +1836,7 @@ export default {
           || await interaction.client.guilds.fetch(env.GUILD_ID).catch(() => null);
 
         if (guild) {
-          const applicantMember = await guild.members.fetch(applicantDiscordId).catch(() => null);
+          const applicantMember = guild.members.cache.get(applicantDiscordId) || await guild.members.fetch(applicantDiscordId).catch(() => null);
           if (applicantMember) {
             await applicantMember.send({
               embeds: [
@@ -1925,14 +1942,7 @@ export default {
         }
 
         // Build eligible members list (role-filtered)
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot || m.id === interaction.user.id) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild, { excludeUserId: interaction.user.id });
 
         const minMembersToSelect = 0;
         const maxMembersToSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
@@ -1996,14 +2006,7 @@ export default {
         }
 
         // Build eligible members list (role-filtered, staff themselves NOT excluded)
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild);
 
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
         const challenges = await getAllChallenges();
@@ -2059,13 +2062,7 @@ export default {
           setSession(sessionKey, session);
 
           // Rebuild dropdowns with new name and update original message
-          await interaction.guild.members.fetch().catch(() => {});
-          const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-          const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-            if (m.user.bot || m.id === interaction.user.id) return false;
-            if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-            return true;
-          });
+          const eligibleMembers = await getEligibleTeamMembers(interaction.guild, { excludeUserId: interaction.user.id });
 
           const minSelect = 0;
           const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
@@ -2127,13 +2124,7 @@ export default {
           session.teamName = newName;
           setSession(sessionKey, session);
 
-          await interaction.guild.members.fetch().catch(() => {});
-          const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-          const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-            if (m.user.bot) return false;
-            if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-            return true;
-          });
+          const eligibleMembers = await getEligibleTeamMembers(interaction.guild);
 
           const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
           const challenges = await getAllChallenges();
@@ -2506,13 +2497,7 @@ export default {
         setSession(sessionKey, session);
 
         // Rebuild the dropdowns
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot || m.id === interaction.user.id) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild, { excludeUserId: interaction.user.id });
 
         const minSelect = 0;
         const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
@@ -2560,13 +2545,7 @@ export default {
         }
         setSession(sessionKey, session);
 
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot || m.id === interaction.user.id) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild, { excludeUserId: interaction.user.id });
 
         const minSelect = Math.max(0, env.MIN_TEAM_SIZE - 1);
         const maxSelect = Math.max(1, env.MAX_TEAM_SIZE - 1);
@@ -2619,13 +2598,7 @@ export default {
         setSession(sessionKey, session);
 
         // Rebuild dropdowns
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild);
 
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
         const challenges = await getAllChallenges();
@@ -2671,13 +2644,7 @@ export default {
         }
         setSession(sessionKey, session);
 
-        await interaction.guild.members.fetch().catch(() => {});
-        const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');
-        const eligibleMembers = Array.from(interaction.guild.members.cache.values()).filter((m) => {
-          if (m.user.bot) return false;
-          if (filterRoleId && !m.roles.cache.has(filterRoleId)) return false;
-          return true;
-        });
+        const eligibleMembers = await getEligibleTeamMembers(interaction.guild);
 
         const selectRow = buildMemberSelectRow({ eligibleMembers, min: 1, max: env.MAX_TEAM_SIZE, isStaff: true });
         const challenges = await getAllChallenges();
