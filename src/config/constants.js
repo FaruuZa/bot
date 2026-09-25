@@ -65,7 +65,8 @@ export const AUDIT_ACTIONS = {
   CHALLENGE_CREATED: 'CHALLENGE_CREATED',
   CHALLENGE_UPDATED: 'CHALLENGE_UPDATED',
   CHALLENGE_DELETED: 'CHALLENGE_DELETED',
-  TEAMS_PURGED: 'TEAMS_PURGED'
+  TEAMS_PURGED: 'TEAMS_PURGED',
+  TEAM_SYNCED: 'TEAM_SYNCED'
 };
 
 export const EMBED_COLORS = {
@@ -145,5 +146,6 @@ export const CUSTOM_IDS = {
   BTN_TEAM_PANEL_RECRUIT_CLOSE: 'btn_team_panel_recruit_close',
   BTN_TEAM_PANEL_INFO: 'btn_team_panel_info',
   BTN_TEAM_PANEL_SET_CHALLENGE: 'btn_team_panel_set_challenge',
+  BTN_TEAM_PANEL_SYNC_NASA: 'btn_team_panel_sync_nasa',
   SELECT_TEAM_PANEL_CHALLENGE: 'select_team_panel_challenge_', // prefix + teamId
 };

@@ -21,7 +21,7 @@ import { TeamService } from '../services/teamService.js';
 import { AuditService } from '../services/auditService.js';
 import { PermissionService } from '../services/permissionService.js';
 import { getUserActiveTeamByDiscordId, getActiveTeamMembers, countActiveTeamMembers, getTeamMembers } from '../database/queries/memberQueries.js';
-import { getTeamById, purgeDisbandedTeams } from '../database/queries/teamQueries.js';
+import { getTeamById, getTeamByChannelId, purgeDisbandedTeams } from '../database/queries/teamQueries.js';
 import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
 import { getAllChallenges, getChallengeById } from '../database/queries/challengeQueries.js';
 import { ChallengeService } from '../services/challengeService.js';
@@ -1387,6 +1387,112 @@ export default {
         const members = await getTeamMembers(activeTeam.id);
         const embed = teamInfoEmbed(activeTeam, members);
         return await replyPermanent(interaction, { embeds: [embed] });
+      }
+
+      // Team Welcome Panel Button: Sinkronkan Web NASA
+      if (customId === CUSTOM_IDS.BTN_TEAM_PANEL_SYNC_NASA) {
+        let targetTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
+        const isAdmin = PermissionService.isStaff(interaction.member);
+
+        // If user is not the leader of their active team, check if admin clicking in a team channel
+        if ((!targetTeam || targetTeam.user_team_role !== 'LEADER') && !isAdmin) {
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Akses Terbatas', 'Hanya Team Leader yang dapat melakukan sinkronisasi web NASA untuk tim.')]
+          });
+        }
+
+        if (isAdmin && (!targetTeam || targetTeam.text_channel_id !== interaction.channelId)) {
+          const channelTeam = await getTeamByChannelId(interaction.channelId);
+          if (channelTeam) {
+            targetTeam = channelTeam;
+          }
+        }
+
+        if (!targetTeam) {
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Tim Tidak Ditemukan', 'Data tim tidak ditemukan.')]
+          });
+        }
+
+        if (!targetTeam.nsac_link) {
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Link NASA Belum Diatur', 'Tim belum memiliki tautan halaman resmi web NASA.')]
+          });
+        }
+
+        // Check 2-hour cooldown (admins bypass for testing)
+        const cooldownMs = NasaValidationService.getSyncCooldown(targetTeam.id);
+        if (cooldownMs > 0 && !isAdmin) {
+          const nextAvailableAt = Math.floor((Date.now() + cooldownMs) / 1000);
+          return await replyDismissable(interaction, {
+            embeds: [infoEmbed(
+              'Cooldown Sinkronisasi',
+              `Sinkronisasi profil web NASA untuk tim **${targetTeam.name}** baru saja dilakukan.\n\n` +
+              `Untuk menghindari pembatasan dari server NASA, fitur ini memiliki jeda 2 jam.\n` +
+              `Kamu dapat menyinkronkan kembali <t:${nextAvailableAt}:R> (pukul <t:${nextAvailableAt}:t>).`
+            )]
+          });
+        }
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        try {
+          const syncResult = await NasaValidationService.syncTeam(targetTeam.id, interaction.client);
+          if (!syncResult.success) {
+            return await interaction.editReply({
+              embeds: [errorEmbed('Sinkronisasi Gagal', syncResult.error || 'Terjadi kesalahan saat menyinkronkan data dari web NASA.')]
+            });
+          }
+
+          const changes = [];
+          if (syncResult.challengeUpdated) {
+            changes.push(`- **Tantangan Tim**: Diperbarui menjadi **${syncResult.challengeTitle}**`);
+          } else {
+            changes.push(`- **Tantangan Tim**: ${syncResult.challengeTitle} *(Tetap)*`);
+          }
+
+          if (syncResult.recruitmentOpened) {
+            changes.push(`- **Status Rekrutmen**: Web NASA terdeteksi **Mencari Anggota** -> Lowongan otomatis dibuka di recruitment board.`);
+          } else if (syncResult.recruitmentClosed) {
+            changes.push(`- **Status Rekrutmen**: Web NASA terdeteksi **Tidak Mencari Anggota** -> Lowongan di recruitment board otomatis ditutup.`);
+          } else {
+            const recruitStatus = syncResult.isLookingForTeammates ? 'Mencari Anggota' : 'Tidak Mencari Anggota';
+            changes.push(`- **Status Rekrutmen**: ${recruitStatus} *(Sesuai)*`);
+          }
+
+          if (syncResult.desiredSkills && syncResult.desiredSkills.length > 0) {
+            changes.push(`- **Keahlian yang Dicari**: ${syncResult.desiredSkills.join(', ')}`);
+          }
+
+          const nextCooldownAt = Math.floor((Date.now() + 2 * 60 * 60 * 1000) / 1000);
+
+          const resultEmbed = new EmbedBuilder()
+            .setTitle(`Sinkronisasi Web NASA — ${syncResult.teamName}`)
+            .setColor(EMBED_COLORS.SUCCESS)
+            .setDescription(
+              `Data tim berhasil disinkronkan langsung dari profil resmi NASA Space Apps Challenge.\n\n` +
+              changes.join('\n') +
+              `\n\n*Sinkronisasi berikutnya dapat dilakukan <t:${nextCooldownAt}:R>.*`
+            )
+            .setFooter({ text: 'NSAC Hackathon • Sinkronisasi Web NASA' })
+            .setTimestamp();
+
+          await AuditService.log(interaction.client, {
+            action: AUDIT_ACTIONS.TEAM_SYNCED,
+            title: 'Manual NASA Sync',
+            actorTag: interaction.user.tag,
+            teamId: targetTeam.id,
+            teamName: targetTeam.name,
+            details: `Manual sync dijalankan oleh ${interaction.user.tag}. Challenge: "${syncResult.challengeTitle}". Looking: ${syncResult.isLookingForTeammates}.`
+          });
+
+          return await interaction.editReply({ embeds: [resultEmbed] });
+        } catch (err) {
+          logger.error(`[TeamSync Button] Error syncing team ${targetTeam.id}: ${err.message}`);
+          return await interaction.editReply({
+            embeds: [errorEmbed('Terjadi Kesalahan', `Gagal menyinkronkan data tim: ${err.message}`)]
+          });
+        }
       }
 
       // ========================================================

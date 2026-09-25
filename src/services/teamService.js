@@ -421,6 +421,15 @@ export class TeamService {
         .setStyle(ButtonStyle.Secondary)
     );
 
+    if (team.nsac_link) {
+      mainRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId(CUSTOM_IDS.BTN_TEAM_PANEL_SYNC_NASA)
+          .setLabel('Sinkronkan Web NASA')
+          .setStyle(ButtonStyle.Primary)
+      );
+    }
+
     const components = [mainRow];
 
     if (team.nsac_link) {
@@ -511,7 +520,9 @@ export class TeamService {
             c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT ||
             c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_RECRUIT_CLOSE ||
             c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INVITE ||
-            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SET_CHALLENGE ||
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_SYNC_NASA ||
+            c.customId === CUSTOM_IDS.BTN_TEAM_PANEL_INFO
           )
         )
       );

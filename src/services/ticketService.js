@@ -147,19 +147,23 @@ export class TicketService {
         embeds: [registrationTicketEmbed(user)],
         components: [row]
       });
-      await ticketMsg.pin().catch(() => {});
 
-      await AuditService.log(interaction.client, {
+      // Reply to user immediately to minimize perceived delay
+      await interaction.editReply({
+        content: `Tiket pendaftaranmu telah dibuat: <#${channel.id}>`
+      });
+
+      // Non-blocking background operations (pinning & audit logging)
+      ticketMsg.pin().catch(() => {});
+      AuditService.log(interaction.client, {
         action: AUDIT_ACTIONS.TICKET_CREATED,
         title: 'Registration Ticket Created',
         actorId: dbUser.id,
         actorTag: user.tag,
         details: `Ticket channel <#${channel.id}> created.`
-      });
+      }).catch((err) => logger.warn(`[TicketService] Background audit log error: ${err.message}`));
 
-      return await interaction.editReply({
-        content: `Tiket pendaftaranmu telah dibuat: <#${channel.id}>`
-      });
+      return;
     } catch (error) {
       logger.error(`[TicketService] Failed to create registration ticket: ${error.message}`);
       return await interaction.editReply({
@@ -271,19 +275,22 @@ export class TicketService {
         embeds: [supportTicketEmbed(user)],
         components: [row]
       });
-      await ticketMsg.pin().catch(() => {});
+      // Reply to user immediately
+      await interaction.editReply({
+        content: `Tiket bantuanmu telah berhasil dibuat: <#${channel.id}>`
+      });
 
-      await AuditService.log(interaction.client, {
+      // Background non-blocking tasks
+      ticketMsg.pin().catch(() => {});
+      AuditService.log(interaction.client, {
         action: AUDIT_ACTIONS.TICKET_CREATED,
         title: 'Support Ticket Created',
         actorId: dbUser.id,
         actorTag: user.tag,
         details: `Support ticket <#${channel.id}> created.`
-      });
+      }).catch((err) => logger.warn(`[TicketService] Background audit log error: ${err.message}`));
 
-      return await interaction.editReply({
-        content: `Tiket bantuanmu telah berhasil dibuat: <#${channel.id}>`
-      });
+      return;
     } catch (error) {
       logger.error(`[TicketService] Failed to create support ticket: ${error.message}`);
       return await interaction.editReply({
