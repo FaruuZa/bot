@@ -7,6 +7,7 @@ import { InviteService } from '../services/inviteService.js';
 import { markExpiredInvitations } from '../database/queries/invitationQueries.js';
 import { CountdownService } from '../services/countdownService.js';
 import { NasaValidationService } from '../services/nasaValidationService.js';
+import { TicketService } from '../services/ticketService.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -67,7 +68,10 @@ export default {
     // 8. Start daily midnight challenge sync from NASA web
     NasaValidationService.startDailyMidnightSync(client);
 
-    // 9. Verify Guild and Key Configurations
+    // 9. Start background idle ticket reminder sweeper
+    TicketService.startTicketReminderSweeper(client);
+
+    // 10. Verify Guild and Key Configurations
     if (env.GUILD_ID) {
       const guild = client.guilds.cache.get(env.GUILD_ID);
       if (guild) {

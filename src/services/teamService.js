@@ -34,7 +34,7 @@ import { AuditService } from './auditService.js';
 import { InvitationService } from './invitationService.js';
 import { validateTeamName, validateTeamSize } from '../utils/validators.js';
 import { logger } from '../utils/logger.js';
-import { successEmbed, errorEmbed } from '../utils/embeds.js';
+import { successEmbed, errorEmbed, infoEmbed } from '../utils/embeds.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { CUSTOM_IDS } from '../config/constants.js';
 
@@ -119,7 +119,7 @@ export class TeamService {
    * @param {string|null} [nsacLink=null] - Link tim yang terdaftar di web NSAC resmi
    * @param {number|null} [challengeId=null] - ID challenge yang dipilih oleh ketua tim
    */
-  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null, skipInvitations = false, allowSolo = false, nsacLink = null, challengeId = null }) {
+  static async startRegistration({ teamName, leaderMember, memberIds, guild, client, ticketChannel = null, skipInvitations = false, allowSolo = false, isStaff = false, nsacLink = null, challengeId = null }) {
     const validation = await this.validateRegistration({ teamName, leaderMember, memberIds, guild, allowSolo });
     if (!validation.valid) {
       return { success: false, error: validation.error };
@@ -158,7 +158,7 @@ export class TeamService {
         invitedUsers.push({ user: memberUser, member });
 
         if (skipInvitations) {
-          // Staff override: langsung tambah sebagai ACTIVE
+          // Direct Join / Staff override: langsung tambah sebagai ACTIVE
           await addTeamMember({
             teamId: team.id,
             userId: memberUser.id,
@@ -188,16 +188,51 @@ export class TeamService {
     });
 
     if (skipInvitations) {
-      await AuditService.log(client, {
-        action: AUDIT_ACTIONS.STAFF_OVERRIDE,
-        title: 'Staff Team Creation',
-        actorId: null,
-        actorTag: 'Staff Panel',
-        teamId: team.id,
-        teamName: team.name,
-        details: `Staff langsung membuat tim "${team.name}" dengan ${uniqueMemberIds.length} anggota (tanpa alur undangan).`
-      });
-      return { success: true, team, pendingInvitations: false };
+      // Kirim DM pemberitahuan non-blocking ke anggota yang didaftarkan (jika ada)
+      if (invitedUsers.length > 0) {
+        setImmediate(async () => {
+          for (const { member } of invitedUsers) {
+            try {
+              await member.send({
+                embeds: [
+                  infoEmbed(
+                    'Kamu Telah Bergabung ke Tim',
+                    `Halo ${member.user.username}!\n\n` +
+                    `Kamu telah didaftarkan langsung ke dalam tim **${team.name}** oleh <@${leaderUser.id}>.\n` +
+                    `Akses role dan channel tim di server **${guild.name}** telah diberikan. Silakan cek channel tim untuk berkoordinasi!`
+                  )
+                ]
+              });
+            } catch (dmErr) {
+              logger.warn(`[TeamService] Tidak dapat mengirim DM notifikasi ke ${member.user.tag}: ${dmErr.message}`);
+            }
+          }
+        });
+      }
+
+      if (isStaff) {
+        await AuditService.log(client, {
+          action: AUDIT_ACTIONS.STAFF_OVERRIDE,
+          title: 'Staff Team Creation',
+          actorId: null,
+          actorTag: 'Staff Panel',
+          teamId: team.id,
+          teamName: team.name,
+          details: `Staff langsung membuat tim "${team.name}" dengan ${uniqueMemberIds.length} anggota.`
+        });
+      } else {
+        await AuditService.log(client, {
+          action: AUDIT_ACTIONS.TEAM_CREATED,
+          title: 'Pendaftaran Tim Selesai',
+          actorId: leaderUser.id,
+          actorTag: leaderMember.user.tag,
+          teamId: team.id,
+          teamName: team.name,
+          details: `Leader mendaftarkan tim "${team.name}" dengan ${uniqueMemberIds.length} anggota langsung terdaftar (Direct Join).`
+        });
+      }
+
+      return { success: true, team, pendingInvitations: false, invitedCount: uniqueMemberIds.length };
     }
 
     // Kirim DM undangan setelah transaksi selesai
@@ -511,7 +546,9 @@ export class TeamService {
 
       // Cari panel yang sudah ada (utamakan cek pinned messages terlebih dahulu agar cepat)
       let panelMsg = null;
-      const pinned = await channel.messages.fetchPinned().catch(() => null);
+      const pinned = typeof channel.messages.fetchPins === 'function'
+        ? await channel.messages.fetchPins().catch(() => null)
+        : await channel.messages.fetchPinned().catch(() => null);
       if (pinned && pinned.size > 0) {
         panelMsg = pinned.find((m) =>
           m.author.id === guild.client.user.id &&

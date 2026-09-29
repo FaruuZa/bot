@@ -210,6 +210,38 @@ async function getEligibleTeamMembers(guild, { excludeUserId = null } = {}) {
 }
 
 /**
+ * Handle expired registration session gracefully with action buttons to restart or close
+ */
+async function handleExpiredSession(interaction, isStaff = false) {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(isStaff ? CUSTOM_IDS.BTN_STAFF_ADD_TEAM : CUSTOM_IDS.BTN_OPEN_REG_MODAL)
+      .setLabel(isStaff ? 'Buat Tim Ulang (Staff)' : 'Mulai / Isi Ulang Data Tim')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(CUSTOM_IDS.BTN_CLOSE_TICKET)
+      .setLabel('Tutup Tiket')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const payload = {
+    embeds: [
+      errorEmbed(
+        'Sesi Kadaluarsa',
+        'Sesi pendaftaran tim kamu telah berakhir karena tidak ada aktivitas dalam waktu lama.\n\n' +
+        'Silakan klik tombol **Mulai / Isi Ulang Data Tim** di bawah untuk memulai ulang pendaftaran dengan data segar.'
+      )
+    ],
+    components: [row]
+  };
+
+  if (interaction.replied || interaction.deferred) {
+    return await interaction.editReply(payload).catch(() => {});
+  }
+  return await interaction.update(payload).catch(() => {});
+}
+
+/**
  * Build member select dropdown for a given eligible members list and team name.
  * Returns null if eligibleMembers is empty (caller should handle gracefully).
  */
@@ -680,10 +712,7 @@ export default {
         const sessionKey = `member_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({
-            embeds: [errorEmbed('Sesi Kadaluarsa', '⏰ Sesi pendaftaran telah habis. Silakan mulai ulang dari awal.')],
-            components: []
-          });
+          return await handleExpiredSession(interaction, false);
         }
 
         await interaction.update({
@@ -706,6 +735,7 @@ export default {
             guild: interaction.guild,
             client: interaction.client,
             ticketChannel: interaction.channel,
+            skipInvitations: true,
             nsacLink: session.nsacLink,
             challengeId: session.challengeId
           });
@@ -722,25 +752,22 @@ export default {
           // Langsung provision channel & role tim karena tim langsung ACTIVE
           await TeamService.finalizeTeamCreation(result.team.id, interaction.guild, interaction.client);
 
-          if (result.pendingInvitations) {
-            const unixExpiry = Math.floor(new Date(result.expiresAt).getTime() / 1000);
-            const memberMentions = session.memberIds.map((id) => `<@${id}>`).join(', ');
-            return await interaction.editReply({
-              embeds: [successEmbed(
-                'Tim Berhasil Dibuat & Undangan Terkirim',
-                `Tim **${session.teamName}** telah aktif dan channel tim sudah siap digunakan.\n\n` +
-                `Undangan telah dikirimkan ke: ${memberMentions}\n` +
-                `Batas waktu konfirmasi: <t:${unixExpiry}:R>\n\n` +
-                `Ketika anggota menekan **Terima**, mereka akan langsung otomatis bergabung ke dalam tim dan mendapatkan akses channel tim.`
-              )],
-              components: []
-            });
-          } else {
-            return await interaction.editReply({
-              embeds: [successEmbed('Tim Berhasil Dibuat', `Tim **${session.teamName}** telah aktif dan channel tim siap digunakan.`)],
-              components: []
-            });
-          }
+          const memberMentions = session.memberIds.length > 0
+            ? session.memberIds.map((id) => `<@${id}>`).join(', ')
+            : '*(Solo)*';
+
+          return await interaction.editReply({
+            embeds: [successEmbed(
+              'Tim Berhasil Didaftarkan',
+              `Tim **${session.teamName}** telah aktif dan channel tim sudah siap digunakan!\n\n` +
+              `• Leader: <@${interaction.user.id}>\n` +
+              `• Challenge: ${session.challengeTitle ? `**${session.challengeTitle}**` : '*(Belum memilih)*'}\n` +
+              `• Link Tim NSAC: ${session.nsacLink || '*(Belum diatur)*'}\n` +
+              `• Anggota: ${memberMentions}\n\n` +
+              `Seluruh anggota telah otomatis mendapatkan role dan akses ke channel tim.`
+            )],
+            components: []
+          });
         } catch (err) {
           logger.error(`[Reg Confirm Error] ${err.message}`);
           return await interaction.editReply({
@@ -764,7 +791,7 @@ export default {
         const sessionKey = `member_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang dari awal.')], components: [] });
+          return await handleExpiredSession(interaction, false);
         }
 
         await interaction.update({
@@ -815,7 +842,7 @@ export default {
         const sessionKey = `member_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang dari awal.')], components: [] });
+          return await handleExpiredSession(interaction, false);
         }
 
         const eligibleMembers = await getEligibleTeamMembers(interaction.guild, { excludeUserId: interaction.user.id });
@@ -872,7 +899,7 @@ export default {
         const sessionKey = `staff_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang.')], components: [] });
+          return await handleExpiredSession(interaction, true);
         }
 
         await interaction.update({
@@ -901,6 +928,7 @@ export default {
             client: interaction.client,
             ticketChannel: null,
             skipInvitations: true,
+            isStaff: true,
             nsacLink: session.nsacLink,
             challengeId: session.challengeId
           });
@@ -948,7 +976,7 @@ export default {
         const sessionKey = `staff_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang.')], components: [] });
+          return await handleExpiredSession(interaction, true);
         }
 
         await interaction.update({
@@ -971,6 +999,7 @@ export default {
             client: interaction.client,
             skipInvitations: true,
             allowSolo: true,
+            isStaff: true,
             nsacLink: session.nsacLink,
             challengeId: session.challengeId
           });
@@ -997,7 +1026,7 @@ export default {
         const sessionKey = `staff_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Silakan mulai ulang.')], components: [] });
+          return await handleExpiredSession(interaction, true);
         }
 
         const eligibleMembers = await getEligibleTeamMembers(interaction.guild);
@@ -2488,7 +2517,7 @@ export default {
 
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis. Silakan mulai ulang dari awal.')], components: [] });
+          return await handleExpiredSession(interaction, false);
         }
 
         // Update session with selected members
@@ -2531,7 +2560,7 @@ export default {
         const sessionKey = `member_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis.')], components: [] });
+          return await handleExpiredSession(interaction, false);
         }
 
         if (selectedVal === 'none') {
@@ -2589,7 +2618,7 @@ export default {
 
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis. Silakan mulai ulang.')], components: [] });
+          return await handleExpiredSession(interaction, true);
         }
 
         // Update session
@@ -2630,7 +2659,7 @@ export default {
         const sessionKey = `staff_${interaction.user.id}`;
         const session = getSession(sessionKey);
         if (!session) {
-          return await interaction.update({ embeds: [errorEmbed('Sesi Kadaluarsa', 'Sesi pendaftaran habis.')], components: [] });
+          return await handleExpiredSession(interaction, true);
         }
 
         if (selectedVal === 'none') {

@@ -100,6 +100,8 @@ CREATE TABLE IF NOT EXISTS tickets (
     created_by INT REFERENCES users(id) ON DELETE SET NULL,
     type VARCHAR(30) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    reminder_count INT DEFAULT 0,
+    last_reminded_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     closed_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT chk_ticket_type CHECK (type IN ('TEAM_REGISTRATION', 'SUPPORT')),
@@ -175,3 +177,7 @@ CREATE TABLE IF NOT EXISTS team_recruitments (
 CREATE INDEX IF NOT EXISTS idx_recruitments_team ON team_recruitments(team_id);
 CREATE INDEX IF NOT EXISTS idx_recruitments_status ON team_recruitments(status);
 CREATE INDEX IF NOT EXISTS idx_recruitments_message ON team_recruitments(message_id);
+
+-- Migration updates for tickets table
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS reminder_count INT DEFAULT 0;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS last_reminded_at TIMESTAMP WITH TIME ZONE;
