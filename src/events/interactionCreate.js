@@ -186,7 +186,7 @@ function buildStaffRegEmbed({ teamName, nsacLink, challengeTitle, memberIds = []
  */
 async function getEligibleTeamMembers(guild, { excludeUserId = null } = {}) {
   if (!guild) return [];
-  if (guild.members.cache.size <= 2) {
+  if (guild.members.cache.size < guild.memberCount) {
     await guild.members.fetch().catch(() => {});
   }
   const filterRoleId = GuildConfigService.get('TEAM_MEMBER_SELECT_ROLE_ID') || GuildConfigService.get('NO_TEAM_ROLE_ID');

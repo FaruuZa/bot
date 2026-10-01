@@ -56,32 +56,22 @@ export class DashboardService {
    * @param {import('discord.js').Guild} guild 
    */
   static async buildOverviewPayload(guild) {
-    // 1. Fetch team and challenge statistics
+    // 1. Fetch team statistics
     const { rows: stats } = await pool.query(`
       SELECT
         COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_count,
-        COUNT(*) FILTER (WHERE status = 'PENDING') as pending_count,
         COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived_count,
-        COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NOT NULL) as with_challenge_count,
-        COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NULL) as no_challenge_count,
-        COUNT(*) FILTER (WHERE status = 'ACTIVE' AND nsac_link IS NOT NULL AND nsac_link != '') as with_link_count,
-        (SELECT COUNT(*) FROM challenges) as challenge_count,
         (SELECT COUNT(DISTINCT user_id) FROM team_members WHERE status = 'ACTIVE') as active_members_count
       FROM teams
     `);
     const s = stats[0] || {
       active_count: 0,
-      pending_count: 0,
       archived_count: 0,
-      with_challenge_count: 0,
-      no_challenge_count: 0,
-      with_link_count: 0,
-      challenge_count: 0,
       active_members_count: 0
     };
 
-    // 2. Fetch latest guild members only if cache is cold
-    if (guild.members.cache.size <= 2) {
+    // 2. Fetch latest guild members if cache is incomplete
+    if (guild.members.cache.size < guild.memberCount) {
       await guild.members.fetch().catch(() => {});
     }
 
@@ -139,17 +129,7 @@ export class DashboardService {
           name: 'Ringkasan Tim Hackathon',
           value:
             `• **Tim Aktif:** \`${s.active_count}\` tim\n` +
-            `• **Menunggu Verifikasi:** \`${s.pending_count}\` tim\n` +
             `• **Diarsipkan:** \`${s.archived_count}\` tim`,
-          inline: true
-        },
-        {
-          name: 'Challenge & Profil Web NASA',
-          value:
-            `• **Tantangan Terdaftar:** \`${s.challenge_count}\` challenge\n` +
-            `• **Sudah Pilih Challenge:** \`${s.with_challenge_count}\` tim\n` +
-            `• **Belum Pilih Challenge:** \`${s.no_challenge_count}\` tim\n` +
-            `• **Tautan NSAC Terisi:** \`${s.with_link_count}\` tim`,
           inline: false
         }
       )
@@ -533,6 +513,7 @@ export class DashboardService {
    * @param {import('discord.js').Guild} guild 
    */
   static async refreshAllPanels(guild) {
+    await guild.members.fetch().catch(() => {});
     await Promise.allSettled([
       this.refreshOverviewPanel(guild),
       this.refreshRolesPanel(guild),

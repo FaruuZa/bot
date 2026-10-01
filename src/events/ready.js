@@ -76,6 +76,12 @@ export default {
       const guild = client.guilds.cache.get(env.GUILD_ID);
       if (guild) {
         logger.info(`[Startup] Target Guild: "${guild.name}" (${guild.id}) - Members: ${guild.memberCount}`);
+        try {
+          await guild.members.fetch();
+          logger.info(`[Startup] Member cache warmed up (${guild.members.cache.size} members cached).`);
+        } catch (err) {
+          logger.warn(`[Startup Warning] Could not warm up guild member cache: ${err.message}`);
+        }
       } else {
         logger.warn(`[Startup] Target Guild with ID ${env.GUILD_ID} was not found in cache.`);
       }
