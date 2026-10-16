@@ -491,18 +491,58 @@ export class TeamService {
   /**
    * Buat embed recruitment board untuk postingan lowongan tim
    */
-  static buildRecruitmentBoardEmbed({ teamName, description, leaderDiscordId, challengeTitle, slotsNeeded, currentCount, maxTeamSize }) {
+  static buildRecruitmentBoardEmbed({
+    teamName,
+    description,
+    leaderDiscordId = null,
+    challengeTitle = null,
+    slotsNeeded = 1,
+    currentCount = 1,
+    maxTeamSize = env.MAX_TEAM_SIZE,
+    isExternal = false,
+    desiredSkills = null
+  }) {
     let challengeValue = '*(Belum memilih)*';
     if (challengeTitle) {
       const trimmed = challengeTitle.trim();
       challengeValue = trimmed.length > 200 ? `**${trimmed.substring(0, 197)}...**` : `**${trimmed}**`;
     }
 
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
       .setTitle(`Lowongan Tim — ${teamName}`)
       .setColor(EMBED_COLORS.PRIMARY)
-      .setDescription(description ? `"${description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.')
-      .addFields(
+      .setDescription(description ? `"${description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.');
+
+    if (isExternal) {
+      embed.addFields(
+        {
+          name: 'Challenge',
+          value: challengeValue,
+          inline: false
+        },
+        {
+          name: 'Status di Discord',
+          value: '*(Belum ada di server Discord)*',
+          inline: true
+        },
+        {
+          name: 'Status Rekrutmen',
+          value: '**Membuka Lowongan (Open)**',
+          inline: true
+        }
+      );
+
+      if (desiredSkills && Array.isArray(desiredSkills) && desiredSkills.length > 0) {
+        embed.addFields({
+          name: 'Keahlian yang Dicari',
+          value: desiredSkills.join(', ').substring(0, 1024),
+          inline: false
+        });
+      }
+
+      embed.setFooter({ text: 'NSAC Hackathon • Team Recruitment Board (Web Space Apps)' });
+    } else {
+      embed.addFields(
         {
           name: 'Challenge',
           value: challengeValue,
@@ -510,7 +550,7 @@ export class TeamService {
         },
         {
           name: 'Leader Tim',
-          value: `<@${leaderDiscordId}>`,
+          value: leaderDiscordId ? `<@${leaderDiscordId}>` : '*(Tidak ada)*',
           inline: true
         },
         {
@@ -523,9 +563,21 @@ export class TeamService {
           value: `**${currentCount}** / ${maxTeamSize}`,
           inline: true
         }
-      )
-      .setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' })
-      .setTimestamp();
+      );
+
+      if (desiredSkills && Array.isArray(desiredSkills) && desiredSkills.length > 0) {
+        embed.addFields({
+          name: 'Keahlian yang Dicari',
+          value: desiredSkills.join(', ').substring(0, 1024),
+          inline: false
+        });
+      }
+
+      embed.setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' });
+    }
+
+    embed.setTimestamp();
+    return embed;
   }
 
   /**

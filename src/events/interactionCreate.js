@@ -514,6 +514,40 @@ export default {
         return await interaction.update({ embeds: [embed], components });
       }
 
+      // IA. Team Panel: Sync Open Recruitment
+      if (customId === 'team_panel_sync_open_rec') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat menyinkronkan open recruitment.')] });
+        }
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const syncResult = await NasaValidationService.syncOpenRecruitmentFromWeb(interaction.client, interaction.guild);
+        if (!syncResult.success) {
+          return await interaction.editReply({
+            embeds: [errorEmbed('Sinkronisasi Gagal', syncResult.error)]
+          });
+        }
+
+        // Refresh overview dashboard jika ada
+        await DashboardService.refreshOverviewPanel(interaction.guild).catch(() => {});
+
+        return await interaction.editReply({
+          embeds: [
+            successEmbed(
+              'Sinkronisasi Open Recruitment Berhasil',
+              `Data lowongan tim dari web NASA Space Apps (Jember) berhasil disinkronkan ke recruitment board!\n\n` +
+              `• **Total Tim di Web NASA:** ${syncResult.totalWebTeams || 0} tim\n` +
+              `• **Tim Open Recruitment:** ${syncResult.openWebTeamsCount || 0} tim\n` +
+              `• **Lowongan Baru Diposting:** ${syncResult.createdCount || 0}\n` +
+              `• **Lowongan Diperbarui:** ${syncResult.updatedCount || 0}\n` +
+              `• **Lowongan Ditutup:** ${syncResult.closedCount || 0}\n` +
+              `• **Total Lowongan Aktif di Bot:** ${syncResult.totalOpenRec || 0} tim`
+            )
+          ]
+        });
+      }
+
       // J. Team Panel: Export Summary
       if (customId === 'team_panel_export_summary') {
         if (!PermissionService.isStaff(interaction.member)) {
@@ -1101,6 +1135,40 @@ export default {
         await interaction.deferUpdate().catch(() => {});
         await DashboardService.refreshAllPanels(interaction.guild);
         return;
+      }
+
+      if (customId === 'dashboard_sync_open_rec') {
+        if (!PermissionService.isStaff(interaction.member)) {
+          return await replyDismissable(interaction, {
+            embeds: [errorEmbed('Staff Only', 'Hanya staf/admin yang dapat menyinkronkan open recruitment.')]
+          });
+        }
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const syncResult = await NasaValidationService.syncOpenRecruitmentFromWeb(interaction.client, interaction.guild);
+        if (!syncResult.success) {
+          return await interaction.editReply({
+            embeds: [errorEmbed('Sinkronisasi Gagal', syncResult.error)]
+          });
+        }
+
+        await DashboardService.refreshOverviewPanel(interaction.guild).catch(() => {});
+
+        return await interaction.editReply({
+          embeds: [
+            successEmbed(
+              'Sinkronisasi Open Recruitment Berhasil',
+              `Data lowongan tim dari web NASA Space Apps (Jember) berhasil disinkronkan ke recruitment board!\n\n` +
+              `• **Total Tim di Web NASA:** ${syncResult.totalWebTeams || 0} tim\n` +
+              `• **Tim Open Recruitment:** ${syncResult.openWebTeamsCount || 0} tim\n` +
+              `• **Lowongan Baru Diposting:** ${syncResult.createdCount || 0}\n` +
+              `• **Lowongan Diperbarui:** ${syncResult.updatedCount || 0}\n` +
+              `• **Lowongan Ditutup:** ${syncResult.closedCount || 0}\n` +
+              `• **Total Lowongan Aktif di Bot:** ${syncResult.totalOpenRec || 0} tim`
+            )
+          ]
+        });
       }
 
       if (customId === 'dashboard_invite_refresh') {

@@ -161,10 +161,10 @@ CREATE TABLE IF NOT EXISTS invite_roles (
 CREATE INDEX IF NOT EXISTS idx_invite_roles_code ON invite_roles(invite_code);
 ALTER TABLE invite_roles ADD COLUMN IF NOT EXISTS role_ids JSONB DEFAULT '[]'::jsonb;
 
--- 11. Team Recruitments Table (posting lowongan anggota oleh leader)
+-- 11. Team Recruitments Table (posting lowongan anggota oleh leader atau sync dari web Space Apps)
 CREATE TABLE IF NOT EXISTS team_recruitments (
     id SERIAL PRIMARY KEY,
-    team_id INT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    team_id INT REFERENCES teams(id) ON DELETE CASCADE,
     channel_id VARCHAR(32) NOT NULL,
     message_id VARCHAR(32) NOT NULL,
     slots_needed INT NOT NULL DEFAULT 1,
@@ -172,12 +172,23 @@ CREATE TABLE IF NOT EXISTS team_recruitments (
     status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     closed_at TIMESTAMP WITH TIME ZONE,
+    external_team_name VARCHAR(255),
+    external_url TEXT,
+    external_slug VARCHAR(255),
     CONSTRAINT chk_recruitment_status CHECK (status IN ('OPEN', 'CLOSED'))
 );
 CREATE INDEX IF NOT EXISTS idx_recruitments_team ON team_recruitments(team_id);
 CREATE INDEX IF NOT EXISTS idx_recruitments_status ON team_recruitments(status);
 CREATE INDEX IF NOT EXISTS idx_recruitments_message ON team_recruitments(message_id);
 
+-- Migration updates for team_recruitments to support external / web teams
+ALTER TABLE team_recruitments ALTER COLUMN team_id DROP NOT NULL;
+ALTER TABLE team_recruitments ADD COLUMN IF NOT EXISTS external_team_name VARCHAR(255);
+ALTER TABLE team_recruitments ADD COLUMN IF NOT EXISTS external_url TEXT;
+ALTER TABLE team_recruitments ADD COLUMN IF NOT EXISTS external_slug VARCHAR(255);
+CREATE INDEX IF NOT EXISTS idx_recruitments_external_slug ON team_recruitments(external_slug);
+
 -- Migration updates for tickets table
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS reminder_count INT DEFAULT 0;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS last_reminded_at TIMESTAMP WITH TIME ZONE;
+

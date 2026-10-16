@@ -50,7 +50,8 @@ export async function buildTeamPanelDashboard(guild) {
       COUNT(*) FILTER (WHERE status = 'PENDING') as pending_count,
       COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived_count,
       COUNT(*) FILTER (WHERE status = 'DISBANDED') as disbanded_count,
-      COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NOT NULL) as with_challenge_count
+      COUNT(*) FILTER (WHERE status = 'ACTIVE' AND challenge_id IS NOT NULL) as with_challenge_count,
+      (SELECT COUNT(*) FROM team_recruitments WHERE status = 'OPEN') as open_rec_count
     FROM teams
   `);
 
@@ -73,7 +74,7 @@ export async function buildTeamPanelDashboard(guild) {
     LIMIT 25
   `);
 
-  const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0, disbanded_count: 0, with_challenge_count: 0 };
+  const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0, disbanded_count: 0, with_challenge_count: 0, open_rec_count: 0 };
 
   const embed = new EmbedBuilder()
     .setTitle('Hackathon Team Admin Panel')
@@ -84,7 +85,7 @@ export async function buildTeamPanelDashboard(guild) {
     .setColor(EMBED_COLORS.PRIMARY)
     .addFields(
       { name: 'Tim Aktif', value: `**${s.active_count}** Tim (${s.with_challenge_count || 0} ber-challenge)`, inline: true },
-      { name: 'Menunggu Konfirmasi', value: `**${s.pending_count}** Tim`, inline: true },
+      { name: 'Open Recruitment', value: `**${s.open_rec_count || 0}** Tim`, inline: true },
       { name: 'Diarsipkan / Bubar', value: `**${s.archived_count}** / **${s.disbanded_count}**`, inline: true }
     )
     .setFooter({ text: 'NSAC Team Management Dashboard' })
@@ -119,13 +120,17 @@ export async function buildTeamPanelDashboard(guild) {
       .setLabel('Tambah Tim')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
+      .setCustomId('team_panel_sync_open_rec')
+      .setLabel('Sync Open Rec')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
       .setCustomId('team_panel_refresh')
       .setLabel('Refresh Data')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('team_panel_export_summary')
       .setLabel('Export Ringkasan')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Secondary)
   );
 
   if (parseInt(s.disbanded_count, 10) > 0) {

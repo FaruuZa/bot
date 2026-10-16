@@ -9,6 +9,7 @@ import {
 } from 'discord.js';
 import { GuildConfigService } from './guildConfigService.js';
 import { getAllInviteRoles } from '../database/queries/inviteQueries.js';
+import { countOpenRecruitments } from '../database/queries/recruitmentQueries.js';
 import { pool } from '../database/pool.js';
 import { EMBED_COLORS } from '../config/constants.js';
 import { CountdownService } from './countdownService.js';
@@ -101,6 +102,8 @@ export class DashboardService {
 
     const countdown = CountdownService.getCountdownInfo();
 
+    const openRecCount = await countOpenRecruitments();
+
     // 3. Build Embed
     const embed = new EmbedBuilder()
       .setTitle('NSAC Admin Dashboard — Overview & Tim')
@@ -129,6 +132,7 @@ export class DashboardService {
           name: 'Ringkasan Tim Hackathon',
           value:
             `• **Tim Aktif:** \`${s.active_count}\` tim\n` +
+            `• **Tim Open Recruitment:** \`${openRecCount}\` tim\n` +
             `• **Diarsipkan:** \`${s.archived_count}\` tim`,
           inline: false
         }
@@ -147,8 +151,12 @@ export class DashboardService {
         .setLabel('Kelola Tim')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
+        .setCustomId('dashboard_sync_open_rec')
+        .setLabel('Sync Open Rec')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
         .setCustomId('dashboard_refresh_all')
-        .setLabel('Refresh Semua Panel')
+        .setLabel('Refresh Panel')
         .setStyle(ButtonStyle.Secondary)
     );
 

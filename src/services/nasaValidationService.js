@@ -11,7 +11,12 @@ import { countActiveTeamMembers } from '../database/queries/memberQueries.js';
 import {
   createRecruitment,
   getOpenRecruitmentByTeam,
-  closeAllRecruitmentsByTeam
+  closeAllRecruitmentsByTeam,
+  getOpenRecruitmentByExternalSlug,
+  createExternalRecruitment,
+  closeExternalRecruitment,
+  getAllOpenRecruitments,
+  countOpenRecruitments
 } from '../database/queries/recruitmentQueries.js';
 import { pool } from '../database/pool.js';
 import { EMBED_COLORS, AUDIT_ACTIONS, CUSTOM_IDS } from '../config/constants.js';
@@ -593,6 +598,365 @@ export class NasaValidationService {
     }
 
     logger.info(`[NasaSync] Sinkronisasi tengah malam selesai. Sebanyak ${updatedCount} tim diperbarui, ${skippedCount} tim dilewati (sudah sync sebelumnya).`);
+
+    // Otomatis sinkronkan lowongan rekrutmen dari web Space Apps (Jember)
+    try {
+      await this.syncOpenRecruitmentFromWeb(client);
+    } catch (openRecErr) {
+      logger.warn(`[NasaSync] Gagal menyinkronkan open recruitment dari web NASA: ${openRecErr.message}`);
+    }
+  }
+
+  /**
+   * Fetch all teams registered for the Jember local event from NASA Space Apps GraphQL API
+   * @param {string} [locationId='aWQ6NTQ3OTM='] - Base64 encoded location ID for Jember
+   * @returns {Promise<Array<{
+   *   id: string,
+   *   title: string,
+   *   slug: string,
+   *   url: string,
+   *   description: string|null,
+   *   joinEnabled: boolean,
+   *   canAcceptMembers: boolean,
+   *   desiredSkills: string[]|null,
+   *   challengeTitle: string|null
+   * }>>}
+   */
+  static async fetchJemberTeamsFromWeb(locationId = 'aWQ6NTQ3OTM=') {
+    const query = `
+      query GetJemberTeams($filtering: [Filter!]) {
+        teams(first: 100, filtering: $filtering) {
+          totalCount
+          edges {
+            node {
+              id
+              title
+              meta {
+                slug
+                relativeUrl
+              }
+              description
+              joinEnabled
+              canAcceptMembers
+              desiredSkills
+              challengeDetails {
+                id
+                title
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const res = await fetch('https://api.spaceappschallenge.org/graphql', {
+        method: 'POST',
+        dispatcher: sslSafeDispatcher,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        },
+        body: JSON.stringify({
+          query,
+          variables: {
+            filtering: [
+              { field: 'location', value: locationId, compare: 'id' }
+            ]
+          }
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error(`GraphQL API merespons dengan status HTTP ${res.status}`);
+      }
+
+      const body = await res.json();
+      if (body.errors && body.errors.length > 0) {
+        throw new Error(body.errors[0]?.message || 'Kesalahan pada respons GraphQL Space Apps');
+      }
+
+      const edges = body.data?.teams?.edges || [];
+      return edges.map(({ node }) => ({
+        id: node.id,
+        title: (node.title || 'Untitled Team').trim(),
+        slug: node.meta?.slug || '',
+        url: node.meta?.relativeUrl ? `https://www.spaceappschallenge.org${node.meta.relativeUrl}` : 'https://www.spaceappschallenge.org/2026/local-events/jember/?tab=teams',
+        description: node.description || null,
+        joinEnabled: !!node.joinEnabled,
+        canAcceptMembers: node.canAcceptMembers !== false,
+        desiredSkills: Array.isArray(node.desiredSkills) && node.desiredSkills.length > 0 ? node.desiredSkills : null,
+        challengeTitle: node.challengeDetails?.title || null
+      }));
+    } catch (err) {
+      logger.error(`[NasaSync] Gagal mengambil tim Jember dari API GraphQL Space Apps: ${err.message}`);
+      throw err;
+    }
+  }
+
+  /**
+   * Sinkronkan tim berstatus Open Recruitment dari web resmi NASA Space Apps (Jember)
+   * ke recruitment board Discord bot.
+   *
+   * @param {import('discord.js').Client} client 
+   * @param {import('discord.js').Guild|null} [guild=null]
+   * @returns {Promise<{
+   *   success: boolean,
+   *   error?: string,
+   *   totalWebTeams?: number,
+   *   openWebTeamsCount?: number,
+   *   createdCount?: number,
+   *   updatedCount?: number,
+   *   closedCount?: number,
+   *   totalOpenRec?: number
+   * }>}
+   */
+  static async syncOpenRecruitmentFromWeb(client, guild = null) {
+    const targetGuild = guild || (env.GUILD_ID ? client.guilds.cache.get(env.GUILD_ID) : client.guilds.cache.first());
+    if (!targetGuild) {
+      return { success: false, error: 'Server Discord (Guild) tidak ditemukan.' };
+    }
+
+    const recruitChannelId = GuildConfigService.get('RECRUITMENT_CHANNEL_ID');
+    if (!recruitChannelId) {
+      return { success: false, error: 'Channel recruitment board belum dikonfigurasi (`RECRUITMENT_CHANNEL_ID`). Silakan atur terlebih dahulu melalui panel admin.' };
+    }
+
+    const recruitChannel = targetGuild.channels.cache.get(recruitChannelId)
+      || await targetGuild.channels.fetch(recruitChannelId).catch(() => null);
+
+    if (!recruitChannel || !recruitChannel.isTextBased()) {
+      return { success: false, error: `Channel recruitment board (<#${recruitChannelId}>) tidak valid atau bot tidak memiliki akses kirim pesan.` };
+    }
+
+    let webTeams = [];
+    try {
+      webTeams = await this.fetchJemberTeamsFromWeb();
+    } catch (err) {
+      return { success: false, error: `Gagal mengambil data tim dari situs NASA Space Apps: ${err.message}` };
+    }
+
+    // Ambil data tim lokal aktif dari database Discord
+    const { rows: localTeams } = await pool.query(`
+      SELECT t.*, u.discord_id as leader_discord_id, c.title as challenge_title
+      FROM teams t
+      LEFT JOIN users u ON t.leader_id = u.id
+      LEFT JOIN challenges c ON t.challenge_id = c.id
+      WHERE t.status != 'DISBANDED'
+    `);
+
+    // Ambil semua entri lowongan yang saat ini OPEN di database
+    const openRecruitments = await getAllOpenRecruitments();
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let closedCount = 0;
+    let openWebTeamsCount = 0;
+
+    for (const webTeam of webTeams) {
+      const isOpenRec = webTeam.joinEnabled && webTeam.canAcceptMembers;
+
+      if (isOpenRec) {
+        openWebTeamsCount++;
+
+        // Cek apakah tim cocok dengan tim lokal yang sudah terdaftar di Discord
+        const matchedLocal = localTeams.find((lt) => {
+          const nameMatches = lt.name && webTeam.title && lt.name.trim().toLowerCase() === webTeam.title.trim().toLowerCase();
+          const linkMatches = lt.nsac_link && webTeam.slug && lt.nsac_link.toLowerCase().includes(webTeam.slug.toLowerCase());
+          return nameMatches || linkMatches;
+        });
+
+        if (matchedLocal) {
+          // Kasus 1: Tim sudah dibuat di Discord
+          const existingRecruit = openRecruitments.find((r) => r.team_id === matchedLocal.id);
+
+          if (existingRecruit) {
+            // Update pesan yang sudah ada
+            const activeCount = await countActiveTeamMembers(matchedLocal.id);
+            const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
+              teamName: matchedLocal.name,
+              description: existingRecruit.description || webTeam.description,
+              leaderDiscordId: matchedLocal.leader_discord_id,
+              challengeTitle: matchedLocal.challenge_title || webTeam.challengeTitle,
+              slotsNeeded: existingRecruit.slots_needed,
+              currentCount: activeCount,
+              maxTeamSize: env.MAX_TEAM_SIZE,
+              desiredSkills: webTeam.desiredSkills
+            });
+
+            const buttons = [
+              new ButtonBuilder()
+                .setCustomId(`${CUSTOM_IDS.BTN_RECRUIT_REQUEST_JOIN}${existingRecruit.id}`)
+                .setLabel('Minta Bergabung')
+                .setStyle(ButtonStyle.Success)
+            ];
+
+            const teamUrl = matchedLocal.nsac_link || webTeam.url;
+            if (teamUrl && (teamUrl.startsWith('http://') || teamUrl.startsWith('https://'))) {
+              buttons.push(
+                new ButtonBuilder()
+                  .setLabel('Buka di Web Space Apps')
+                  .setStyle(ButtonStyle.Link)
+                  .setURL(teamUrl)
+              );
+            }
+
+            const row = new ActionRowBuilder().addComponents(buttons);
+            const msg = await recruitChannel.messages.fetch(existingRecruit.message_id).catch(() => null);
+            if (msg) {
+              await msg.edit({ embeds: [recruitEmbed], components: [row] }).catch(() => {});
+              updatedCount++;
+            } else {
+              const newMsg = await recruitChannel.send({ embeds: [recruitEmbed], components: [row] }).catch(() => null);
+              if (newMsg) {
+                await pool.query('UPDATE team_recruitments SET message_id = $1 WHERE id = $2', [newMsg.id, existingRecruit.id]);
+                updatedCount++;
+              }
+            }
+          } else {
+            // Belum ada post rekrutmen untuk tim lokal ini: buatkan otomatis
+            const activeCount = await countActiveTeamMembers(matchedLocal.id);
+            const slots = Math.max(1, env.MAX_TEAM_SIZE - activeCount);
+            const description = webTeam.description || 'Disinkronkan dari profil resmi web NASA Space Apps.';
+
+            const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
+              teamName: matchedLocal.name,
+              description,
+              leaderDiscordId: matchedLocal.leader_discord_id,
+              challengeTitle: matchedLocal.challenge_title || webTeam.challengeTitle,
+              slotsNeeded: slots,
+              currentCount: activeCount,
+              maxTeamSize: env.MAX_TEAM_SIZE,
+              desiredSkills: webTeam.desiredSkills
+            });
+
+            const boardMsg = await recruitChannel.send({ embeds: [recruitEmbed] }).catch(() => null);
+            if (boardMsg) {
+              const record = await createRecruitment({
+                teamId: matchedLocal.id,
+                channelId: recruitChannel.id,
+                messageId: boardMsg.id,
+                slotsNeeded: slots,
+                description
+              });
+
+              const buttons = [
+                new ButtonBuilder()
+                  .setCustomId(`${CUSTOM_IDS.BTN_RECRUIT_REQUEST_JOIN}${record.id}`)
+                  .setLabel('Minta Bergabung')
+                  .setStyle(ButtonStyle.Success)
+              ];
+
+              const teamUrl = matchedLocal.nsac_link || webTeam.url;
+              if (teamUrl && (teamUrl.startsWith('http://') || teamUrl.startsWith('https://'))) {
+                buttons.push(
+                  new ButtonBuilder()
+                    .setLabel('Buka di Web Space Apps')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(teamUrl)
+                );
+              }
+
+              await boardMsg.edit({ components: [new ActionRowBuilder().addComponents(buttons)] }).catch(() => {});
+              createdCount++;
+            }
+          }
+        } else {
+          // Kasus 2: Tim BELUM terdaftar di Discord (External web team)
+          const existingRecruit = openRecruitments.find((r) => r.external_slug === webTeam.slug);
+
+          const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
+            teamName: webTeam.title,
+            description: webTeam.description || 'Tim ini terdaftar di situs resmi NASA Space Apps Challenge dan sedang membuka lowongan anggota.',
+            challengeTitle: webTeam.challengeTitle,
+            isExternal: true,
+            desiredSkills: webTeam.desiredSkills
+          });
+
+          // HANYA TOMBOL LINK, TIDAK ADA TOMBOL JOIN
+          const linkButton = new ButtonBuilder()
+            .setLabel('Buka di Web Space Apps')
+            .setStyle(ButtonStyle.Link)
+            .setURL(webTeam.url);
+
+          const buttonRow = new ActionRowBuilder().addComponents(linkButton);
+
+          if (existingRecruit) {
+            // Update pesan yang sudah ada
+            const msg = await recruitChannel.messages.fetch(existingRecruit.message_id).catch(() => null);
+            if (msg) {
+              await msg.edit({ embeds: [recruitEmbed], components: [buttonRow] }).catch(() => {});
+              updatedCount++;
+            } else {
+              const newMsg = await recruitChannel.send({ embeds: [recruitEmbed], components: [buttonRow] }).catch(() => null);
+              if (newMsg) {
+                await pool.query('UPDATE team_recruitments SET message_id = $1 WHERE id = $2', [newMsg.id, existingRecruit.id]);
+                updatedCount++;
+              }
+            }
+          } else {
+            // Buat postingan lowongan baru untuk tim eksternal
+            const boardMsg = await recruitChannel.send({
+              embeds: [recruitEmbed],
+              components: [buttonRow]
+            }).catch((err) => {
+              logger.error(`[NasaSync] Gagal memposting rekrutmen tim eksternal "${webTeam.title}": ${err.message}`);
+              return null;
+            });
+
+            if (boardMsg) {
+              await createExternalRecruitment({
+                channelId: recruitChannel.id,
+                messageId: boardMsg.id,
+                externalTeamName: webTeam.title,
+                externalUrl: webTeam.url,
+                externalSlug: webTeam.slug,
+                description: webTeam.description
+              });
+              createdCount++;
+            }
+          }
+        }
+      } else {
+        // Tim di web Space Apps TIDAK open recruitment
+        // Cek apakah ada record eksternal sebelumnya yang masih OPEN
+        const staleRecruit = openRecruitments.find((r) => r.external_slug === webTeam.slug);
+        if (staleRecruit) {
+          await closeExternalRecruitment(webTeam.slug);
+
+          // Update pesan di Discord menjadi ditutup
+          const msg = await recruitChannel.messages.fetch(staleRecruit.message_id).catch(() => null);
+          if (msg) {
+            const closedEmbed = new EmbedBuilder(msg.embeds[0]?.data || {})
+              .setTitle(`Lowongan Tim (Ditutup) — ${webTeam.title}`)
+              .setColor(0x7f8c8d);
+
+            await msg.edit({ embeds: [closedEmbed], components: [] }).catch(() => {});
+          }
+          closedCount++;
+        }
+      }
+    }
+
+    const totalOpenRec = await countOpenRecruitments();
+
+    logger.info(`[NasaSync] Sinkronisasi open recruitment selesai. Ditemukan ${openWebTeamsCount} tim open rec di web NASA. Baru: ${createdCount}, Diperbarui: ${updatedCount}, Ditutup: ${closedCount}. Total lowongan aktif di bot: ${totalOpenRec}.`);
+
+    return {
+      success: true,
+      totalWebTeams: webTeams.length,
+      openWebTeamsCount,
+      createdCount,
+      updatedCount,
+      closedCount,
+      totalOpenRec
+    };
   }
 
   /**
@@ -623,3 +987,4 @@ export class NasaValidationService {
     scheduleNext();
   }
 }
+
