@@ -430,7 +430,7 @@ export class TeamService {
           inline: false
         }
       )
-      .setFooter({ text: 'NSAC Hackathon' })
+      .setFooter({ text: 'NSAC Jember' })
       .setTimestamp();
 
     const recruitBtn = hasActiveRecruitment
@@ -540,7 +540,7 @@ export class TeamService {
         });
       }
 
-      embed.setFooter({ text: 'NSAC Hackathon • Team Recruitment Board (Web Space Apps)' });
+      embed.setFooter({ text: 'NSAC Jember • Team Recruitment Board (Web Space Apps)' });
     } else {
       embed.addFields(
         {
@@ -573,7 +573,7 @@ export class TeamService {
         });
       }
 
-      embed.setFooter({ text: 'NSAC Hackathon • Team Recruitment Board' });
+      embed.setFooter({ text: 'NSAC Jember • Team Recruitment Board' });
     }
 
     embed.setTimestamp();

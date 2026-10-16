@@ -77,9 +77,9 @@ export async function buildTeamPanelDashboard(guild) {
   const s = stats[0] || { active_count: 0, pending_count: 0, archived_count: 0, disbanded_count: 0, with_challenge_count: 0, open_rec_count: 0 };
 
   const embed = new EmbedBuilder()
-    .setTitle('Hackathon Team Admin Panel')
+    .setTitle('Team Admin Panel — NSAC Jember')
     .setDescription(
-      'Panel kontrol terpusat untuk memantau dan mengelola seluruh tim hackathon.\n' +
+      'Panel kontrol terpusat untuk memantau dan mengelola seluruh tim peserta.\n' +
       'Pilih tim dari dropdown di bawah untuk melihat detail atau menjalankan aksi.'
     )
     .setColor(EMBED_COLORS.PRIMARY)
@@ -88,7 +88,7 @@ export async function buildTeamPanelDashboard(guild) {
       { name: 'Open Recruitment', value: `**${s.open_rec_count || 0}** Tim`, inline: true },
       { name: 'Diarsipkan / Bubar', value: `**${s.archived_count}** / **${s.disbanded_count}**`, inline: true }
     )
-    .setFooter({ text: 'NSAC Team Management Dashboard' })
+    .setFooter({ text: 'NSAC Jember • Team Management Dashboard' })
     .setTimestamp();
 
   const components = [];

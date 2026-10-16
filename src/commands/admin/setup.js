@@ -265,7 +265,7 @@ export default {
             { name: '💬 Channels', value: channelsSection.join('\n\n') || 'None', inline: false },
             { name: '📁 Categories', value: categoriesSection.join('\n\n') || 'None', inline: false }
           )
-          .setFooter({ text: 'NSAC Hackathon Bot Config' })
+          .setFooter({ text: 'NSAC Jember Bot Config' })
           .setTimestamp();
 
         return await interaction.editReply({ embeds: [embed] });

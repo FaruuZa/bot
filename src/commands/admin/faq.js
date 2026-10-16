@@ -515,7 +515,7 @@ export default {
               .setTitle('📜 Daftar FAQ & Rules Embed Dinamis')
               .setDescription(lines.join('\n\n'))
               .setColor(EMBED_COLORS.PRIMARY)
-              .setFooter({ text: 'NSAC Hackathon Bot FAQ System' })
+              .setFooter({ text: 'NSAC Jember FAQ System' })
           ]
         });
       }

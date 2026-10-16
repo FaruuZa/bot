@@ -176,7 +176,7 @@ function buildStaffRegEmbed({ teamName, nsacLink, challengeTitle, memberIds = []
       { name: 'Anggota Lain', value: otherMembers, inline: false },
       { name: 'Status', value: statusText, inline: false }
     )
-    .setFooter({ text: 'NSAC Hackathon • Staff Team Creation' })
+    .setFooter({ text: 'NSAC Jember • Staff Team Creation' })
     .setTimestamp();
 }
 
@@ -1588,7 +1588,7 @@ export default {
               changes.join('\n') +
               `\n\n*Sinkronisasi berikutnya dapat dilakukan <t:${nextCooldownAt}:R>.*`
             )
-            .setFooter({ text: 'NSAC Hackathon • Sinkronisasi Web NASA' })
+            .setFooter({ text: 'NSAC Jember • Sinkronisasi Web NASA' })
             .setTimestamp();
 
           await AuditService.log(interaction.client, {
@@ -1674,7 +1674,7 @@ export default {
                 `Peserta <@${interaction.user.id}> (${interaction.user.tag || interaction.user.username}) mengajukan permintaan untuk bergabung ke tim **${recruitment.team_name}**.\n\n` +
                 `Apakah kamu ingin menerima peserta ini ke dalam tim?`
               )
-              .setFooter({ text: 'NSAC Hackathon • Team Recruitment' })
+              .setFooter({ text: 'NSAC Jember • Team Recruitment' })
               .setTimestamp()
           ],
           components: [requestRow]

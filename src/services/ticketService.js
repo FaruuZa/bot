@@ -400,7 +400,7 @@ export class TicketService {
                 `Halo <@${ticket.creator_discord_id}>, ini adalah pengingat terakhir mengenai tiket pendaftaran tim kamu yang belum diselesaikan.\n\n` +
                 `Bot tidak akan mengirimkan pengingat lagi di channel ini agar tidak mengganggu kamu. Tiket ini akan tetap terbuka sehingga kamu bisa menyelesaikan pendaftaran kapan saja jika sudah siap.`
               )
-              .setFooter({ text: 'NSAC Hackathon • Pengingat Terakhir (2/2)' })
+              .setFooter({ text: 'NSAC Jember • Pengingat Terakhir (2/2)' })
               .setTimestamp()
           : new EmbedBuilder()
               .setTitle('Pengingat Pendaftaran Tim')
@@ -410,7 +410,7 @@ export class TicketService {
                 `• Jika kamu ingin memulai atau mengulang pengisian data tim, silakan klik tombol **Mulai / Isi Data Tim** di bawah.\n` +
                 `• Jika kamu batal membuat tim, silakan klik tombol **Tutup Tiket** untuk menghapus channel ini.`
               )
-              .setFooter({ text: 'NSAC Hackathon • Pengingat Pendaftaran (1/2)' })
+              .setFooter({ text: 'NSAC Jember • Pengingat Pendaftaran (1/2)' })
               .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -537,7 +537,7 @@ export class TicketService {
                 `• Jika kamu **masih butuh bantuan**, **cukup ketik balasan apa saja di sini**, dan tiket akan tetap dibuka.\n\n` +
                 `*Catatan: Jika tidak ada aktivitas dalam 24 jam ke depan, tiket ini akan ditutup otomatis oleh sistem.*`
               )
-              .setFooter({ text: 'NSAC Hackathon • Pengingat Tiket Support' })
+              .setFooter({ text: 'NSAC Jember • Pengingat Tiket Support' })
               .setTimestamp();
 
             const row = new ActionRowBuilder().addComponents(

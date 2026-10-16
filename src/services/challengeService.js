@@ -20,7 +20,7 @@ export class ChallengeService {
         .setTitle('Daftar Challenge NSAC')
         .setColor(EMBED_COLORS.INFO)
         .setDescription('*(Belum ada challenge yang terdaftar. Hubungi panitia untuk informasi lebih lanjut.)*')
-        .setFooter({ text: 'NSAC Hackathon • Challenge' })
+        .setFooter({ text: 'NSAC Jember • Challenge' })
         .setTimestamp();
     }
 
@@ -45,7 +45,7 @@ export class ChallengeService {
       .setTitle('Daftar Challenge NSAC')
       .setColor(EMBED_COLORS.PRIMARY)
       .setDescription(descriptionText)
-      .setFooter({ text: `Total: ${challenges.length} challenge • NSAC Hackathon` })
+      .setFooter({ text: `Total: ${challenges.length} challenge • NSAC Jember` })
       .setTimestamp();
   }
 
@@ -57,7 +57,7 @@ export class ChallengeService {
       .setTitle(`Detail Challenge: ${challenge.title}`)
       .setColor(EMBED_COLORS.PRIMARY)
       .setDescription(challenge.description || '*(Tidak ada deskripsi rinci untuk challenge ini)*')
-      .setFooter({ text: 'NSAC Hackathon • Detail Challenge' })
+      .setFooter({ text: 'NSAC Jember • Detail Challenge' })
       .setTimestamp();
 
     if (isStaff) {

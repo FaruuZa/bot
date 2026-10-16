@@ -57,7 +57,7 @@ export function teamInfoEmbed(team, members) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
     .setTitle(`Informasi Tim: ${team.name}`)
-    .setDescription('Detail resmi tim peserta NSAC Hackathon')
+    .setDescription('Detail resmi tim peserta NSAC Jember')
     .addFields(
       { name: 'Status', value: `\`${team.status}\``, inline: true },
       { name: 'Leader', value: leader.discord_id ? `<@${leader.discord_id}>` : 'Tidak diketahui', inline: true },
@@ -68,7 +68,7 @@ export function teamInfoEmbed(team, members) {
       { name: 'Text Channel', value: team.text_channel_id ? `<#${team.text_channel_id}>` : '*(Tidak ada)*', inline: true },
       { name: 'Voice Channel', value: team.voice_channel_id ? `<#${team.voice_channel_id}>` : '*(Tidak ada)*', inline: true }
     )
-    .setFooter({ text: `ID Tim: ${team.id} • NSAC Hackathon` })
+    .setFooter({ text: `ID Tim: ${team.id} • NSAC Jember` })
     .setTimestamp();
 
   return embed;
@@ -77,9 +77,9 @@ export function teamInfoEmbed(team, members) {
 export function registrationPanelEmbed() {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
-    .setTitle('Pendaftaran Tim Hackathon')
+    .setTitle('Pendaftaran Tim NSAC Jember')
     .setDescription(
-      'Selamat datang di portal pendaftaran tim resmi NSAC Hackathon!\n\n' +
+      'Selamat datang di portal pendaftaran tim resmi NSAC Jember!\n\n' +
       'Klik tombol **Buka Tiket Pendaftaran** di bawah untuk membuka channel privat dan mendaftarkan tim kamu bersama rekan-rekanmu.\n\n' +
       '**Ketentuan & Syarat:**\n' +
       '• Pendaftaran dilakukan oleh Ketua Tim (Team Leader)\n' +
@@ -87,18 +87,18 @@ export function registrationPanelEmbed() {
       '• Seluruh anggota berstatus belum memiliki tim (tidak terdaftar di tim aktif lain)\n' +
       '• Jumlah formasi tim harus memenuhi kuota kompetisi yang ditentukan'
     )
-    .setFooter({ text: 'NSAC Hackathon • Sistem Manajemen Tim' });
+    .setFooter({ text: 'NSAC Jember • Sistem Manajemen Tim' });
 }
 
 export function supportPanelEmbed() {
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.INFO)
-    .setTitle('Bantuan & Dukungan Hackathon')
+    .setTitle('Bantuan & Dukungan Panitia')
     .setDescription(
       'Mengalami kendala teknis, pertanyaan aturan kompetisi, atau butuh panduan pendaftaran tim?\n\n' +
       'Klik tombol **Buka Tiket Bantuan** di bawah untuk membuat ruang diskusi privat langsung bersama tim Panitia dan Technical Support.'
     )
-    .setFooter({ text: 'NSAC Hackathon • Helpdesk & Support' });
+    .setFooter({ text: 'NSAC Jember • Helpdesk & Support' });
 }
 
 export function registrationTicketEmbed(user) {
@@ -115,7 +115,7 @@ export function registrationTicketEmbed(user) {
       '4. Calon anggota akan menerima pesan konfirmasi. Begitu semua menyetujui, channel tim privat dan role tim otomatis dibuat!\n\n' +
       '*Jika ingin membatalkan atau terjadi kendala, klik tombol **Tutup Tiket**.*'
     )
-    .setFooter({ text: 'NSAC Hackathon • Team Registration' })
+    .setFooter({ text: 'NSAC Jember • Team Registration' })
     .setTimestamp();
 }
 
@@ -129,7 +129,7 @@ export function supportTicketEmbed(user) {
       'Silakan jelaskan pertanyaan atau kendalamu secara detail di sini (bisa menyertakan tangkapan layar jika relevan agar penanganan lebih cepat).\n\n' +
       '*Jika masalah sudah teratasi, klik tombol **Tutup Tiket**.*'
     )
-    .setFooter({ text: 'NSAC Hackathon • Helpdesk & Support' })
+    .setFooter({ text: 'NSAC Jember • Helpdesk & Support' })
     .setTimestamp();
 }
 
@@ -137,7 +137,7 @@ export function invitationEmbed(teamName, leaderTag, expiresAt) {
   const unixExpiry = Math.floor(new Date(expiresAt).getTime() / 1000);
   return new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
-    .setTitle('Hackathon Team Invitation')
+    .setTitle('Undangan Tim NSAC Jember')
     .setDescription(
       `You have been invited by **${leaderTag}** to join **${teamName}** as a team member!\n\n` +
       `**Expires:** <t:${unixExpiry}:R> (<t:${unixExpiry}:f>)\n\n` +
