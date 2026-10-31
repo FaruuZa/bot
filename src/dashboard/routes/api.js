@@ -93,9 +93,17 @@ export function createApiRouter(client) {
       return res.redirect(`/?error=${encodeURIComponent(msg)}`);
     }
 
-    if (!env.DISCORD_CLIENT_SECRET) {
-      logger.error('[OAuth2 Error] DISCORD_CLIENT_SECRET belum diatur di file .env');
-      return res.redirect(`/?error=${encodeURIComponent('Server belum mengonfigurasi DISCORD_CLIENT_SECRET.')}`);
+    const clientSecret = (
+      process.env.DISCORD_CLIENT_SECRET ||
+      process.env.CLIENT_SECRET ||
+      process.env.DISCORD_SECRET ||
+      env.DISCORD_CLIENT_SECRET ||
+      ''
+    ).trim().replace(/^["']|["']$/g, '');
+
+    if (!clientSecret) {
+      logger.error('[OAuth2 Error] DISCORD_CLIENT_SECRET belum aktif di container');
+      return res.redirect(`/?error=${encodeURIComponent('Server belum membaca DISCORD_CLIENT_SECRET.')}`);
     }
 
     try {
