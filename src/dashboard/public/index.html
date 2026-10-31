@@ -150,6 +150,7 @@
         <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Overview</button>
         <button @click="activeTab = 'announce'" :class="activeTab === 'announce' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Announcement</button>
         <button @click="activeTab = 'teams'" :class="activeTab === 'teams' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Tim & Lowongan</button>
+        <button @click="activeTab = 'tickets'" :class="activeTab === 'tickets' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Tiket (<span x-text="openTicketsCount"></span>)</button>
         <button @click="activeTab = 'config'" :class="activeTab === 'config' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Konfigurasi</button>
       </div>
     </header>
@@ -610,6 +611,125 @@
       </section>
 
       <!-- ========================================== -->
+      <!-- TAB: TICKETS -->
+      <!-- ========================================== -->
+      <section x-show="activeTab === 'tickets'" class="space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              Inbox Tiket
+              <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs px-2.5 py-0.5 rounded-full" x-text="tickets.length + ' Total'"></span>
+            </h2>
+            <p class="text-xs text-slate-400">Kelola dan balas tiket pendaftaran tim atau bantuan langsung dari Discord.</p>
+          </div>
+          <button @click="fetchTickets()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 transition-all flex items-center gap-2 self-start md:self-auto">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
+            <button @click="ticketFilterStatus = 'ALL'" :class="ticketFilterStatus === 'ALL' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Semua</button>
+            <button @click="ticketFilterStatus = 'OPEN'" :class="ticketFilterStatus === 'OPEN' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">OPEN</button>
+            <button @click="ticketFilterStatus = 'CLOSED'" :class="ticketFilterStatus === 'CLOSED' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">CLOSED</button>
+          </div>
+
+          <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
+            <button @click="ticketFilterType = 'ALL'" :class="ticketFilterType === 'ALL' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Semua Tipe</button>
+            <button @click="ticketFilterType = 'TEAM_REGISTRATION'" :class="ticketFilterType === 'TEAM_REGISTRATION' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Registrasi Tim</button>
+            <button @click="ticketFilterType = 'SUPPORT'" :class="ticketFilterType === 'SUPPORT' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Support</button>
+          </div>
+
+          <div class="flex-1 min-w-[200px]">
+            <input type="text" x-model="searchTicket" placeholder="Cari username, ID pembuat, channel ID..."
+                   class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="p-3.5 font-medium">ID / Tipe</th>
+                  <th class="p-3.5 font-medium">Pembuat</th>
+                  <th class="p-3.5 font-medium">Status</th>
+                  <th class="p-3.5 font-medium">Channel Discord</th>
+                  <th class="p-3.5 font-medium">Dibuat</th>
+                  <th class="p-3.5 font-medium text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                <template x-for="tk in filteredTickets" :key="tk.id">
+                  <tr class="hover:bg-slate-800/40 transition-colors">
+                    <td class="p-3.5">
+                      <div class="font-mono font-bold text-white" x-text="'#' + tk.id"></div>
+                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                            :class="tk.type === 'TEAM_REGISTRATION' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'"
+                            x-text="tk.type === 'TEAM_REGISTRATION' ? 'Registrasi Tim' : 'Support'"></span>
+                    </td>
+                    <td class="p-3.5">
+                      <div class="font-semibold text-white" x-text="tk.creator_username || 'Unknown'"></div>
+                      <div class="text-[11px] text-slate-500 font-mono" x-text="tk.creator_discord_id"></div>
+                    </td>
+                    <td class="p-3.5">
+                      <span class="px-2 py-0.5 rounded-md font-bold text-[10px]"
+                            :class="tk.status === 'OPEN' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'"
+                            x-text="tk.status"></span>
+                    </td>
+                    <td class="p-3.5">
+                      <template x-if="tk.discord_channel_id">
+                        <div class="flex items-center gap-1.5">
+                          <a :href="tk.discord_jump_url || ('https://discord.com/channels/' + (stats.guild ? stats.guild.id : '') + '/' + tk.discord_channel_id)" target="_blank"
+                             class="text-indigo-400 hover:text-indigo-300 font-mono text-xs flex items-center gap-1 underline underline-offset-2">
+                            <i data-lucide="external-link" class="w-3 h-3"></i> <span x-text="tk.discord_channel_id"></span>
+                          </a>
+                          <template x-if="!tk.channel_exists && tk.status === 'OPEN'">
+                            <span class="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">(Terhapus)</span>
+                          </template>
+                        </div>
+                      </template>
+                      <template x-if="!tk.discord_channel_id">
+                        <span class="text-slate-500 text-xs">-</span>
+                      </template>
+                    </td>
+                    <td class="p-3.5">
+                      <div class="text-slate-300" x-text="formatDate(tk.created_at)"></div>
+                      <template x-if="tk.closed_at">
+                        <div class="text-[10px] text-slate-500" x-text="'Ditutup: ' + formatDate(tk.closed_at)"></div>
+                      </template>
+                    </td>
+                    <td class="p-3.5 text-right space-x-1">
+                      <template x-if="tk.status === 'OPEN'">
+                        <div class="inline-flex items-center gap-1.5">
+                          <button @click="openReplyModal(tk)" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-medium transition-all">
+                            Balas
+                          </button>
+                          <button @click="closeTicketAction(tk.id)" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-medium transition-all">
+                            Tutup
+                          </button>
+                        </div>
+                      </template>
+                      <template x-if="tk.status !== 'OPEN'">
+                        <span class="text-slate-600 text-xs">Selesai</span>
+                      </template>
+                    </td>
+                  </tr>
+                </template>
+                <template x-if="filteredTickets.length === 0">
+                  <tr>
+                    <td colspan="6" class="p-8 text-center text-slate-500 text-xs">
+                      Tidak ada tiket yang cocok dengan filter.
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
       <!-- TAB 4: CONFIGURATION -->
       <!-- ========================================== -->
       <section x-show="activeTab === 'config'" class="space-y-6">
@@ -798,6 +918,15 @@
         recruitments: [],
         configs: [],
         searchTeam: '',
+        tickets: [],
+        openTicketsCount: 0,
+        ticketFilterStatus: 'ALL',
+        ticketFilterType: 'ALL',
+        searchTicket: '',
+        showTicketReplyModal: false,
+        replyingTicketId: null,
+        ticketReplyMessage: '',
+        sendingReply: false,
         teamStatusFilter: 'ALL',
         selectedTeam: null,
         showTeamModal: false,
@@ -918,7 +1047,8 @@
             this.fetchRoles(),
             this.fetchTeams(),
             this.fetchRecruitments(),
-            this.fetchConfigs()
+            this.fetchConfigs(),
+            this.fetchTickets()
           ]);
           this.$nextTick(() => {
             if (window.lucide) window.lucide.createIcons();
@@ -968,6 +1098,88 @@
             const data = await res.json();
             if (data.success) this.recruitments = data.recruitments;
           } catch (e) {}
+        },
+
+        async fetchTickets() {
+          try {
+            const res = await fetch('/api/tickets', { headers: { 'Authorization': `Bearer ${this.token}` } });
+            const data = await res.json();
+            if (data.success) {
+              this.tickets = data.tickets;
+              this.openTicketsCount = data.openCount || 0;
+            }
+          } catch (e) {}
+        },
+
+        get filteredTickets() {
+          let list = this.tickets || [];
+          if (this.ticketFilterStatus !== 'ALL') {
+            list = list.filter(tk => tk.status === this.ticketFilterStatus);
+          }
+          if (this.ticketFilterType !== 'ALL') {
+            list = list.filter(tk => tk.type === this.ticketFilterType);
+          }
+          if (this.searchTicket.trim()) {
+            const q = this.searchTicket.toLowerCase();
+            list = list.filter(tk =>
+              (tk.creator_username && tk.creator_username.toLowerCase().includes(q)) ||
+              (tk.creator_discord_id && tk.creator_discord_id.includes(q)) ||
+              (tk.discord_channel_id && tk.discord_channel_id.includes(q))
+            );
+          }
+          return list;
+        },
+
+        openReplyModal(ticket) {
+          this.replyingTicketId = ticket.id;
+          this.ticketReplyMessage = '';
+          this.showTicketReplyModal = true;
+        },
+
+        async sendTicketReply() {
+          if (!this.ticketReplyMessage.trim()) return;
+          this.sendingReply = true;
+          try {
+            const res = await fetch(`/api/tickets/${this.replyingTicketId}/reply`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ message: this.ticketReplyMessage.trim() })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Balasan Terkirim', data.message);
+              this.showTicketReplyModal = false;
+              this.ticketReplyMessage = '';
+            } else {
+              this.showToast('error', 'Gagal Membalas', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          } finally {
+            this.sendingReply = false;
+          }
+        },
+
+        async closeTicketAction(id) {
+          if (!confirm('Tutup tiket ini dan hapus channel dari Discord?')) return;
+          try {
+            const res = await fetch(`/api/tickets/${id}/close`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Tiket Ditutup', data.message);
+              await this.fetchTickets();
+            } else {
+              this.showToast('error', 'Gagal Menutup Tiket', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
         },
 
         async fetchConfigs() {

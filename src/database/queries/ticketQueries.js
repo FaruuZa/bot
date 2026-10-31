@@ -100,4 +100,51 @@ export async function resetTicketReminder(discordChannelId, client = pool) {
   return res.rows[0] || null;
 }
 
+export async function getTicketById(id, client = pool) {
+  const sql = `
+    SELECT t.*, u.discord_id as creator_discord_id, u.username as creator_username
+    FROM tickets t
+    LEFT JOIN users u ON t.created_by = u.id
+    WHERE t.id = $1;
+  `;
+  const res = await client.query(sql, [id]);
+  return res.rows[0] || null;
+}
+
+export async function getTickets({ status, type, limit = 50, offset = 0 } = {}, client = pool) {
+  const params = [];
+  const conditions = [];
+
+  if (status && ['OPEN', 'CLOSED'].includes(String(status).toUpperCase())) {
+    params.push(String(status).toUpperCase());
+    conditions.push(`t.status = $${params.length}`);
+  }
+
+  if (type && ['TEAM_REGISTRATION', 'SUPPORT'].includes(String(type).toUpperCase())) {
+    params.push(String(type).toUpperCase());
+    conditions.push(`t.type = $${params.length}`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200), Math.max(parseInt(offset, 10) || 0, 0));
+
+  const sql = `
+    SELECT t.*, u.discord_id as creator_discord_id, u.username as creator_username
+    FROM tickets t
+    LEFT JOIN users u ON t.created_by = u.id
+    ${whereClause}
+    ORDER BY CASE WHEN t.status = 'OPEN' THEN 0 ELSE 1 END, t.created_at DESC
+    LIMIT $${params.length - 1} OFFSET $${params.length};
+  `;
+
+  const res = await client.query(sql, params);
+  return res.rows;
+}
+
+export async function countOpenTickets(client = pool) {
+  const sql = `SELECT COUNT(*) as count FROM tickets WHERE status = 'OPEN';`;
+  const res = await client.query(sql);
+  return parseInt(res.rows[0]?.count || '0', 10);
+}
+
 

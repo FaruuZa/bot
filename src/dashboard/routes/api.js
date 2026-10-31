@@ -13,6 +13,8 @@ import { closeRecruitment, getRecruitmentById, getOpenRecruitmentByTeam } from '
 import { TeamService } from '../../services/teamService.js';
 import { getTeamById } from '../../database/queries/teamQueries.js';
 import { getActiveTeamMembers } from '../../database/queries/memberQueries.js';
+import { TicketService } from '../../services/ticketService.js';
+import { getTickets, getTicketById, countOpenTickets } from '../../database/queries/ticketQueries.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)

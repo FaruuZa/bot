@@ -335,6 +335,50 @@ export class TicketService {
   }
 
   /**
+   * Close a ticket by channel ID without requiring a Discord Interaction
+   * (Shared helper for Dashboard API and automated closures)
+   *
+   * Urutan wajib:
+   * 1. Kirim embed penutup ke channel Discord (bila channel ada)
+   * 2. closeTicket di DB
+   * 3. Audit log TICKET_CLOSED
+   * 4. Hapus channel Discord setelah 5 detik
+   */
+  static async closeTicketByChannelId(channelId, client, actorTag = 'Web Dashboard') {
+    let channel = null;
+    try {
+      const guild = env.GUILD_ID ? client.guilds.cache.get(env.GUILD_ID) : client.guilds.cache.first();
+      if (guild) {
+        channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
+      }
+    } catch {
+      // Channel fetch error ignored
+    }
+
+    if (channel && channel.isTextBased()) {
+      await channel.send({
+        embeds: [successEmbed('Tiket Ditutup', 'Tiket ini telah ditandai selesai oleh panitia via Web Dashboard dan channel akan otomatis dihapus dalam 5 detik.')]
+      }).catch(() => {});
+
+      setTimeout(async () => {
+        await channel.delete('Ticket closed via dashboard').catch(() => {});
+      }, 5000);
+    }
+
+    await closeTicket(channelId).catch(() => {});
+
+    await AuditService.log(client, {
+      action: AUDIT_ACTIONS.TICKET_CLOSED,
+      title: 'Ticket Closed',
+      actorTag,
+      details: `Ticket channel "${channel?.name || channelId}" was closed.`
+    }).catch(() => {});
+
+    return { success: true, channelFound: !!channel };
+  }
+
+
+  /**
    * Start periodic background sweeper for idle team registration tickets
    * @param {import('discord.js').Client} client 
    */
