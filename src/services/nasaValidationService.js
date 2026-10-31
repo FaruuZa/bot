@@ -292,6 +292,10 @@ export class NasaValidationService {
           logger.warn(`[NasaValidation] Could not match challenges from DB: ${dbErr.message}`);
         }
 
+        if (challengeTitle && !challengeId) {
+          logger.warn(`[NasaValidation] Judul challenge "${challengeTitle}" dari web NASA tidak cocok dengan daftar challenges di database; challenge_id dibiarkan null.`);
+        }
+
         // 6. Extract Recruitment Status (Looking for teammates vs Not looking)
         const canAcceptMatch = html.match(/canAcceptMembers\\":([^,}]+)/);
         const canAcceptMembers = canAcceptMatch ? canAcceptMatch[1].trim() === 'true' : false;

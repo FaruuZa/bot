@@ -1075,7 +1075,7 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
-        const components = [selectRow, challengeRow, cancelRow].filter(Boolean);
+        const components = [selectRow, cancelRow].filter(Boolean);
         return await interaction.update({
           embeds: [buildStaffRegEmbed({
             teamName: session.teamName,
@@ -2115,7 +2115,7 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
-        const replyComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
+        const replyComponents = [selectRow, buttonRow].filter(Boolean);
         await interaction.reply({
           embeds: [buildStaffRegEmbed({
             teamName,
@@ -2665,7 +2665,7 @@ export default {
               new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
             );
 
-        const updateComponents = [selectRow, challengeRow, buttonRow].filter(Boolean);
+        const updateComponents = [selectRow, buttonRow].filter(Boolean);
         return await interaction.update({
           embeds: [buildMemberRegEmbed({
             userId: interaction.user.id,
@@ -2708,7 +2708,7 @@ export default {
           new ButtonBuilder().setCustomId(CUSTOM_IDS.BTN_STAFF_REG_CANCEL).setLabel('Batal').setStyle(ButtonStyle.Danger)
         );
 
-        const updateComponents = [selectRow, challengeRow, confirmRow].filter(Boolean);
+        const updateComponents = [selectRow, confirmRow].filter(Boolean);
         return await interaction.update({
           embeds: [buildStaffRegEmbed({
             teamName: session.teamName,

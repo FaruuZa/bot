@@ -195,11 +195,6 @@ export default {
     )
     .addSubcommand((sub) =>
       sub
-        .setName('set-challenge')
-        .setDescription('Pilih atau ubah challenge yang diikuti timmu (hanya untuk Team Leader)')
-    )
-    .addSubcommand((sub) =>
-      sub
         .setName('set-link')
         .setDescription('Atur atau ubah link resmi tim di web NSAC (hanya untuk Team Leader)')
         .addStringOption((opt) =>
@@ -208,11 +203,6 @@ export default {
             .setDescription('URL profil tim resmi di situs NSAC (https://...)')
             .setRequired(true)
         )
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('challenge')
-        .setDescription('Lihat daftar seluruh challenge yang tersedia')
     )
     // ================= Staff Subcommands =================
     .addSubcommand((sub) =>
@@ -719,53 +709,12 @@ export default {
     }
 
     // ========================================================
-    // 7.1 CHALLENGE SUBCOMMAND (View Available Challenges)
+    // 7. CHALLENGE SUBCOMMANDS (Soft-disabled: managed automatically from NASA web)
     // ========================================================
-    if (subcommand === 'challenge') {
-      await interaction.deferReply();
-      const { embed } = await ChallengeService.getChallengesEmbed();
-      return await interaction.editReply({ embeds: [embed] });
-    }
-
-    // ========================================================
-    // 7.2 SET-CHALLENGE SUBCOMMAND (Leader Only)
-    // ========================================================
-    if (subcommand === 'set-challenge') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-      const activeTeam = await getUserActiveTeamByDiscordId(interaction.user.id);
-      if (!activeTeam || activeTeam.user_team_role !== 'LEADER') {
-        return await interaction.editReply({
-          embeds: [errorEmbed('Bukan Leader', 'Hanya Team Leader yang bisa memilih atau mengubah challenge tim.')]
-        });
-      }
-
-      const challenges = await getAllChallenges();
-      if (!challenges || challenges.length === 0) {
-        return await interaction.editReply({
-          embeds: [infoEmbed('Belum Ada Challenge', 'Saat ini belum ada challenge yang ditambahkan oleh panitia ke sistem.')]
-        });
-      }
-
-      const options = ChallengeService.buildChallengeSelectOptions(challenges);
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId(`${CUSTOM_IDS.SELECT_TEAM_PANEL_CHALLENGE}${activeTeam.id}`)
-        .setPlaceholder('Pilih challenge yang akan diikuti timmu...')
-        .addOptions(options);
-
-      const row = new ActionRowBuilder().addComponents(selectMenu);
-
-      const currentChallenge = activeTeam.challenge_title ? `**${activeTeam.challenge_title}**` : '*(Belum memilih)*';
-
-      return await interaction.editReply({
-        embeds: [
-          infoEmbed(
-            'Pilih Challenge Tim',
-            `Challenge saat ini untuk tim **${activeTeam.name}**: ${currentChallenge}\n\n` +
-            `Silakan pilih challenge dari menu dropdown di bawah. Pilihan challenge ini akan otomatis ditampilkan di channel tim dan board rekrutmen.`
-          )
-        ],
-        components: [row]
+    if (subcommand === 'challenge' || subcommand === 'set-challenge') {
+      return await interaction.reply({
+        embeds: [infoEmbed('Informasi Challenge', 'Pemilihan dan sinkronisasi challenge (tantangan) kini dikelola secara otomatis langsung dari halaman profil tim di web resmi NASA Space Apps Challenge.')],
+        flags: MessageFlags.Ephemeral
       });
     }
 
