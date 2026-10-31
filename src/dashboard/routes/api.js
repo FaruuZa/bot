@@ -109,7 +109,7 @@ export function createApiRouter(client) {
         },
         body: new URLSearchParams({
           client_id: env.CLIENT_ID,
-          client_secret: env.DISCORD_CLIENT_SECRET,
+          client_secret: clientSecret,
           grant_type: 'authorization_code',
           code: String(code),
           redirect_uri: redirectUri
