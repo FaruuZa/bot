@@ -6,6 +6,7 @@ import { env } from '../../config/env.js';
 import { pool } from '../../database/pool.js';
 import { EMBED_COLORS } from '../../config/constants.js';
 import { GuildConfigService, CONFIG_DEFINITIONS } from '../../services/guildConfigService.js';
+import { PermissionService } from '../../services/permissionService.js';
 import { NasaValidationService } from '../../services/nasaValidationService.js';
 import { AuditService } from '../../services/auditService.js';
 import { AUDIT_ACTIONS } from '../../config/constants.js';
@@ -31,8 +32,8 @@ const upload = multer({
   }
 });
 
-// Active dashboard session tokens in memory
-const activeTokens = new Set();
+// Active dashboard session tokens in memory: token -> sessionUser
+const activeSessions = new Map();
 
 export function createApiRouter(client) {
   const router = express.Router();
@@ -45,6 +46,16 @@ export function createApiRouter(client) {
     return client.guilds.cache.first();
   };
 
+  // Helper to determine OAuth2 Redirect URI
+  const getRedirectUri = (req) => {
+    if (env.DASHBOARD_BASE_URL && env.DASHBOARD_BASE_URL.startsWith('http')) {
+      return `${env.DASHBOARD_BASE_URL.replace(/\/$/, '')}/api/auth/discord/callback`;
+    }
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    return `${protocol}://${host}/api/auth/discord/callback`;
+  };
+
   // Auth Middleware
   const requireAuth = (req, res, next) => {
     const authHeader = req.headers.authorization || '';
@@ -52,9 +63,10 @@ export function createApiRouter(client) {
       ? authHeader.slice(7)
       : req.headers['x-dashboard-token'];
 
-    if (!token || !activeTokens.has(token)) {
+    if (!token || !activeSessions.has(token)) {
       return res.status(401).json({ success: false, error: 'Akses tidak sah. Silakan login terlebih dahulu.' });
     }
+    req.user = activeSessions.get(token);
     next();
   };
 
@@ -427,7 +439,7 @@ export function createApiRouter(client) {
       const guild = getGuild();
       if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
 
-      const result = await TeamService.renameTeam(teamId, name.trim(), guild, client, 'Web Dashboard');
+      const result = await TeamService.renameTeam(teamId, name.trim(), guild, client, req.user?.username ? `@${req.user.username}` : 'Web Dashboard');
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -449,7 +461,7 @@ export function createApiRouter(client) {
       const guild = getGuild();
       if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
 
-      const result = await TeamService.transferLeader(teamId, discordId.trim(), guild, client, 'Web Dashboard');
+      const result = await TeamService.transferLeader(teamId, discordId.trim(), guild, client, req.user?.username ? `@${req.user.username}` : 'Web Dashboard');
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -471,7 +483,7 @@ export function createApiRouter(client) {
       const guild = getGuild();
       if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
 
-      const result = await TeamService.addMemberToTeam(teamId, discordId.trim(), guild, client, 'Web Dashboard');
+      const result = await TeamService.addMemberToTeam(teamId, discordId.trim(), guild, client, req.user?.username ? `@${req.user.username}` : 'Web Dashboard');
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -493,7 +505,7 @@ export function createApiRouter(client) {
       const guild = getGuild();
       if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
 
-      const result = await TeamService.removeMemberFromTeam(teamId, discordId.trim(), guild, client, 'Web Dashboard');
+      const result = await TeamService.removeMemberFromTeam(teamId, discordId.trim(), guild, client, req.user?.username ? `@${req.user.username}` : 'Web Dashboard');
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -510,7 +522,7 @@ export function createApiRouter(client) {
       const guild = getGuild();
       if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
 
-      const result = await TeamService.archiveTeam(teamId, guild, client, 'Web Dashboard');
+      const result = await TeamService.archiveTeam(teamId, guild, client, req.user?.username ? `@${req.user.username}` : 'Web Dashboard');
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -527,7 +539,7 @@ export function createApiRouter(client) {
       const guild = getGuild();
       if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
 
-      const result = await TeamService.deleteTeam(teamId, guild, client, 'Web Dashboard');
+      const result = await TeamService.deleteTeam(teamId, guild, client, req.user?.username ? `@${req.user.username}` : 'Web Dashboard');
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -546,7 +558,7 @@ export function createApiRouter(client) {
       if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
 
       const trimmedLink = nsacLink && String(nsacLink).trim().length > 0 ? String(nsacLink).trim() : null;
-      const result = await TeamService.setTeamNsacLink(teamId, trimmedLink, guild, client, 'Web Dashboard');
+      const result = await TeamService.setTeamNsacLink(teamId, trimmedLink, guild, client, req.user?.username ? `@${req.user.username}` : 'Web Dashboard');
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -728,6 +740,106 @@ export function createApiRouter(client) {
       await GuildConfigService.set(key, String(value || '').trim());
       return res.json({ success: true, message: `Konfigurasi ${key} berhasil diperbarui.` });
     } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // Ticket Management Endpoints
+  // ==========================================
+  router.get('/tickets', requireAuth, async (req, res) => {
+    try {
+      const { status, type, limit = 50, offset = 0 } = req.query;
+      const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+      const parsedOffset = Math.max(parseInt(offset, 10) || 0, 0);
+
+      const guild = getGuild();
+      const guildId = guild ? guild.id : (env.GUILD_ID || '');
+
+      const tickets = await getTickets({ status, type, limit: parsedLimit, offset: parsedOffset });
+      const openCount = await countOpenTickets();
+
+      const enriched = tickets.map((t) => {
+        const channelExists = !!(guild && guild.channels.cache.has(t.discord_channel_id));
+        return {
+          ...t,
+          channel_exists: channelExists,
+          discord_jump_url: guildId && t.discord_channel_id ? `https://discord.com/channels/${guildId}/${t.discord_channel_id}` : null
+        };
+      });
+
+      return res.json({ success: true, tickets: enriched, openCount, limit: parsedLimit, offset: parsedOffset });
+    } catch (err) {
+      logger.error(`[Dashboard API] /tickets error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.get('/tickets/open-count', requireAuth, async (req, res) => {
+    try {
+      const count = await countOpenTickets();
+      return res.json({ success: true, count });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/tickets/:id/close', requireAuth, async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.id, 10);
+      const ticket = await getTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ success: false, error: 'Tiket tidak ditemukan.' });
+      }
+
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Web Dashboard';
+      const result = await TicketService.closeTicketByChannelId(ticket.discord_channel_id, client, actorTag);
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[Dashboard API] /tickets/:id/close error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/tickets/:id/reply', requireAuth, async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.id, 10);
+      const { message } = req.body || {};
+      if (!message || !message.trim()) {
+        return res.status(400).json({ success: false, error: 'Pesan balasan tidak boleh kosong.' });
+      }
+      if (message.length > 2000) {
+        return res.status(400).json({ success: false, error: 'Pesan balasan maksimal 2000 karakter.' });
+      }
+
+      const ticket = await getTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ success: false, error: 'Tiket tidak ditemukan.' });
+      }
+
+      const channel = client.channels.cache.get(ticket.discord_channel_id)
+        || await client.channels.fetch(ticket.discord_channel_id).catch(() => null);
+
+      if (!channel || !channel.isTextBased()) {
+        return res.status(404).json({ success: false, error: 'Channel tiket tidak ditemukan atau sudah terhapus di Discord.' });
+      }
+
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Panitia';
+      await channel.send({
+        content: `**[Balasan Panitia - ${actorTag}]**\n${message.trim()}`
+      });
+
+      await AuditService.log(client, {
+        action: 'GENERAL_LOG',
+        title: 'Ticket Reply',
+        actorTag,
+        actorId: req.user?.userId || null,
+        details: `Membalas tiket #${ticket.id} (${ticket.type}) di channel #${channel.name}: "${message.trim().substring(0, 200)}"`
+      }).catch(() => {});
+
+      return res.json({ success: true, message: 'Balasan berhasil dikirim ke channel Discord.' });
+    } catch (err) {
+      logger.error(`[Dashboard API] /tickets/:id/reply error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
     }
   });
