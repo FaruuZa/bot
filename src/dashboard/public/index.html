@@ -151,6 +151,7 @@
         <button @click="activeTab = 'announce'" :class="activeTab === 'announce' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Announcement</button>
         <button @click="activeTab = 'teams'" :class="activeTab === 'teams' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Tim & Lowongan</button>
         <button @click="activeTab = 'tickets'" :class="activeTab === 'tickets' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Tiket (<span x-text="openTicketsCount"></span>)</button>
+        <button @click="activeTab = 'audit'; fetchAuditLogs()" :class="activeTab === 'audit' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Audit Log</button>
         <button @click="activeTab = 'config'" :class="activeTab === 'config' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Konfigurasi</button>
       </div>
     </header>
@@ -730,6 +731,149 @@
       </section>
 
       <!-- ========================================== -->
+      <!-- TAB: AUDIT LOGS -->
+      <!-- ========================================== -->
+      <section x-show="activeTab === 'audit'" class="space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              Audit Log Viewer
+              <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs px-2.5 py-0.5 rounded-full" x-text="auditTotal + ' Total Catatan'"></span>
+            </h2>
+            <p class="text-xs text-slate-400">Riwayat dan jejak audit aktivitas tim, anggota, pengumuman, dan staf bot.</p>
+          </div>
+          <button @click="fetchAuditLogs()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 transition-all flex items-center gap-2 self-start md:self-auto">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Aksi</label>
+            <select x-model="auditFilterAction" @change="auditOffset = 0; fetchAuditLogs()" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Semua Aksi</option>
+              <option value="TEAM_CREATED">TEAM_CREATED</option>
+              <option value="TEAM_ARCHIVED">TEAM_ARCHIVED</option>
+              <option value="TEAM_DELETED">TEAM_DELETED</option>
+              <option value="TEAM_RENAMED">TEAM_RENAMED</option>
+              <option value="MEMBER_ADDED">MEMBER_ADDED</option>
+              <option value="MEMBER_REMOVED">MEMBER_REMOVED</option>
+              <option value="MEMBER_KICKED">MEMBER_KICKED</option>
+              <option value="MEMBER_LEFT">MEMBER_LEFT</option>
+              <option value="LEADER_TRANSFERRED">LEADER_TRANSFERRED</option>
+              <option value="TICKET_CREATED">TICKET_CREATED</option>
+              <option value="TICKET_CLOSED">TICKET_CLOSED</option>
+              <option value="TEAM_SYNCED">TEAM_SYNCED</option>
+              <option value="GENERAL_LOG">GENERAL_LOG</option>
+              <option value="STAFF_OVERRIDE">STAFF_OVERRIDE</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Tim</label>
+            <select x-model="auditFilterTeamId" @change="auditOffset = 0; fetchAuditLogs()" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">Semua Tim</option>
+              <template x-for="t in teams" :key="t.id">
+                <option :value="t.id" x-text="t.name"></option>
+              </template>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-slate-400 mb-1">Pencarian Teks</label>
+            <div class="flex gap-2">
+              <input type="text" x-model="auditSearchText" @keydown.enter="auditOffset = 0; fetchAuditLogs()" placeholder="Cari username, tim, JSON..."
+                     class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <button @click="auditOffset = 0; fetchAuditLogs()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all">
+                Cari
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="p-3.5 font-medium whitespace-nowrap">Waktu</th>
+                  <th class="p-3.5 font-medium">Aksi</th>
+                  <th class="p-3.5 font-medium">Aktor</th>
+                  <th class="p-3.5 font-medium">Target / Tim</th>
+                  <th class="p-3.5 font-medium">Metadata</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                <template x-for="log in auditLogs" :key="log.id">
+                  <tr class="hover:bg-slate-800/40 transition-colors align-top">
+                    <td class="p-3.5 whitespace-nowrap text-slate-400 font-mono text-[11px]" x-text="formatDate(log.created_at)"></td>
+                    <td class="p-3.5">
+                      <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-slate-800 border border-slate-700 text-indigo-300 whitespace-nowrap" x-text="log.action"></span>
+                    </td>
+                    <td class="p-3.5">
+                      <div class="font-semibold text-white" x-text="log.actor_username || 'System'"></div>
+                      <template x-if="log.actor_discord_id">
+                        <div class="text-[10px] text-slate-500 font-mono" x-text="log.actor_discord_id"></div>
+                      </template>
+                    </td>
+                    <td class="p-3.5">
+                      <template x-if="log.team_name">
+                        <div class="font-semibold text-indigo-400" x-text="'Tim: ' + log.team_name"></div>
+                      </template>
+                      <template x-if="log.target_username">
+                        <div class="text-slate-300" x-text="'Target: @' + log.target_username"></div>
+                      </template>
+                      <template x-if="!log.team_name && !log.target_username">
+                        <span class="text-slate-500">-</span>
+                      </template>
+                    </td>
+                    <td class="p-3.5 min-w-[220px]">
+                      <template x-if="log.metadata && Object.keys(log.metadata).length > 0">
+                        <details class="cursor-pointer">
+                          <summary class="text-indigo-400 hover:text-indigo-300 text-[11px] font-mono">Lihat Metadata</summary>
+                          <pre class="mt-1.5 p-2 bg-slate-950 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-36 border border-slate-800" x-text="JSON.stringify(log.metadata, null, 2)"></pre>
+                        </details>
+                      </template>
+                      <template x-if="!log.metadata || Object.keys(log.metadata).length === 0">
+                        <span class="text-slate-600 font-mono text-[11px]">{}</span>
+                      </template>
+                    </td>
+                  </tr>
+                </template>
+                <template x-if="auditLogs.length === 0">
+                  <tr>
+                    <td colspan="5" class="p-8 text-center text-slate-500 text-xs">
+                      Tidak ada catatan audit yang cocok dengan kriteria filter.
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="p-3.5 border-t border-slate-800 bg-slate-950/40 flex items-center justify-between text-xs text-slate-400">
+            <div>
+              Menampilkan <span class="font-semibold text-white" x-text="auditLogs.length"></span> dari <span class="font-semibold text-white" x-text="auditTotal"></span> catatan
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="if (auditOffset >= auditLimit) { auditOffset -= auditLimit; fetchAuditLogs(); }" :disabled="auditOffset === 0"
+                      class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-medium transition-all">
+                Sebelumnya
+              </button>
+              <span class="font-mono text-xs" x-text="'Hal ' + (Math.floor(auditOffset / auditLimit) + 1)"></span>
+              <button @click="if (auditOffset + auditLimit < auditTotal) { auditOffset += auditLimit; fetchAuditLogs(); }" :disabled="auditOffset + auditLimit >= auditTotal"
+                      class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-medium transition-all">
+                Selanjutnya
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
       <!-- TAB 4: CONFIGURATION -->
       <!-- ========================================== -->
       <section x-show="activeTab === 'config'" class="space-y-6">
@@ -918,6 +1062,13 @@
         recruitments: [],
         configs: [],
         searchTeam: '',
+        auditLogs: [],
+        auditTotal: 0,
+        auditLimit: 50,
+        auditOffset: 0,
+        auditFilterAction: '',
+        auditFilterTeamId: '',
+        auditSearchText: '',
         tickets: [],
         openTicketsCount: 0,
         ticketFilterStatus: 'ALL',
@@ -1180,6 +1331,27 @@
           } catch (e) {
             this.showToast('error', 'Kesalahan', e.message);
           }
+        },
+
+        async fetchAuditLogs() {
+          try {
+            const params = new URLSearchParams({
+              limit: this.auditLimit,
+              offset: this.auditOffset
+            });
+            if (this.auditFilterAction) params.append('action', this.auditFilterAction);
+            if (this.auditFilterTeamId) params.append('teamId', this.auditFilterTeamId);
+            if (this.auditSearchText.trim()) params.append('q', this.auditSearchText.trim());
+
+            const res = await fetch(`/api/audit-logs?${params.toString()}`, {
+              headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.auditLogs = data.logs || [];
+              this.auditTotal = data.total || 0;
+            }
+          } catch (e) {}
         },
 
         async fetchConfigs() {

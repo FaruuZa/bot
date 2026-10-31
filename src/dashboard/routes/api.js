@@ -15,6 +15,7 @@ import { getTeamById } from '../../database/queries/teamQueries.js';
 import { getActiveTeamMembers } from '../../database/queries/memberQueries.js';
 import { TicketService } from '../../services/ticketService.js';
 import { getTickets, getTicketById, countOpenTickets } from '../../database/queries/ticketQueries.js';
+import { getAuditLogs } from '../../database/queries/auditQueries.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)
@@ -663,6 +664,25 @@ export function createApiRouter(client) {
       await GuildConfigService.set(key, String(value || '').trim());
       return res.json({ success: true, message: `Konfigurasi ${key} berhasil diperbarui.` });
     } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // 7. Audit Logs
+  // ==========================================
+  router.get('/audit-logs', requireAuth, async (req, res) => {
+    try {
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+      const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+      const action = req.query.action || null;
+      const teamId = req.query.teamId ? parseInt(req.query.teamId, 10) : null;
+      const q = req.query.q || null;
+
+      const { logs, total } = await getAuditLogs({ limit, offset, action, teamId, q });
+      return res.json({ success: true, logs, total });
+    } catch (err) {
+      logger.error(`[Dashboard API] /audit-logs error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
     }
   });
