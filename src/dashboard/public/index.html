@@ -3,1115 +3,1224 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NSAC Jember — Staff Control Dashboard</title>
-  <!-- Tailwind CSS -->
+  <title>NSAC Jember — Staff Command Center</title>
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="/css/style.css">
+
+  <!-- Application Logic & Tailwind Theme Configuration -->
+  <script src="/js/app.js"></script>
+
+  <!-- Tailwind CSS Engine -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            discord: {
-              bg: '#313338',
-              card: '#2b2d31',
-              darker: '#1e1f22',
-              embed: '#2b2d31',
-              blurple: '#5865f2',
-              green: '#57f287',
-              red: '#ed4245',
-              yellow: '#fee75c',
-              blue: '#5865f2',
-              text: '#dbdee1',
-              muted: '#949ba4'
-            }
-          }
-        }
-      }
-    }
-  </script>
+
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+
   <!-- Alpine.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <style>
-    [x-cloak] { display: none !important; }
-    /* Discord embed markdown preview styles */
-    .discord-markdown strong { font-weight: 700; color: #f2f3f5; }
-    .discord-markdown em { font-style: italic; }
-    .discord-markdown code { background: #1e1f22; padding: 2px 5px; border-radius: 4px; font-family: monospace; font-size: 0.875rem; }
-    .discord-markdown blockquote { border-left: 4px solid #4e5058; padding-left: 8px; color: #b5bac1; }
-    .discord-markdown a { color: #00a8fc; text-decoration: none; }
-    .discord-markdown a:hover { text-decoration: underline; }
-  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white"
+<body class="bg-surface-base text-slate-200 min-h-screen font-sans antialiased selection:bg-blue-600 selection:text-white"
       x-data="dashboardApp()" x-init="initApp()" x-cloak>
 
   <!-- ========================================== -->
-  <!-- LOGIN SCREEN (If not authenticated) -->
+  <!-- LOGIN SCREEN (Unauthenticated) -->
   <!-- ========================================== -->
-  <div x-show="!authenticated" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-8 shadow-2xl relative text-center">
-      <div class="w-12 h-12 bg-indigo-600 rounded-xl mx-auto flex items-center justify-center shadow-md mb-4">
-        <i data-lucide="radio" class="w-6 h-6 text-white"></i>
+  <div x-show="!authenticated" class="fixed inset-0 z-50 flex items-center justify-center bg-surface-base p-4">
+    <div class="bg-surface-card border border-surface-border rounded-lg max-w-sm w-full p-8 text-center shadow-lg">
+      <div class="w-10 h-10 bg-blue-600/10 border border-blue-500/30 rounded-md mx-auto flex items-center justify-center mb-4 text-blue-400">
+        <i data-lucide="radio" class="w-5 h-5 flex-shrink-0"></i>
       </div>
-      <h2 class="text-xl font-bold text-white tracking-tight">NSAC Jember</h2>
-      <p class="text-xs text-slate-400 mt-1 mb-6">Staff Dashboard</p>
+      <h1 class="text-lg font-semibold text-white tracking-tight">NSAC Jember 2026</h1>
+      <p class="text-xs text-slate-400 mt-1 mb-6">Staff Command Center & Dashboard</p>
 
       <a href="/api/auth/discord/login"
-         class="w-full bg-[#5865F2] hover:bg-[#4752C4] active:scale-[0.98] text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2.5 transition-all shadow-md shadow-[#5865F2]/20 text-xs">
-        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-        <span>Lanjutkan dengan Discord</span>
+         class="w-full bg-[#5865F2] hover:bg-[#4752C4] active:scale-[0.99] text-white py-2.5 px-4 rounded-md font-medium flex items-center justify-center gap-2.5 transition-colors text-xs">
+        <svg class="w-4 h-4 fill-current flex-shrink-0" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+        <span>Masuk dengan Discord</span>
       </a>
 
-      <div x-show="loginError" class="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300 text-left flex items-start gap-2">
+      <div x-show="loginError" class="mt-4 p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-md text-xs text-rose-300 text-left flex items-start gap-2">
         <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5"></i>
         <span x-text="loginError"></span>
       </div>
+
+      <p class="text-[11px] text-slate-400 mt-6 leading-relaxed">
+        Akses dibatasi khusus akun panitia terdaftar pada server Discord resmi NASA Space Apps Challenge Jember.
+      </p>
     </div>
   </div>
 
   <!-- ========================================== -->
-  <!-- MAIN DASHBOARD (When authenticated) -->
+  <!-- MAIN APP SHELL (Authenticated) -->
   <!-- ========================================== -->
-  <div x-show="authenticated" class="flex flex-col min-h-screen">
-    <!-- Navbar -->
-    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-md">
+  <div x-show="authenticated" class="flex min-h-screen">
+
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="hidden md:flex flex-col w-64 bg-surface-card border-r border-surface-border h-screen sticky top-0 flex-shrink-0 z-30 select-none">
+      
+      <!-- Brand & Bot Status -->
+      <div class="h-16 border-b border-surface-border px-5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-md bg-blue-600/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
             <template x-if="stats.bot.avatar">
-              <img :src="stats.bot.avatar" class="w-10 h-10 rounded-xl" alt="Bot Avatar">
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                   :src="stats.bot.avatar" class="w-8 h-8 rounded-md object-cover" alt="Bot Avatar">
             </template>
             <template x-if="!stats.bot.avatar">
-              <i data-lucide="radio" class="w-5 h-5 text-white"></i>
+              <i data-lucide="radio" class="w-4 h-4 text-blue-400"></i>
             </template>
           </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-white tracking-wide" x-text="stats.bot.tag || 'NSAC Jember Bot'"></span>
-              <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online
-              </span>
-            </div>
-            <p class="text-xs text-slate-400" x-text="stats.guild.name || 'NASA Space Apps Challenge Jember'"></p>
+          <div class="min-w-0">
+            <div class="text-xs font-bold text-white tracking-tight truncate" x-text="stats.bot.tag ? stats.bot.tag.split('#')[0] : 'NSAC Bot'"></div>
+            <div class="text-[10px] text-slate-400 truncate">NSAC Jember 2026</div>
           </div>
         </div>
 
-        <!-- Navigation Tabs -->
-        <nav class="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
-          <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
-            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Overview
-          </button>
-          <button @click="activeTab = 'announce'" :class="activeTab === 'announce' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
-            <i data-lucide="megaphone" class="w-4 h-4"></i> Announcement Studio
-          </button>
-          <button @click="activeTab = 'teams'" :class="activeTab === 'teams' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
-            <i data-lucide="users" class="w-4 h-4"></i> Tim & Rekrutmen
-          </button>
-          <button @click="activeTab = 'webteams'; fetchWebTeams()" :class="activeTab === 'webteams' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
-            <i data-lucide="globe" class="w-4 h-4"></i> Tim Web NASA
-          </button>
-          <button @click="activeTab = 'config'" :class="activeTab === 'config' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
-            <i data-lucide="settings" class="w-4 h-4"></i> Konfigurasi
-          </button>
-        </nav>
+        <!-- Ping Status -->
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span x-text="(stats.bot.ping || 0) + 'ms'"></span>
+        </span>
+      </div>
 
-        <!-- Right User Actions -->
-        <div class="flex items-center gap-3">
-          <template x-if="userProfile && userProfile.username">
-            <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5">
-              <img :src="userProfile.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png'" class="w-6 h-6 rounded-full border border-indigo-500/40 object-cover">
-              <div class="text-left hidden sm:block leading-tight">
-                <div class="text-[11px] font-bold text-white flex items-center gap-1">
-                  <span x-text="'@' + userProfile.username"></span>
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                </div>
-                <div class="text-[9px] text-indigo-400 font-medium">Panitia Terverifikasi</div>
+      <!-- Navigation Links -->
+      <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        
+        <!-- OPERASIONAL GROUP -->
+        <div>
+          <div class="px-2 mb-2 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">Operasional</div>
+          <div class="space-y-0.5 text-xs">
+            <button @click="switchTab('overview')"
+                    :class="activeTab === 'overview' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="layout-dashboard" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Ringkasan</span>
+            </button>
+
+            <button @click="switchTab('announce')"
+                    :class="activeTab === 'announce' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Announcement Studio</span>
+            </button>
+
+            <button @click="switchTab('teams')"
+                    :class="activeTab === 'teams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Tim Discord</span>
+            </button>
+
+            <button @click="switchTab('webteams'); fetchWebTeams()"
+                    :class="activeTab === 'webteams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="globe" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Tim Web NASA</span>
+            </button>
+
+            <button @click="switchTab('tickets')"
+                    :class="activeTab === 'tickets' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="inbox" class="w-4 h-4 flex-shrink-0"></i>
+                <span>Tiket Dukungan</span>
               </div>
+              <template x-if="openTicketsCount > 0">
+                <span class="text-[10px] font-mono font-semibold px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded" x-text="openTicketsCount"></span>
+              </template>
+            </button>
+          </div>
+        </div>
+
+        <!-- SISTEM & REFERENSI GROUP -->
+        <div>
+          <div class="px-2 mb-2 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">Sistem & Panduan</div>
+          <div class="space-y-0.5 text-xs">
+            <button @click="switchTab('audit'); fetchAuditLogs()"
+                    :class="activeTab === 'audit' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="scroll-text" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Log Aktivitas</span>
+            </button>
+
+            <button @click="switchTab('faq')"
+                    :class="activeTab === 'faq' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="help-circle" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Panduan & FAQ Staf</span>
+            </button>
+
+            <button @click="switchTab('config')"
+                    :class="activeTab === 'config' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="sliders" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Konfigurasi Bot</span>
+            </button>
+          </div>
+        </div>
+
+      </nav>
+
+      <!-- Sidebar Footer (User Profile & Logout) -->
+      <div class="border-t border-surface-border p-3">
+        <div class="flex items-center justify-between gap-2 p-1.5 rounded-md hover:bg-surface-hover transition-colors">
+          <div class="flex items-center gap-2 min-w-0">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                 :src="userProfile ? (userProfile.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png') : 'https://cdn.discordapp.com/embed/avatars/0.png'"
+                 class="w-7 h-7 rounded-full bg-surface-border object-cover flex-shrink-0" alt="User Avatar">
+            <div class="min-w-0">
+              <div class="text-xs font-semibold text-white truncate" x-text="userProfile ? '@' + userProfile.username : 'Panitia'"></div>
+              <div class="text-[10px] text-slate-400 truncate">Staff Terverifikasi</div>
             </div>
-          </template>
-          <template x-if="!userProfile || !userProfile.username">
-            <div class="text-right hidden sm:block">
-              <span class="text-xs text-slate-300 font-medium">Panitia NSAC</span>
-              <div class="text-[10px] text-slate-500 font-mono" x-text="'Ping: ' + (stats.bot.ping || 0) + 'ms'"></div>
-            </div>
-          </template>
-          <button @click="logout()" title="Logout" class="p-2 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 transition-all">
+          </div>
+          <button @click="logout()" title="Keluar dari sesi" class="p-1.5 text-slate-400 hover:text-rose-400 rounded transition-colors flex-shrink-0">
             <i data-lucide="log-out" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
+    </aside>
 
-      <!-- Mobile Nav Row -->
-      <div class="md:hidden flex overflow-x-auto gap-1 p-2 bg-slate-950 border-t border-slate-800 text-xs">
-        <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Overview</button>
-        <button @click="activeTab = 'announce'" :class="activeTab === 'announce' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Announcement</button>
-        <button @click="activeTab = 'teams'" :class="activeTab === 'teams' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Tim & Lowongan</button>
-        <button @click="activeTab = 'webteams'; fetchWebTeams()" :class="activeTab === 'webteams' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Tim Web NASA</button>
-        <button @click="activeTab = 'tickets'" :class="activeTab === 'tickets' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Tiket (<span x-text="openTicketsCount"></span>)</button>
-        <button @click="activeTab = 'audit'; fetchAuditLogs()" :class="activeTab === 'audit' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Audit Log</button>
-        <button @click="activeTab = 'config'" :class="activeTab === 'config' ? 'bg-indigo-600 text-white' : 'text-slate-400'" class="px-3 py-1.5 rounded-lg whitespace-nowrap">Konfigurasi</button>
-      </div>
-    </header>
+    <!-- MOBILE DRAWER OVERLAY -->
+    <div x-show="mobileMenuOpen"
+         class="fixed inset-0 z-50 md:hidden flex"
+         role="dialog" aria-modal="true">
+      <div @click="mobileMenuOpen = false"
+           x-show="mobileMenuOpen"
+           x-transition:enter="transition-opacity ease-linear duration-200"
+           x-transition:enter-start="opacity-0"
+           x-transition:enter-end="opacity-100"
+           x-transition:leave="transition-opacity ease-linear duration-200"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0"
+           class="fixed inset-0 bg-black/70"></div>
 
-    <!-- Toast Notifications -->
-    <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full" x-show="toast.show" x-transition>
-      <div :class="toast.type === 'success' ? 'bg-emerald-950 border-emerald-500/50 text-emerald-200' : 'bg-rose-950 border-rose-500/50 text-rose-200'"
-           class="p-4 rounded-xl border shadow-2xl flex items-start gap-3">
-        <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>
-        <div class="flex-1 text-xs">
-          <p class="font-bold text-sm" x-text="toast.title"></p>
-          <p x-text="toast.message" class="mt-0.5 opacity-90"></p>
+      <div x-show="mobileMenuOpen"
+           x-transition:enter="transition ease-in-out duration-200 transform"
+           x-transition:enter-start="-translate-x-full"
+           x-transition:enter-end="translate-x-0"
+           x-transition:leave="transition ease-in-out duration-200 transform"
+           x-transition:leave-start="translate-x-0"
+           x-transition:leave-end="-translate-x-full"
+           class="relative w-72 bg-surface-card border-r border-surface-border h-full flex flex-col z-10">
+        
+        <div class="h-14 border-b border-surface-border px-4 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-white">NSAC Jember 2026</span>
+          </div>
+          <button @click="mobileMenuOpen = false" class="p-1.5 text-slate-400 hover:text-white rounded">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
         </div>
-        <button @click="toast.show = false" class="opacity-60 hover:opacity-100">&times;</button>
+
+        <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-xs">
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold px-2">Menu Navigasi</div>
+          <div class="space-y-1">
+            <button @click="switchTab('overview'); mobileMenuOpen = false" :class="activeTab === 'overview' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Ringkasan
+            </button>
+            <button @click="switchTab('announce'); mobileMenuOpen = false" :class="activeTab === 'announce' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="megaphone" class="w-4 h-4"></i> Announcement Studio
+            </button>
+            <button @click="switchTab('teams'); mobileMenuOpen = false" :class="activeTab === 'teams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="users" class="w-4 h-4"></i> Tim Discord
+            </button>
+            <button @click="switchTab('webteams'); fetchWebTeams(); mobileMenuOpen = false" :class="activeTab === 'webteams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="globe" class="w-4 h-4"></i> Tim Web NASA
+            </button>
+            <button @click="switchTab('tickets'); mobileMenuOpen = false" :class="activeTab === 'tickets' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+              <div class="flex items-center gap-3">
+                <i data-lucide="inbox" class="w-4 h-4"></i> Tiket Dukungan
+              </div>
+              <template x-if="openTicketsCount > 0">
+                <span class="text-[10px] font-mono px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded" x-text="openTicketsCount"></span>
+              </template>
+            </button>
+            <button @click="switchTab('audit'); fetchAuditLogs(); mobileMenuOpen = false" :class="activeTab === 'audit' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="scroll-text" class="w-4 h-4"></i> Log Aktivitas
+            </button>
+            <button @click="switchTab('faq'); mobileMenuOpen = false" :class="activeTab === 'faq' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="help-circle" class="w-4 h-4"></i> Panduan & FAQ
+            </button>
+            <button @click="switchTab('config'); mobileMenuOpen = false" :class="activeTab === 'config' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="sliders" class="w-4 h-4"></i> Konfigurasi Bot
+            </button>
+          </div>
+        </nav>
+
+        <div class="border-t border-surface-border p-3 flex items-center justify-between">
+          <div class="text-xs text-slate-400" x-text="userProfile ? '@' + userProfile.username : 'Panitia'"></div>
+          <button @click="logout()" class="text-xs text-rose-400 hover:underline">Keluar</button>
+        </div>
       </div>
     </div>
 
-    <!-- Main Content Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+    <!-- MAIN BODY AREA -->
+    <div class="flex-1 min-w-0 min-h-screen flex flex-col bg-surface-base">
+      
+      <!-- MOBILE HEADER -->
+      <header class="md:hidden h-14 bg-surface-card border-b border-surface-border px-4 flex items-center justify-between sticky top-0 z-20">
+        <button @click="mobileMenuOpen = true" class="p-1.5 text-slate-300 hover:text-white rounded">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <div class="text-xs font-semibold text-white tracking-wide" x-text="getTabTitle(activeTab)"></div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span class="text-[10px] font-mono text-slate-400" x-text="(stats.bot.ping || 0) + 'ms'"></span>
+        </div>
+      </header>
 
-      <!-- ========================================== -->
-      <!-- TAB 1: OVERVIEW -->
-      <!-- ========================================== -->
-      <section x-show="activeTab === 'overview'" class="space-y-6">
-        <!-- Metric Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-            <div class="flex items-center justify-between text-slate-400 mb-3">
-              <span class="text-xs font-semibold uppercase tracking-wider">Total Tim Terdaftar</span>
-              <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
-                <i data-lucide="users" class="w-4 h-4"></i>
-              </div>
-            </div>
-            <div class="text-3xl font-bold text-white" x-text="stats.stats.totalTeams || 0"></div>
-            <p class="text-xs text-slate-500 mt-1">Tim aktif di server Discord</p>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-            <div class="flex items-center justify-between text-slate-400 mb-3">
-              <span class="text-xs font-semibold uppercase tracking-wider">Lowongan Dibuka</span>
-              <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                <i data-lucide="user-plus" class="w-4 h-4"></i>
-              </div>
-            </div>
-            <div class="text-3xl font-bold text-emerald-400" x-text="stats.stats.openRecruitments || 0"></div>
-            <p class="text-xs text-slate-500 mt-1">Tim mencari anggota baru</p>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-            <div class="flex items-center justify-between text-slate-400 mb-3">
-              <span class="text-xs font-semibold uppercase tracking-wider">Peserta Resmi (@Participant)</span>
-              <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                <i data-lucide="user-check" class="w-4 h-4"></i>
-              </div>
-            </div>
-            <template x-if="stats.stats.participantRoleConfigured">
-              <div class="text-3xl font-bold text-amber-400" x-text="stats.stats.participantCount ?? 0"></div>
-            </template>
-            <template x-if="!stats.stats.participantRoleConfigured">
-              <div class="text-2xl font-bold text-slate-500 font-mono">-</div>
-            </template>
-            <p class="text-xs mt-1" :class="stats.stats.participantRoleConfigured ? 'text-slate-500' : 'text-amber-400 font-medium'">
-              <span x-show="stats.stats.participantRoleConfigured">Memegang role @Participant di Discord</span>
-              <span x-show="!stats.stats.participantRoleConfigured">Role @Participant belum diatur di Konfigurasi</span>
-            </p>
-          </div>
-
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-            <div class="flex items-center justify-between text-slate-400 mb-3">
-              <span class="text-xs font-semibold uppercase tracking-wider">Member Discord</span>
-              <div class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
-                <i data-lucide="disc" class="w-4 h-4"></i>
-              </div>
-            </div>
-            <div class="text-3xl font-bold text-white" x-text="stats.guild.memberCount || 0"></div>
-            <p class="text-xs text-slate-500 mt-1">Total di server NSAC Jember</p>
-          </div>
+      <!-- DESKTOP TOP CONTEXT BAR -->
+      <div class="hidden md:flex h-14 border-b border-surface-border px-8 items-center justify-between bg-surface-card/40 flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <h1 class="text-sm font-semibold text-white tracking-tight" x-text="getTabTitle(activeTab)"></h1>
+          <span class="text-slate-400">•</span>
+          <span class="text-xs text-slate-400" x-text="getTabSubtitle(activeTab)"></span>
         </div>
 
-        <!-- Secondary Participant Breakdown Row -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl px-5 py-3.5 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
-              <div>
-                <span class="text-xs font-semibold text-slate-200">Sudah Masuk Tim</span>
-                <p class="text-[11px] text-slate-500">Anggota aktif dalam formasi tim</p>
-              </div>
-            </div>
-            <div class="text-xl font-bold text-emerald-400 font-mono" x-text="stats.stats.inTeamsCount ?? 0"></div>
-          </div>
-
-          <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl px-5 py-3.5 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
-              <div>
-                <span class="text-xs font-semibold text-slate-200">Belum Punya Tim (@No-Team)</span>
-                <p class="text-[11px] text-slate-500">Peserta yang memegang status role @No-Team</p>
-              </div>
-            </div>
-            <div class="text-xl font-bold text-amber-400 font-mono" x-text="stats.stats.noTeamCount !== null ? stats.stats.noTeamCount : '-'"></div>
-          </div>
-        </div>
-
-        <!-- Quick Actions & NASA Sync Card -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">NASA Web Integration</span>
-              <h3 class="text-lg font-bold text-white">Sinkronisasi Lowongan Resmi NASA Space Apps</h3>
-            </div>
-            <p class="text-xs text-slate-400 max-w-2xl">
-              Tarik data tim dan lowongan langsung dari situs resmi NASA Space Apps Challenge (event lokal Jember). Bot akan otomatis membaca bio <strong>About the Team</strong> dan memposting lowongan ke channel recruitment board.
-            </p>
-          </div>
+        <div class="flex items-center gap-3">
           <button @click="triggerNasaSync()" :disabled="syncingNasa"
-                  class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-5 py-3 rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 flex-shrink-0">
-            <i data-lucide="refresh-cw" :class="syncingNasa ? 'animate-spin' : ''" class="w-4 h-4"></i>
-            <span x-text="syncingNasa ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'"></span>
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white transition-colors disabled:opacity-50">
+            <i data-lucide="refresh-cw" :class="syncingNasa ? 'animate-spin' : ''" class="w-3.5 h-3.5 text-blue-400"></i>
+            <span x-text="syncingNasa ? 'Syncing...' : 'Sync NASA Web'"></span>
           </button>
-        </div>
-
-        <!-- Quick Announcement Action Banner -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center flex-shrink-0">
-              <i data-lucide="sparkles" class="w-6 h-6"></i>
-            </div>
-            <div>
-              <h4 class="font-bold text-white text-sm">Buat Pengumuman Baru dengan Live Preview</h4>
-              <p class="text-xs text-slate-400">Gunakan Announcement Studio untuk membuat pengumuman kaya format dengan banner gambar dan live preview Discord sebelum dikirim.</p>
-            </div>
+          <div class="text-[11px] font-mono text-slate-400 px-2 py-1 rounded bg-surface-input border border-surface-border">
+            <span x-text="currentClock"></span> WIB
           </div>
-          <button @click="activeTab = 'announce'" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 transition-all whitespace-nowrap">
-            Buka Studio &rarr;
-          </button>
         </div>
-      </section>
+      </div>
 
-      <!-- ========================================== -->
-      <!-- TAB 2: ANNOUNCEMENT STUDIO (WYSIWYG) -->
-      <!-- ========================================== -->
-      <section x-show="activeTab === 'announce'" class="space-y-6">
-        <div>
-          <h2 class="text-xl font-bold text-white">Announcement Studio</h2>
-          <p class="text-xs text-slate-400">Kirim pengumuman resmi ke server Discord dengan pratinjau realtime yang identik dengan tampilan Discord.</p>
-        </div>
+      <!-- MAIN PAGE CONTENT -->
+      <main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <!-- ========================================== -->
+        <!-- TAB 1: OVERVIEW -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'overview'" class="space-y-6">
           
-          <!-- LEFT COLUMN: ANNOUNCEMENT FORM -->
-          <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-5">
-            <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
-              <h3 class="font-semibold text-sm text-white flex items-center gap-2">
-                <i data-lucide="edit-3" class="w-4 h-4 text-indigo-400"></i> Pengaturan Pesan
-              </h3>
-              <span class="text-[11px] text-slate-500 font-mono" x-text="form.message.length + '/4096 Karakter'"></span>
-            </div>
+          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Ringkasan Event</h2>
 
-            <!-- Target Channel -->
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Channel Tujuan <span class="text-rose-400">*</span></label>
-              <select x-model="form.channelId" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">-- Pilih Channel Discord --</option>
-                <template x-for="ch in channels" :key="ch.id">
-                  <option :value="ch.id" x-text="'#' + ch.name + ' (' + ch.categoryName + ')'"></option>
-                </template>
-              </select>
-            </div>
-
-            <!-- Ping / Mention -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Mention / Ping</label>
-                <select x-model="form.mentionType" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="none">Tanpa Mention</option>
-                  <option value="everyone">@everyone</option>
-                  <option value="here">@here</option>
-                  <option value="role">Pilih Role Khusus</option>
-                </select>
+          <!-- Key Metrics Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-surface-card border border-surface-border rounded-lg p-4">
+              <div class="flex items-center justify-between text-slate-400 mb-2">
+                <span class="text-xs font-medium">Total Tim Terdaftar</span>
+                <i data-lucide="users" class="w-4 h-4 text-blue-400"></i>
               </div>
+              <div class="text-2xl font-bold text-white tabular-nums tracking-tight" x-text="stats.stats.totalTeams || 0"></div>
+              <div class="text-[11px] text-slate-400 mt-1">Tim aktif di server Discord</div>
+            </div>
 
-              <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Role Tertentu</label>
-                <select x-model="form.roleId" :disabled="form.mentionType !== 'role'" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">-- Pilih Role --</option>
-                  <template x-for="r in roles" :key="r.id">
-                    <option :value="r.id" x-text="'@' + r.name"></option>
-                  </template>
-                </select>
+            <div class="bg-surface-card border border-surface-border rounded-lg p-4">
+              <div class="flex items-center justify-between text-slate-400 mb-2">
+                <span class="text-xs font-medium">Lowongan Terbuka</span>
+                <i data-lucide="user-plus" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <div class="text-2xl font-bold text-emerald-400 tabular-nums tracking-tight" x-text="stats.stats.openRecruitments || 0"></div>
+              <div class="text-[11px] text-slate-400 mt-1">Tim sedang mencari anggota</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg p-4">
+              <div class="flex items-center justify-between text-slate-400 mb-2">
+                <span class="text-xs font-medium">Peserta Resmi (@Participant)</span>
+                <i data-lucide="user-check" class="w-4 h-4 text-amber-400"></i>
+              </div>
+              <div class="text-2xl font-bold tabular-nums tracking-tight"
+                   :class="stats.stats.participantRoleConfigured ? 'text-amber-400' : 'text-slate-400'"
+                   x-text="stats.stats.participantRoleConfigured ? (stats.stats.participantCount ?? 0) : '-'"></div>
+              <div class="text-[11px] mt-1" :class="stats.stats.participantRoleConfigured ? 'text-slate-400' : 'text-amber-400'">
+                <span x-show="stats.stats.participantRoleConfigured">Memegang role @Participant</span>
+                <span x-show="!stats.stats.participantRoleConfigured">Role belum diatur di Konfigurasi</span>
               </div>
             </div>
 
-            <!-- Title & Color -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div class="sm:col-span-2">
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Judul Pengumuman <span class="text-rose-400">*</span></label>
-                <input type="text" x-model="form.title" placeholder="Contoh: Jadwal Hackathon Dibuka!"
-                       class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="bg-surface-card border border-surface-border rounded-lg p-4">
+              <div class="flex items-center justify-between text-slate-400 mb-2">
+                <span class="text-xs font-medium">Total Member Server</span>
+                <i data-lucide="disc" class="w-4 h-4 text-sky-400"></i>
               </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Warna Embed</label>
-                <select x-model="form.color" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="PRIMARY">Blurple (Default)</option>
-                  <option value="SUCCESS">Green (Sukses)</option>
-                  <option value="DANGER">Red (Penting/Urgent)</option>
-                  <option value="WARNING">Yellow (Perhatian)</option>
-                  <option value="INFO">Blue (Informasi)</option>
-                </select>
-              </div>
+              <div class="text-2xl font-bold text-white tabular-nums tracking-tight" x-text="stats.guild.memberCount || 0"></div>
+              <div class="text-[11px] text-slate-400 mt-1" x-text="stats.guild.name || 'Server NSAC Jember'"></div>
             </div>
-
-            <!-- Message Textarea -->
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label class="block text-xs font-semibold text-slate-300">Isi Pengumuman (Mendukung Markdown) <span class="text-rose-400">*</span></label>
-                <span class="text-[10px] text-slate-500">Gunakan **tebal**, *miring*, > kutipan, - list</span>
-              </div>
-              <textarea x-model="form.message" rows="8" placeholder="Tulis isi pengumuman lengkap di sini...&#10;&#10;Contoh:&#10;Halo Peserta **NASA Space Apps Challenge Jember**!&#10;&#10;Pendaftaran tim resmi dibuka. Silakan cek informasi berikut:&#10;- Tanggal: 3-4 Oktober&#10;- Lokasi: Hybrid"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans"></textarea>
-            </div>
-
-            <!-- Image Attachment / URL -->
-            <div class="space-y-3 pt-2 border-t border-slate-800">
-              <label class="block text-xs font-semibold text-slate-300">Banner Foto / Gambar Pengumuman (Opsional)</label>
-              
-              <!-- File Drag & Drop -->
-              <div class="border-2 border-dashed border-slate-800 hover:border-indigo-500/60 rounded-xl p-4 text-center transition-all bg-slate-950/50 relative">
-                <input type="file" @change="handleFileUpload($event)" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
-                <div class="flex flex-col items-center justify-center gap-1.5 text-xs text-slate-400">
-                  <i data-lucide="image-plus" class="w-6 h-6 text-indigo-400"></i>
-                  <span x-text="uploadedFileName ? uploadedFileName : 'Klik atau seret file gambar poster ke sini (PNG, JPG, WebP)'"></span>
-                  <span class="text-[10px] text-slate-500">Maksimal 8 MB</span>
-                </div>
-              </div>
-
-              <!-- Or External URL -->
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-slate-500 whitespace-nowrap">Atau URL Gambar:</span>
-                <input type="url" x-model="form.imageUrl" placeholder="https://example.com/poster.png"
-                       class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <button type="button" x-show="form.imageUrl || form.imageFile" @click="clearImage()" class="text-xs text-rose-400 hover:underline px-2">Hapus</button>
-              </div>
-            </div>
-
-            <!-- Submit Button -->
-            <button @click="confirmPostAnnouncement()" :disabled="postingAnnouncement"
-                    class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 text-xs">
-              <i data-lucide="send" class="w-4 h-4"></i>
-              <span x-text="postingAnnouncement ? 'Mengirim ke Discord...' : 'Kirim Pengumuman ke Discord'"></span>
-            </button>
           </div>
 
-          <!-- RIGHT COLUMN: DISCORD LIVE PREVIEW -->
-          <div class="lg:col-span-6 space-y-3 sticky top-24">
-            <div class="flex items-center justify-between text-xs text-slate-400">
-              <span class="font-semibold flex items-center gap-1.5">
-                <i data-lucide="eye" class="w-4 h-4 text-emerald-400"></i> Pratinjau Tampilan Discord (Live Preview)
-              </span>
-              <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400">Discord Dark Theme</span>
-            </div>
-
-            <!-- Discord Mock Client Container -->
-            <div class="bg-[#313338] rounded-xl p-4 sm:p-5 text-[#dbdee1] border border-[#232428] shadow-2xl font-sans">
-              <!-- Message Header (Avatar + Username + BOT tag + Timestamp) -->
-              <div class="flex items-start gap-4">
-                <img :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'"
-                     class="w-10 h-10 rounded-full flex-shrink-0 cursor-pointer hover:opacity-80" alt="Avatar">
-                
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-baseline gap-2">
-                    <span class="font-semibold text-white text-sm hover:underline cursor-pointer" x-text="stats.bot.tag ? stats.bot.tag.split('#')[0] : 'NSAC Jember 2026'"></span>
-                    <span class="bg-[#5865f2] text-white text-[10px] font-bold px-1 py-0.2 rounded uppercase tracking-wider flex items-center h-4">BOT</span>
-                    <span class="text-xs text-[#949ba4]" x-text="'Hari ini pukul ' + currentClock"></span>
-                  </div>
-
-                  <!-- Mention Ping Above Embed -->
-                  <div class="mt-1 text-sm font-medium" x-show="form.mentionType !== 'none' || form.roleId || form.roleId2">
-                    <span x-show="form.mentionType === 'everyone'" class="bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer">@everyone</span>
-                    <span x-show="form.mentionType === 'here'" class="bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer">@here</span>
-                    <span x-show="form.mentionType === 'role' && form.roleId" class="bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer" x-text="'@' + getRoleName(form.roleId)"></span>
-                    <span x-show="form.mentionType === 'role' && form.roleId2" class="ml-1 bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer" x-text="'@' + getRoleName(form.roleId2)"></span>
-                  </div>
-
-                  <!-- Discord Embed Box -->
-                  <div class="mt-2 rounded bg-[#2b2d31] border-l-4 max-w-xl transition-all"
-                       :style="'border-color: ' + getEmbedBorderColor(form.color)">
-                    <div class="p-4 space-y-3">
-                      <!-- Embed Title -->
-                      <h4 class="font-bold text-white text-base" x-text="'📢 ' + (form.title || 'Judul Pengumuman')"></h4>
-
-                      <!-- Embed Description -->
-                      <div class="text-sm text-[#dbdee1] whitespace-pre-wrap leading-relaxed discord-markdown"
-                           x-html="renderDiscordMarkdown(form.message || 'Isi pengumuman Anda akan muncul di sini secara langsung saat Anda mengetik...')"></div>
-
-                      <!-- Embed Banner Image Preview -->
-                      <div x-show="previewImageUrl || form.imageUrl" class="mt-3 rounded-lg overflow-hidden border border-[#232428]">
-                        <img :src="previewImageUrl || form.imageUrl" class="w-full max-h-80 object-cover" alt="Banner Preview">
-                      </div>
-
-                      <!-- Embed Footer -->
-                      <div class="pt-2 flex items-center gap-2 text-xs text-[#949ba4] border-t border-[#35373c]/50">
-                        <img :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'" class="w-4 h-4 rounded-full" alt="Icon">
-                        <span x-text="(form.footerText || 'NSAC Jember Announcement • Web Dashboard') + ' • Hari ini pukul ' + currentClock"></span>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-
-            <!-- Helpful hint -->
-            <p class="text-[11px] text-slate-500 italic">
-              * Pratinjau di atas menggunakan rendering dark mode Discord. Embed yang diposting akan memiliki border warna dan tata letak persis seperti yang terlihat di sini.
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- TAB 3: TEAMS & RECRUITMENT -->
-      <!-- ========================================== -->
-      <section x-show="activeTab === 'teams'" class="space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <!-- Participant Formation Breakdown (Clean non-nested layout) -->
           <div>
-            <h2 class="text-xl font-bold text-white">Manajemen Tim & Rekrutmen</h2>
-            <p class="text-xs text-slate-400">Daftar tim terdaftar, status rekrutmen anggota, dan sinkronisasi profil web NASA.</p>
-          </div>
-          <button @click="triggerNasaSync()" :disabled="syncingNasa"
-                  class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2">
-            <i data-lucide="refresh-cw" :class="syncingNasa ? 'animate-spin' : ''" class="w-4 h-4"></i>
-            <span>Sinkronkan Profil Web NASA</span>
-          </button>
-        </div>
-
-        <!-- Filter & Search -->
-        <div class="flex flex-col sm:flex-row items-center gap-3">
-          <div class="relative flex-1 w-full">
-            <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3.5 top-3"></i>
-            <input type="text" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
-                   class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-          <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
-            <button @click="teamStatusFilter = 'ALL'" :class="teamStatusFilter === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Semua</button>
-            <button @click="teamStatusFilter = 'ACTIVE'" :class="teamStatusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Aktif</button>
-            <button @click="teamStatusFilter = 'PENDING'" :class="teamStatusFilter === 'PENDING' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Pending</button>
-            <button @click="teamStatusFilter = 'ARCHIVED'" :class="teamStatusFilter === 'ARCHIVED' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Arsip</button>
-          </div>
-        </div>
-
-        <!-- Teams Table -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-950/70 border-b border-slate-800 text-slate-400 uppercase font-semibold">
-                <tr>
-                  <th class="px-5 py-3.5">Nama Tim</th>
-                  <th class="px-5 py-3.5">Ketua Tim</th>
-                  <th class="px-5 py-3.5">Tantangan (Challenge)</th>
-                  <th class="px-5 py-3.5">Anggota</th>
-                  <th class="px-5 py-3.5">Status</th>
-                  <th class="px-5 py-3.5">Lowongan</th>
-                  <th class="px-5 py-3.5 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-800/60 font-medium">
-                <template x-for="t in filteredTeams" :key="t.id">
-                  <tr @click="openTeamDetail(t.id)" class="hover:bg-slate-800/40 cursor-pointer transition-colors">
-                    <td class="px-5 py-4">
-                      <div class="font-bold text-white text-sm" x-text="t.name"></div>
-                      <div class="text-[10px] text-slate-500" x-text="'ID: ' + t.id"></div>
-                    </td>
-                    <td class="px-5 py-4">
-                      <span class="text-slate-200" x-text="t.leader_username ? '@' + t.leader_username : 'Tidak diketahui'"></span>
-                      <div class="text-[10px] text-slate-500" x-text="t.leader_discord_id ? 'ID: ' + t.leader_discord_id : ''"></div>
-                    </td>
-                    <td class="px-5 py-4 max-w-xs truncate text-slate-300" x-text="t.challenge_title || '*(Belum memilih)*'"></td>
-                    <td class="px-5 py-4">
-                      <span class="bg-slate-800 px-2 py-1 rounded text-white font-mono text-[11px]" x-text="(t.member_count || 1) + ' / 6'"></span>
-                    </td>
-                    <td class="px-5 py-4">
-                      <span :class="t.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : (t.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-700/50 text-slate-400 border-slate-600')"
-                            class="px-2.5 py-0.5 rounded-full border text-[10px] font-semibold" x-text="t.status"></span>
-                    </td>
-                    <td class="px-5 py-4">
-                      <template x-if="t.recruitment_id">
-                        <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded text-[10px] font-semibold">
-                          Buka (<span x-text="t.slots_needed"></span> slot)
-                        </span>
-                      </template>
-                      <template x-if="!t.recruitment_id">
-                        <span class="text-slate-500 text-[11px]">-</span>
-                      </template>
-                    </td>
-                    <td class="px-5 py-4 text-right">
-                      <button @click.stop="openTeamDetail(t.id)" class="px-3 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold transition-all">
-                        Kelola
-                      </button>
-                    </td>
-                  </tr>
-                </template>
-                <template x-if="filteredTeams.length === 0">
-                  <tr>
-                    <td colspan="7" class="px-5 py-8 text-center text-slate-500">
-                      Tidak ada data tim yang cocok dengan filter atau pencarian.
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Open Recruitments Board Cards -->
-        <div class="space-y-3 pt-6 border-t border-slate-800">
-          <h3 class="text-base font-bold text-white flex items-center gap-2">
-            <i data-lucide="user-plus" class="w-5 h-5 text-emerald-400"></i> Daftar Lowongan Aktif di Recruitment Board
-          </h3>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <template x-for="r in recruitments" :key="r.id">
-              <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4">
-                <div>
-                  <div class="flex items-center justify-between gap-2 mb-2">
-                    <h4 class="font-bold text-white text-sm" x-text="r.local_team_name || r.external_team_name || 'Tim Tanpa Nama'"></h4>
-                    <span class="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">OPEN</span>
-                  </div>
-                  <div class="text-[11px] text-slate-400 font-mono mb-2" x-text="'Challenge: ' + (r.challenge_title || 'Tantangan Belum Diatur')"></div>
-                  
-                  <!-- About the team snippet -->
-                  <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 text-xs text-slate-300 italic mb-3 max-h-24 overflow-y-auto">
-                    <span class="font-semibold text-slate-400 not-italic block mb-0.5">About the Team:</span>
-                    <span x-text="r.description || '*(Belum ada deskripsi profil)*'"></span>
-                  </div>
-
-                  <div class="text-xs text-slate-400 flex items-center justify-between">
-                    <span>Slot dibutuhkan: <strong class="text-white" x-text="r.slots_needed + ' orang'"></strong></span>
-                    <span class="text-[10px] text-slate-500" x-text="r.team_id ? 'Tim Discord' : 'Web NASA Space Apps'"></span>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Distribusi Peserta Discord</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="flex items-center justify-between p-4 rounded-lg bg-surface-card border border-surface-border">
+                <div class="flex items-center gap-3">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                  <div>
+                    <div class="text-xs font-semibold text-white">Sudah Masuk Tim</div>
+                    <div class="text-[11px] text-slate-400">Anggota aktif dalam formasi tim kompetisi</div>
                   </div>
                 </div>
+                <div class="text-xl font-bold font-mono text-emerald-400 tabular-nums" x-text="stats.stats.inTeamsCount ?? 0"></div>
+              </div>
 
-                <div class="flex items-center gap-2 pt-2 border-t border-slate-800">
-                  <template x-if="r.external_url">
-                    <a :href="r.external_url" target="_blank" class="flex-1 bg-slate-800 hover:bg-slate-700 text-center text-xs py-2 rounded-xl text-white font-medium transition-all">
-                      Profil NASA
-                    </a>
-                  </template>
-                  <button @click="closeRecruitment(r.id)" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs py-2 rounded-xl font-medium transition-all">
-                    Tutup Lowongan
-                  </button>
+              <div class="flex items-center justify-between p-4 rounded-lg bg-surface-card border border-surface-border">
+                <div class="flex items-center gap-3">
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                  <div>
+                    <div class="text-xs font-semibold text-white">Belum Punya Tim (@No-Team)</div>
+                    <div class="text-[11px] text-slate-400">Peserta dengan status role @No-Team</div>
+                  </div>
                 </div>
+                <div class="text-xl font-bold font-mono text-amber-400 tabular-nums" x-text="stats.stats.noTeamCount !== null ? stats.stats.noTeamCount : '-'"></div>
               </div>
-            </template>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- TAB: NASA WEB TEAMS -->
-      <!-- ========================================== -->
-      <section x-show="activeTab === 'webteams'" class="space-y-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              Tim Web NASA Space Apps
-              <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs px-2.5 py-0.5 rounded-full" x-text="webTeams.length + ' Tim'"></span>
-            </h2>
-            <p class="text-xs text-slate-400">Snapshot seluruh tim event Jember di situs resmi spaceappschallenge.org (Read-only).</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button @click="fetchWebTeams()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 transition-all flex items-center gap-2">
-              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
-            </button>
-            <button @click="triggerNasaSync()" :disabled="syncingNasa"
-                    class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2">
-              <template x-if="syncingNasa">
-                <div class="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-              </template>
-              <i data-lucide="refresh-cw" class="w-3.5 h-3.5" x-show="!syncingNasa"></i>
-              Sync dari NASA
-            </button>
-          </div>
-        </div>
-
-        <!-- Filter Bar -->
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs overflow-x-auto">
-            <button @click="webTeamFilter = 'ALL'" :class="webTeamFilter === 'ALL' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all">Semua</button>
-            <button @click="webTeamFilter = 'DISCORD'" :class="webTeamFilter === 'DISCORD' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all">Di Discord</button>
-            <button @click="webTeamFilter = 'WEB_ONLY'" :class="webTeamFilter === 'WEB_ONLY' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all">Hanya di Web</button>
-            <button @click="webTeamFilter = 'RECRUITING'" :class="webTeamFilter === 'RECRUITING' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all">Mencari Anggota</button>
-            <button @click="webTeamFilter = 'NOT_RECRUITING'" :class="webTeamFilter === 'NOT_RECRUITING' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all">Tidak Mencari</button>
-          </div>
-
-          <div class="flex-1 min-w-[200px]">
-            <input type="text" x-model="searchWebTeam" placeholder="Cari nama tim, tantangan, nama tim Discord..."
-                   class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-        </div>
-
-        <!-- Table -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th class="p-3.5 font-medium">Nama Tim (Web)</th>
-                  <th class="p-3.5 font-medium">Tantangan (Challenge)</th>
-                  <th class="p-3.5 font-medium">Status Rekrutmen</th>
-                  <th class="p-3.5 font-medium">Status Discord</th>
-                  <th class="p-3.5 font-medium">Terakhir Sync</th>
-                  <th class="p-3.5 font-medium text-right">Tautan</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-800/60">
-                <template x-for="wt in filteredWebTeams" :key="wt.slug">
-                  <tr class="hover:bg-slate-800/40 transition-colors">
-                    <td class="p-3.5">
-                      <div class="font-bold text-white text-sm" x-text="wt.title"></div>
-                      <div class="text-[11px] text-slate-500 font-mono mt-0.5" x-text="'/' + wt.slug"></div>
-                      <template x-if="!wt.present_in_latest_sync">
-                        <span class="inline-block mt-1 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">Tidak ada di sync terakhir</span>
-                      </template>
-                    </td>
-                    <td class="p-3.5 max-w-xs">
-                      <span class="text-slate-200" x-text="wt.challenge_title || '-(Belum memilih tantangan)-'"></span>
-                    </td>
-                    <td class="p-3.5">
-                      <template x-if="wt.is_recruiting">
-                        <span class="px-2.5 py-1 rounded-md font-semibold text-[11px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mencari Anggota
-                        </span>
-                      </template>
-                      <template x-if="!wt.is_recruiting">
-                        <span class="px-2.5 py-1 rounded-md font-medium text-[11px] bg-slate-800 text-slate-400 border border-slate-700">
-                          Tidak Mencari
-                        </span>
-                      </template>
-                    </td>
-                    <td class="p-3.5">
-                      <template x-if="wt.matched_team_name">
-                        <span class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 inline-flex items-center gap-1">
-                          <i data-lucide="check" class="w-3 h-3 text-indigo-400"></i>
-                          <span x-text="'Di Discord: ' + wt.matched_team_name"></span>
-                        </span>
-                      </template>
-                      <template x-if="!wt.matched_team_name">
-                        <span class="px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800/80 text-slate-400 border border-slate-700">
-                          Hanya di Web
-                        </span>
-                      </template>
-                    </td>
-                    <td class="p-3.5 text-slate-400 whitespace-nowrap" x-text="formatDate(wt.last_synced_at)"></td>
-                    <td class="p-3.5 text-right">
-                      <a :href="wt.url" target="_blank"
-                         class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-slate-700 text-xs font-medium transition-all">
-                        <span>Buka di Web NASA</span>
-                        <i data-lucide="external-link" class="w-3 h-3"></i>
-                      </a>
-                    </td>
-                  </tr>
-                </template>
-                <template x-if="filteredWebTeams.length === 0">
-                  <tr>
-                    <td colspan="6" class="p-8 text-center text-slate-500 text-xs">
-                      Tidak ada tim web NASA yang cocok dengan filter.
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- TAB: TICKETS -->
-      <!-- ========================================== -->
-      <section x-show="activeTab === 'tickets'" class="space-y-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              Inbox Tiket
-              <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs px-2.5 py-0.5 rounded-full" x-text="tickets.length + ' Total'"></span>
-            </h2>
-            <p class="text-xs text-slate-400">Kelola dan balas tiket pendaftaran tim atau bantuan langsung dari Discord.</p>
-          </div>
-          <button @click="fetchTickets()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 transition-all flex items-center gap-2 self-start md:self-auto">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
-          </button>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
-            <button @click="ticketFilterStatus = 'ALL'" :class="ticketFilterStatus === 'ALL' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Semua</button>
-            <button @click="ticketFilterStatus = 'OPEN'" :class="ticketFilterStatus === 'OPEN' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">OPEN</button>
-            <button @click="ticketFilterStatus = 'CLOSED'" :class="ticketFilterStatus === 'CLOSED' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">CLOSED</button>
-          </div>
-
-          <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
-            <button @click="ticketFilterType = 'ALL'" :class="ticketFilterType === 'ALL' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Semua Tipe</button>
-            <button @click="ticketFilterType = 'TEAM_REGISTRATION'" :class="ticketFilterType === 'TEAM_REGISTRATION' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Registrasi Tim</button>
-            <button @click="ticketFilterType = 'SUPPORT'" :class="ticketFilterType === 'SUPPORT' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition-all">Support</button>
-          </div>
-
-          <div class="flex-1 min-w-[200px]">
-            <input type="text" x-model="searchTicket" placeholder="Cari username, ID pembuat, channel ID..."
-                   class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-        </div>
-
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th class="p-3.5 font-medium">ID / Tipe</th>
-                  <th class="p-3.5 font-medium">Pembuat</th>
-                  <th class="p-3.5 font-medium">Status</th>
-                  <th class="p-3.5 font-medium">Channel Discord</th>
-                  <th class="p-3.5 font-medium">Dibuat</th>
-                  <th class="p-3.5 font-medium text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-800/60">
-                <template x-for="tk in filteredTickets" :key="tk.id">
-                  <tr class="hover:bg-slate-800/40 transition-colors">
-                    <td class="p-3.5">
-                      <div class="font-mono font-bold text-white" x-text="'#' + tk.id"></div>
-                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                            :class="tk.type === 'TEAM_REGISTRATION' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'"
-                            x-text="tk.type === 'TEAM_REGISTRATION' ? 'Registrasi Tim' : 'Support'"></span>
-                    </td>
-                    <td class="p-3.5">
-                      <div class="font-semibold text-white" x-text="tk.creator_username || 'Unknown'"></div>
-                      <div class="text-[11px] text-slate-500 font-mono" x-text="tk.creator_discord_id"></div>
-                    </td>
-                    <td class="p-3.5">
-                      <span class="px-2 py-0.5 rounded-md font-bold text-[10px]"
-                            :class="tk.status === 'OPEN' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'"
-                            x-text="tk.status"></span>
-                    </td>
-                    <td class="p-3.5">
-                      <template x-if="tk.discord_channel_id">
-                        <div class="flex items-center gap-1.5">
-                          <a :href="tk.discord_jump_url || ('https://discord.com/channels/' + (stats.guild ? stats.guild.id : '') + '/' + tk.discord_channel_id)" target="_blank"
-                             class="text-indigo-400 hover:text-indigo-300 font-mono text-xs flex items-center gap-1 underline underline-offset-2">
-                            <i data-lucide="external-link" class="w-3 h-3"></i> <span x-text="tk.discord_channel_id"></span>
-                          </a>
-                          <template x-if="!tk.channel_exists && tk.status === 'OPEN'">
-                            <span class="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">(Terhapus)</span>
-                          </template>
-                        </div>
-                      </template>
-                      <template x-if="!tk.discord_channel_id">
-                        <span class="text-slate-500 text-xs">-</span>
-                      </template>
-                    </td>
-                    <td class="p-3.5">
-                      <div class="text-slate-300" x-text="formatDate(tk.created_at)"></div>
-                      <template x-if="tk.closed_at">
-                        <div class="text-[10px] text-slate-500" x-text="'Ditutup: ' + formatDate(tk.closed_at)"></div>
-                      </template>
-                    </td>
-                    <td class="p-3.5 text-right space-x-1">
-                      <template x-if="tk.status === 'OPEN'">
-                        <div class="inline-flex items-center gap-1.5">
-                          <button @click="openReplyModal(tk)" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-medium transition-all">
-                            Balas
-                          </button>
-                          <button @click="closeTicketAction(tk.id)" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-medium transition-all">
-                            Tutup
-                          </button>
-                        </div>
-                      </template>
-                      <template x-if="tk.status !== 'OPEN'">
-                        <span class="text-slate-600 text-xs">Selesai</span>
-                      </template>
-                    </td>
-                  </tr>
-                </template>
-                <template x-if="filteredTickets.length === 0">
-                  <tr>
-                    <td colspan="6" class="p-8 text-center text-slate-500 text-xs">
-                      Tidak ada tiket yang cocok dengan filter.
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- TAB: AUDIT LOGS -->
-      <!-- ========================================== -->
-      <section x-show="activeTab === 'audit'" class="space-y-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              Audit Log Viewer
-              <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs px-2.5 py-0.5 rounded-full" x-text="auditTotal + ' Total Catatan'"></span>
-            </h2>
-            <p class="text-xs text-slate-400">Riwayat dan jejak audit aktivitas tim, anggota, pengumuman, dan staf bot.</p>
-          </div>
-          <button @click="fetchAuditLogs()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 transition-all flex items-center gap-2 self-start md:self-auto">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
-          </button>
-        </div>
-
-        <!-- Filters -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Aksi</label>
-            <select x-model="auditFilterAction" @change="auditOffset = 0; fetchAuditLogs()" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="">Semua Aksi</option>
-              <option value="TEAM_CREATED">TEAM_CREATED</option>
-              <option value="TEAM_ARCHIVED">TEAM_ARCHIVED</option>
-              <option value="TEAM_DELETED">TEAM_DELETED</option>
-              <option value="TEAM_RENAMED">TEAM_RENAMED</option>
-              <option value="MEMBER_ADDED">MEMBER_ADDED</option>
-              <option value="MEMBER_REMOVED">MEMBER_REMOVED</option>
-              <option value="MEMBER_KICKED">MEMBER_KICKED</option>
-              <option value="MEMBER_LEFT">MEMBER_LEFT</option>
-              <option value="LEADER_TRANSFERRED">LEADER_TRANSFERRED</option>
-              <option value="TICKET_CREATED">TICKET_CREATED</option>
-              <option value="TICKET_CLOSED">TICKET_CLOSED</option>
-              <option value="TEAM_SYNCED">TEAM_SYNCED</option>
-              <option value="GENERAL_LOG">GENERAL_LOG</option>
-              <option value="STAFF_OVERRIDE">STAFF_OVERRIDE</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Tim</label>
-            <select x-model="auditFilterTeamId" @change="auditOffset = 0; fetchAuditLogs()" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="">Semua Tim</option>
-              <template x-for="t in teams" :key="t.id">
-                <option :value="t.id" x-text="t.name"></option>
-              </template>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-[11px] font-medium text-slate-400 mb-1">Pencarian Teks</label>
-            <div class="flex gap-2">
-              <input type="text" x-model="auditSearchText" @keydown.enter="auditOffset = 0; fetchAuditLogs()" placeholder="Cari username, tim, JSON..."
-                     class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <button @click="auditOffset = 0; fetchAuditLogs()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all">
-                Cari
-              </button>
             </div>
           </div>
-        </div>
 
-        <!-- Table -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th class="p-3.5 font-medium whitespace-nowrap">Waktu</th>
-                  <th class="p-3.5 font-medium">Aksi</th>
-                  <th class="p-3.5 font-medium">Aktor</th>
-                  <th class="p-3.5 font-medium">Target / Tim</th>
-                  <th class="p-3.5 font-medium">Metadata</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-800/60">
-                <template x-for="log in auditLogs" :key="log.id">
-                  <tr class="hover:bg-slate-800/40 transition-colors align-top">
-                    <td class="p-3.5 whitespace-nowrap text-slate-400 font-mono text-[11px]" x-text="formatDate(log.created_at)"></td>
-                    <td class="p-3.5">
-                      <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-slate-800 border border-slate-700 text-indigo-300 whitespace-nowrap" x-text="log.action"></span>
-                    </td>
-                    <td class="p-3.5">
-                      <div class="font-semibold text-white" x-text="log.actor_username || 'System'"></div>
-                      <template x-if="log.actor_discord_id">
-                        <div class="text-[10px] text-slate-500 font-mono" x-text="log.actor_discord_id"></div>
-                      </template>
-                    </td>
-                    <td class="p-3.5">
-                      <template x-if="log.team_name">
-                        <div class="font-semibold text-indigo-400" x-text="'Tim: ' + log.team_name"></div>
-                      </template>
-                      <template x-if="log.target_username">
-                        <div class="text-slate-300" x-text="'Target: @' + log.target_username"></div>
-                      </template>
-                      <template x-if="!log.team_name && !log.target_username">
-                        <span class="text-slate-500">-</span>
-                      </template>
-                    </td>
-                    <td class="p-3.5 min-w-[220px]">
-                      <template x-if="log.metadata && Object.keys(log.metadata).length > 0">
-                        <details class="cursor-pointer">
-                          <summary class="text-indigo-400 hover:text-indigo-300 text-[11px] font-mono">Lihat Metadata</summary>
-                          <pre class="mt-1.5 p-2 bg-slate-950 rounded-lg text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-36 border border-slate-800" x-text="JSON.stringify(log.metadata, null, 2)"></pre>
-                        </details>
-                      </template>
-                      <template x-if="!log.metadata || Object.keys(log.metadata).length === 0">
-                        <span class="text-slate-600 font-mono text-[11px]">{}</span>
-                      </template>
-                    </td>
-                  </tr>
-                </template>
-                <template x-if="auditLogs.length === 0">
-                  <tr>
-                    <td colspan="5" class="p-8 text-center text-slate-500 text-xs">
-                      Tidak ada catatan audit yang cocok dengan kriteria filter.
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Pagination -->
-          <div class="p-3.5 border-t border-slate-800 bg-slate-950/40 flex items-center justify-between text-xs text-slate-400">
-            <div>
-              Menampilkan <span class="font-semibold text-white" x-text="auditLogs.length"></span> dari <span class="font-semibold text-white" x-text="auditTotal"></span> catatan
-            </div>
-            <div class="flex items-center gap-2">
-              <button @click="if (auditOffset >= auditLimit) { auditOffset -= auditLimit; fetchAuditLogs(); }" :disabled="auditOffset === 0"
-                      class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-medium transition-all">
-                Sebelumnya
-              </button>
-              <span class="font-mono text-xs" x-text="'Hal ' + (Math.floor(auditOffset / auditLimit) + 1)"></span>
-              <button @click="if (auditOffset + auditLimit < auditTotal) { auditOffset += auditLimit; fetchAuditLogs(); }" :disabled="auditOffset + auditLimit >= auditTotal"
-                      class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-medium transition-all">
-                Selanjutnya
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ========================================== -->
-      <!-- TAB 4: CONFIGURATION -->
-      <!-- ========================================== -->
-      <section x-show="activeTab === 'config'" class="space-y-6">
-        <div>
-          <h2 class="text-xl font-bold text-white">Konfigurasi Bot (Guild Config)</h2>
-          <p class="text-xs text-slate-400">Atur ID channel, role panitia, dan parameter sistem hackathon tanpa perlu restart bot.</p>
-        </div>
-
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-            <h3 class="font-semibold text-sm text-white">Parameter Konfigurasi</h3>
-            <span class="text-xs text-slate-500">Tersimpan di Database PostgreSQL</span>
-          </div>
-
-          <div class="divide-y divide-slate-800/60 p-4 space-y-4">
-            <template x-for="c in configs" :key="c.key">
-              <div class="pt-3 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div class="max-w-md">
-                  <div class="font-bold text-sm text-white" x-text="c.label || c.key"></div>
-                  <div class="text-[11px] text-slate-500 font-mono" x-text="c.key"></div>
-                  <p class="text-xs text-slate-400 mt-1" x-text="c.description"></p>
+          <!-- Operational Quick Actions -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- NASA Sync Card -->
+            <div class="bg-surface-card border border-surface-border rounded-lg p-5 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="globe" class="w-4 h-4 text-blue-400"></i>
+                  <h3 class="text-sm font-semibold text-white">Sinkronisasi Portal NASA</h3>
                 </div>
-                <div class="flex items-center gap-2 w-full md:w-auto">
-                  <input type="text" x-model="c.value" placeholder="Masukkan ID / Nilai..."
-                         class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-64 font-mono">
-                  <button @click="saveConfig(c.key, c.value)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all">
-                    Simpan
-                  </button>
-                </div>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                  Tarik data tim resmi dari <code class="text-slate-300">spaceappschallenge.org</code> untuk lokasi Jember. Bot mengekstrak bio tim dan lowongan ke channel recruitment board.
+                </p>
               </div>
-            </template>
-          </div>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- ========================================== -->
-    <!-- TEAM DETAIL MODAL -->
-    <!-- ========================================== -->
-    <div x-show="showTeamModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div @click.away="showTeamModal = false" class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8">
-        <template x-if="selectedTeam">
-          <div class="space-y-5">
-            <!-- Modal Header -->
-            <div class="flex items-start justify-between border-b border-slate-800 pb-4">
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-lg font-bold text-white" x-text="selectedTeam.name"></h3>
-                  <span :class="selectedTeam.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : (selectedTeam.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-700/50 text-slate-400 border-slate-600')"
-                        class="px-2.5 py-0.5 rounded-full border text-[10px] font-semibold" x-text="selectedTeam.status"></span>
-                </div>
-                <p class="text-xs text-slate-400 mt-0.5" x-text="'ID Tim: ' + selectedTeam.id + ' • Dibuat: ' + new Date(selectedTeam.created_at).toLocaleDateString('id-ID')"></p>
-              </div>
-              <button @click="showTeamModal = false" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
-                <i data-lucide="x" class="w-5 h-5"></i>
-              </button>
-            </div>
-
-            <!-- Team Overview Info -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-950 p-4 rounded-xl border border-slate-800">
-              <div>
-                <span class="text-slate-500 block">Tantangan (Challenge):</span>
-                <span class="font-medium text-slate-200" x-text="selectedTeam.challenge_title || '*(Belum memilih)*'"></span>
-              </div>
-              <div>
-                <span class="text-slate-500 block">Ketua Tim (Leader):</span>
-                <span class="font-medium text-slate-200" x-text="(selectedTeam.leader_username ? '@' + selectedTeam.leader_username : 'Tidak diketahui') + (selectedTeam.leader_discord_id ? ' (' + selectedTeam.leader_discord_id + ')' : '')"></span>
-              </div>
-              <div>
-                <span class="text-slate-500 block">Discord Channels:</span>
-                <span class="font-medium text-slate-300 font-mono text-[11px]" x-text="'Text: ' + (selectedTeam.text_channel_id || '-') + ' • Voice: ' + (selectedTeam.voice_channel_id || '-')"></span>
-              </div>
-              <div>
-                <span class="text-slate-500 block">Discord Role:</span>
-                <span class="font-medium text-slate-300 font-mono text-[11px]" x-text="'Role ID: ' + (selectedTeam.role_id || '-')"></span>
-              </div>
-            </div>
-
-            <!-- NSAC Link Editor -->
-            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-              <label class="block text-xs font-semibold text-slate-300">Tautan Resmi Profil Web NASA Space Apps</label>
-              <div class="flex items-center gap-2">
-                <input type="url" x-model="selectedTeam.nsac_link" placeholder="https://www.spaceappschallenge.org/2026/find-a-team/..."
-                       class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
-                <button @click="updateTeamNsacLink()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">
-                  Simpan Link
+              <div class="mt-4 pt-4 border-t border-surface-border flex items-center justify-between">
+                <span class="text-[11px] text-slate-400">Status: <span class="text-slate-300">Siap sinkronisasi</span></span>
+                <button @click="triggerNasaSync()" :disabled="syncingNasa"
+                        class="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                  <i data-lucide="refresh-cw" :class="syncingNasa ? 'animate-spin' : ''" class="w-3.5 h-3.5"></i>
+                  <span x-text="syncingNasa ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'"></span>
                 </button>
               </div>
             </div>
 
-            <!-- Members List (Roster) -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between">
-                <h4 class="text-xs font-bold text-white uppercase tracking-wider">Daftar Anggota Tim (<span x-text="(selectedTeam.members ? selectedTeam.members.length : 0) + '/6'"></span>)</h4>
+            <!-- Announcement Quick Card -->
+            <div class="bg-surface-card border border-surface-border rounded-lg p-5 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="megaphone" class="w-4 h-4 text-emerald-400"></i>
+                  <h3 class="text-sm font-semibold text-white">Announcement Studio</h3>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                  Publikasikan pengumuman penting, timeline, atau instruksi juri ke channel broadcast Discord dengan live preview identik sebelum dikirim.
+                </p>
               </div>
-              
-              <div class="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
+              <div class="mt-4 pt-4 border-t border-surface-border flex items-center justify-between">
+                <span class="text-[11px] text-slate-400">Mendukung banner upload & ping role</span>
+                <button @click="switchTab('announce')"
+                        class="px-3 py-1.5 rounded-md text-xs font-medium bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 transition-colors">
+                  Buka Studio &rarr;
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: ANNOUNCEMENT STUDIO (WYSIWYG) -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'announce'" class="space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- FORM COLUMN -->
+            <div class="lg:col-span-6 bg-surface-card border border-surface-border rounded-lg p-5 space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-surface-border">
+                <h2 class="text-sm font-semibold text-white">Komposisi Pengumuman</h2>
+                <span class="text-[11px] font-mono text-slate-400 tabular-nums" x-text="form.message.length + '/4096 Karakter'"></span>
+              </div>
+
+              <!-- Channel -->
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Channel Tujuan <span class="text-rose-400">*</span></label>
+                <select x-model="form.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <option value="">-- Pilih Channel Discord --</option>
+                  <template x-for="ch in channels" :key="ch.id">
+                    <option :value="ch.id" x-text="'#' + ch.name + ' (' + ch.categoryName + ')'"></option>
+                  </template>
+                </select>
+              </div>
+
+              <!-- Mentions -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Mention / Ping</label>
+                  <select x-model="form.mentionType" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <option value="none">Tanpa Mention</option>
+                    <option value="everyone">@everyone</option>
+                    <option value="here">@here</option>
+                    <option value="role">Role Khusus</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Role Tertentu</label>
+                  <select x-model="form.roleId" :disabled="form.mentionType !== 'role'"
+                          class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white disabled:opacity-40 focus:outline-none focus:border-blue-500">
+                    <option value="">-- Pilih Role --</option>
+                    <template x-for="r in roles" :key="r.id">
+                      <option :value="r.id" x-text="'@' + r.name"></option>
+                    </template>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Title & Color -->
+              <div class="grid grid-cols-3 gap-3">
+                <div class="col-span-2">
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Judul Embed <span class="text-rose-400">*</span></label>
+                  <input type="text" x-model="form.title" placeholder="Contoh: Jadwal Mentoring Hackathon"
+                         class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Warna Embed</label>
+                  <select x-model="form.color" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <option value="PRIMARY">Blurple (Standar)</option>
+                    <option value="SUCCESS">Green (Sukses)</option>
+                    <option value="DANGER">Red (Penting/Urgent)</option>
+                    <option value="WARNING">Yellow (Perhatian)</option>
+                    <option value="INFO">Blue (Informasi)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Message Body -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-medium text-slate-300">Isi Pengumuman <span class="text-rose-400">*</span></label>
+                  <span class="text-[10px] text-slate-400">**bold**, *italic*, > quote, - list</span>
+                </div>
+                <textarea x-model="form.message" rows="7" placeholder="Tulis pesan lengkap di sini..."
+                          class="w-full bg-surface-input border border-surface-border rounded-md p-3 text-xs text-white focus:outline-none focus:border-blue-500 font-sans"></textarea>
+              </div>
+
+              <!-- Image Attachment -->
+              <div class="space-y-2 pt-2 border-t border-surface-border">
+                <label class="block text-xs font-medium text-slate-300">Poster / Banner Pengumuman (Opsional)</label>
+                <div class="p-3 text-center bg-surface-input rounded-md relative hover:bg-surface-hover transition-colors cursor-pointer">
+                  <input type="file" @change="handleFileUpload($event)" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                  <div class="flex items-center justify-center gap-2 text-xs text-slate-400">
+                    <i data-lucide="image-plus" class="w-4 h-4 text-blue-400"></i>
+                    <span x-text="uploadedFileName ? uploadedFileName : 'Klik atau seret file gambar poster (Maks 8MB)'"></span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <input type="url" x-model="form.imageUrl" placeholder="Atau tempel URL gambar eksternal..."
+                         class="flex-1 bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <button type="button" x-show="form.imageUrl || form.imageFile" @click="clearImage()" class="text-xs text-rose-400 hover:underline px-1.5">Hapus</button>
+                </div>
+              </div>
+
+              <!-- Submit -->
+              <button @click="confirmPostAnnouncement()" :disabled="postingAnnouncement"
+                      class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-md text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                <span x-text="postingAnnouncement ? 'Mengirim ke Discord...' : 'Kirim Pengumuman ke Discord'"></span>
+              </button>
+            </div>
+
+            <!-- DISCORD PREVIEW COLUMN -->
+            <div class="lg:col-span-6 space-y-2 sticky top-20">
+              <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+                <h3 class="font-medium flex items-center gap-1.5 text-xs text-slate-300">
+                  <i data-lucide="eye" class="w-3.5 h-3.5 text-emerald-400"></i> Live Preview Discord
+                </h3>
+                <span class="text-[10px] font-mono text-slate-400">Mode Gelap Discord</span>
+              </div>
+
+              <!-- Discord Mock Client Box -->
+              <div class="bg-discord-bg rounded-md p-4 text-discord-text border border-surface-border min-h-[340px]">
+                <div class="flex items-start gap-3">
+                  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                       :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'"
+                       class="w-9 h-9 rounded-full flex-shrink-0 object-cover" alt="Avatar">
+                  
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-semibold text-white text-xs" x-text="stats.bot.tag ? stats.bot.tag.split('#')[0] : 'NSAC Jember'"></span>
+                      <span class="bg-discord-blurple text-white text-[9px] font-bold px-1 rounded uppercase">BOT</span>
+                      <span class="text-[10px] text-discord-muted" x-text="'Hari ini pukul ' + currentClock"></span>
+                    </div>
+
+                    <!-- Mention Line -->
+                    <div class="mt-1 text-xs" x-show="form.mentionType !== 'none' || form.roleId">
+                      <span x-show="form.mentionType === 'everyone'" class="bg-discord-blurple/20 text-[#c9cdfb] px-1 rounded">@everyone</span>
+                      <span x-show="form.mentionType === 'here'" class="bg-discord-blurple/20 text-[#c9cdfb] px-1 rounded">@here</span>
+                      <span x-show="form.mentionType === 'role' && form.roleId" class="bg-discord-blurple/20 text-[#c9cdfb] px-1 rounded" x-text="'@' + getRoleName(form.roleId)"></span>
+                    </div>
+
+                    <!-- Embed Box -->
+                    <div class="mt-2 rounded bg-discord-card border-l-4 max-w-xl"
+                         :style="'border-color: ' + getEmbedBorderColor(form.color)">
+                      <div class="p-3.5 space-y-2.5">
+                        <h4 class="font-bold text-white text-sm" x-text="'📢 ' + (form.title || 'Judul Pengumuman')"></h4>
+                        <div class="text-xs text-discord-text whitespace-pre-wrap leading-relaxed discord-markdown"
+                             x-html="renderDiscordMarkdown(form.message || 'Pratinjau isi pengumuman Discord akan tampil di sini saat Anda mengetik...')"></div>
+                        
+                        <div x-show="previewImageUrl || form.imageUrl" class="mt-2 rounded overflow-hidden border border-surface-border">
+                          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                               :src="previewImageUrl || form.imageUrl" class="w-full max-h-72 object-cover" alt="Banner Preview">
+                        </div>
+
+                        <div class="pt-2 flex items-center gap-1.5 text-[10px] text-discord-muted border-t border-[#35373c]/50">
+                          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                               :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'" class="w-3.5 h-3.5 rounded-full" alt="Icon">
+                          <span x-text="'NSAC Jember 2026 • Hari ini pukul ' + currentClock"></span>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: TEAMS & RECRUITMENT -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'teams'" class="space-y-6">
+          
+          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Tabel Tim Terdaftar di Discord</h2>
+
+          <!-- Filter & Controls -->
+          <div class="flex flex-col sm:flex-row items-center gap-3">
+            <div class="relative flex-1 w-full">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
+                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs w-full sm:w-auto">
+              <button @click="teamStatusFilter = 'ALL'" :class="teamStatusFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Semua</button>
+              <button @click="teamStatusFilter = 'ACTIVE'" :class="teamStatusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Aktif</button>
+              <button @click="teamStatusFilter = 'PENDING'" :class="teamStatusFilter === 'PENDING' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Pending</button>
+              <button @click="teamStatusFilter = 'ARCHIVED'" :class="teamStatusFilter === 'ARCHIVED' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Arsip</button>
+            </div>
+          </div>
+
+          <!-- Teams Table -->
+          <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
+                  <tr>
+                    <th class="px-4 py-3">Nama Tim</th>
+                    <th class="px-4 py-3">Ketua Tim</th>
+                    <th class="px-4 py-3">Tantangan</th>
+                    <th class="px-4 py-3">Anggota</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Lowongan</th>
+                    <th class="px-4 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                  <template x-for="t in filteredTeams" :key="t.id">
+                    <tr @click="openTeamDetail(t.id)" class="hover:bg-surface-hover cursor-pointer transition-colors">
+                      <td class="px-4 py-3">
+                        <div class="font-semibold text-white" x-text="t.name"></div>
+                        <div class="text-[10px] text-slate-400 font-mono" x-text="'ID: ' + t.id"></div>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="text-slate-200" x-text="t.leader_username ? '@' + t.leader_username : 'Tidak diketahui'"></div>
+                        <div class="text-[10px] text-slate-400 font-mono" x-text="t.leader_discord_id || ''"></div>
+                      </td>
+                      <td class="px-4 py-3 max-w-xs truncate text-slate-300" x-text="t.challenge_title || '-(Belum memilih)-'"></td>
+                      <td class="px-4 py-3">
+                        <span class="font-mono text-[11px] tabular-nums" x-text="(t.member_count || 1) + ' / 6'"></span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span :class="t.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : (t.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-slate-800 text-slate-400 border-slate-700')"
+                              class="px-2 py-0.5 rounded border text-[10px] font-semibold" x-text="t.status"></span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <template x-if="t.recruitment_id">
+                          <span class="text-emerald-400 font-medium text-[11px] inline-flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> <span x-text="t.slots_needed + ' slot'"></span>
+                          </span>
+                        </template>
+                        <template x-if="!t.recruitment_id">
+                          <span class="text-slate-400">-</span>
+                        </template>
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <button @click.stop="openTeamDetail(t.id)" class="px-2.5 py-1 bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 rounded text-xs transition-colors">
+                          Kelola
+                        </button>
+                      </td>
+                    </tr>
+                  </template>
+                  <template x-if="filteredTeams.length === 0">
+                    <tr>
+                      <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+                        Tidak ada data tim yang sesuai filter.
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Recruitment Board Section (Clean list without nested boxes) -->
+          <div class="space-y-3 pt-4 border-t border-surface-border">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Lowongan Aktif di Recruitment Board</h3>
+              <span class="text-xs text-slate-400" x-text="recruitments.length + ' Lowongan Terbuka'"></span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <template x-for="r in recruitments" :key="r.id">
+                <div class="bg-surface-card border border-surface-border rounded-lg p-4 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                      <span class="font-semibold text-white text-xs truncate" x-text="r.local_team_name || r.external_team_name || 'Tim Tanpa Nama'"></span>
+                      <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">OPEN</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mb-2 truncate" x-text="'Tantangan: ' + (r.challenge_title || 'Belum diatur')"></div>
+                    
+                    <div class="p-2 bg-surface-input rounded text-[11px] text-slate-300 max-h-20 overflow-y-auto mb-2">
+                      <span class="text-slate-400 font-medium block text-[10px] mb-0.5">About the Team:</span>
+                      <span x-text="r.description || '-(Tidak ada deskripsi profil)-'"></span>
+                    </div>
+
+                    <div class="text-xs text-slate-400 flex items-center justify-between">
+                      <span>Slot: <strong class="text-white" x-text="r.slots_needed + ' orang'"></strong></span>
+                      <span class="text-[10px] text-slate-400" x-text="r.team_id ? 'Tim Discord' : 'Web NASA'"></span>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 pt-2 border-t border-surface-border">
+                    <template x-if="r.external_url">
+                      <a :href="r.external_url" target="_blank" class="flex-1 bg-surface-elevated hover:bg-surface-hover text-center text-xs py-1.5 rounded text-white border border-surface-border transition-colors">
+                        Profil NASA
+                      </a>
+                    </template>
+                    <button @click="closeRecruitment(r.id)" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs py-1.5 rounded transition-colors">
+                      Tutup
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 4: NASA WEB TEAMS -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'webteams'" class="space-y-4">
+          
+          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Snapshot Tim Web Resmi NASA Space Apps</h2>
+
+          <div class="flex flex-col sm:flex-row items-center gap-3">
+            <div class="relative flex-1 w-full">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" x-model="searchWebTeam" placeholder="Cari nama tim di web NASA, tantangan, atau slug..."
+                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
+              <button @click="webTeamFilter = 'ALL'" :class="webTeamFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+              <button @click="webTeamFilter = 'DISCORD'" :class="webTeamFilter === 'DISCORD' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Di Discord</button>
+              <button @click="webTeamFilter = 'WEB_ONLY'" :class="webTeamFilter === 'WEB_ONLY' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web Only</button>
+              <button @click="webTeamFilter = 'RECRUITING'" :class="webTeamFilter === 'RECRUITING' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Mencari Anggota</button>
+            </div>
+          </div>
+
+          <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
+                  <tr>
+                    <th class="px-4 py-3">Nama Tim (Web NASA)</th>
+                    <th class="px-4 py-3">Tantangan</th>
+                    <th class="px-4 py-3">Status Rekrutmen</th>
+                    <th class="px-4 py-3">Korelasi Discord</th>
+                    <th class="px-4 py-3">Terakhir Sync</th>
+                    <th class="px-4 py-3 text-right">Tautan</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                  <template x-for="wt in filteredWebTeams" :key="wt.slug">
+                    <tr class="hover:bg-surface-hover transition-colors">
+                      <td class="px-4 py-3">
+                        <div class="font-semibold text-white" x-text="wt.title"></div>
+                        <div class="text-[10px] text-slate-400 font-mono" x-text="'/' + wt.slug"></div>
+                      </td>
+                      <td class="px-4 py-3 max-w-xs text-slate-300" x-text="wt.challenge_title || '-(Belum memilih)-'"></td>
+                      <td class="px-4 py-3">
+                        <template x-if="wt.is_recruiting">
+                          <span class="text-emerald-400 font-medium text-[11px] inline-flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mencari Anggota
+                          </span>
+                        </template>
+                        <template x-if="!wt.is_recruiting">
+                          <span class="text-slate-400 text-[11px]">Tidak Mencari</span>
+                        </template>
+                      </td>
+                      <td class="px-4 py-3">
+                        <template x-if="wt.matched_team_name">
+                          <span class="text-blue-400 text-[11px] font-medium" x-text="'Discord: ' + wt.matched_team_name"></span>
+                        </template>
+                        <template x-if="!wt.matched_team_name">
+                          <span class="text-slate-400 text-[11px]">Hanya di Web</span>
+                        </template>
+                      </td>
+                      <td class="px-4 py-3 text-slate-400 whitespace-nowrap text-[11px]" x-text="formatDate(wt.last_synced_at)"></td>
+                      <td class="px-4 py-3 text-right">
+                        <a :href="wt.url" target="_blank"
+                           class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-xs text-slate-200 transition-colors">
+                          <span>Buka Web</span>
+                          <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </a>
+                      </td>
+                    </tr>
+                  </template>
+                  <template x-if="filteredWebTeams.length === 0">
+                    <tr>
+                      <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                        Tidak ada data tim web NASA yang cocok.
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 5: TICKETS INBOX -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'tickets'" class="space-y-4">
+          
+          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Inbox Tiket Pendaftaran & Bantuan</h2>
+
+          <div class="flex flex-col sm:flex-row items-center gap-3">
+            <div class="relative flex-1 w-full">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" x-model="searchTicket" placeholder="Cari pembuat tiket, Discord ID, atau channel ID..."
+                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+            </div>
+
+            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs">
+              <button @click="ticketFilterStatus = 'ALL'" :class="ticketFilterStatus === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">Semua</button>
+              <button @click="ticketFilterStatus = 'OPEN'" :class="ticketFilterStatus === 'OPEN' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">OPEN</button>
+              <button @click="ticketFilterStatus = 'CLOSED'" :class="ticketFilterStatus === 'CLOSED' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">CLOSED</button>
+            </div>
+          </div>
+
+          <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
+                  <tr>
+                    <th class="px-4 py-3">ID / Tipe</th>
+                    <th class="px-4 py-3">Pembuat</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Channel Discord</th>
+                    <th class="px-4 py-3">Waktu</th>
+                    <th class="px-4 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                  <template x-for="tk in filteredTickets" :key="tk.id">
+                    <tr class="hover:bg-surface-hover transition-colors">
+                      <td class="px-4 py-3">
+                        <div class="font-mono font-bold text-white" x-text="'#' + tk.id"></div>
+                        <span class="text-[10px] text-slate-400" x-text="tk.type === 'TEAM_REGISTRATION' ? 'Registrasi Tim' : 'Bantuan'"></span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="font-medium text-white" x-text="tk.creator_username || 'Unknown'"></div>
+                        <div class="text-[10px] text-slate-400 font-mono" x-text="tk.creator_discord_id"></div>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold"
+                              :class="tk.status === 'OPEN' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700'"
+                              x-text="tk.status"></span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <template x-if="tk.discord_channel_id">
+                          <a :href="tk.discord_jump_url || ('https://discord.com/channels/' + (stats.guild ? stats.guild.id : '') + '/' + tk.discord_channel_id)" target="_blank"
+                             class="text-blue-400 hover:underline font-mono text-xs inline-flex items-center gap-1">
+                            <span x-text="tk.discord_channel_id"></span>
+                            <i data-lucide="external-link" class="w-3 h-3"></i>
+                          </a>
+                        </template>
+                        <template x-if="!tk.discord_channel_id">
+                          <span class="text-slate-400">-</span>
+                        </template>
+                      </td>
+                      <td class="px-4 py-3 text-slate-400 text-[11px]" x-text="formatDate(tk.created_at)"></td>
+                      <td class="px-4 py-3 text-right">
+                        <template x-if="tk.status === 'OPEN'">
+                          <div class="inline-flex items-center gap-1.5">
+                            <button @click="openReplyModal(tk)" class="px-2.5 py-1 rounded bg-blue-600/10 hover:bg-blue-600/20 text-blue-300 border border-blue-500/20 text-xs transition-colors">
+                              Balas
+                            </button>
+                            <button @click="closeTicketAction(tk.id)" class="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs transition-colors">
+                              Tutup
+                            </button>
+                          </div>
+                        </template>
+                        <template x-if="tk.status !== 'OPEN'">
+                          <span class="text-slate-400 text-xs">Selesai</span>
+                        </template>
+                      </td>
+                    </tr>
+                  </template>
+                  <template x-if="filteredTickets.length === 0">
+                    <tr>
+                      <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                        Tidak ada tiket yang cocok dengan filter.
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 6: AUDIT & SYSTEM LOGS -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'audit'" class="space-y-4">
+          
+          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Riwayat Jejak Audit & Aktivitas Sistem</h2>
+
+          <!-- Filter Controls -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Aksi</label>
+              <select x-model="auditFilterAction" @change="auditOffset = 0; fetchAuditLogs()"
+                      class="w-full bg-surface-card border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="">Semua Aksi</option>
+                <option value="TEAM_CREATED">TEAM_CREATED</option>
+                <option value="TEAM_ARCHIVED">TEAM_ARCHIVED</option>
+                <option value="TEAM_DELETED">TEAM_DELETED</option>
+                <option value="TEAM_RENAMED">TEAM_RENAMED</option>
+                <option value="MEMBER_ADDED">MEMBER_ADDED</option>
+                <option value="MEMBER_REMOVED">MEMBER_REMOVED</option>
+                <option value="MEMBER_KICKED">MEMBER_KICKED</option>
+                <option value="LEADER_TRANSFERRED">LEADER_TRANSFERRED</option>
+                <option value="TICKET_CREATED">TICKET_CREATED</option>
+                <option value="TICKET_CLOSED">TICKET_CLOSED</option>
+                <option value="TEAM_SYNCED">TEAM_SYNCED</option>
+                <option value="STAFF_OVERRIDE">STAFF_OVERRIDE</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Tim</label>
+              <select x-model="auditFilterTeamId" @change="auditOffset = 0; fetchAuditLogs()"
+                      class="w-full bg-surface-card border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="">Semua Tim</option>
+                <template x-for="t in teams" :key="t.id">
+                  <option :value="t.id" x-text="t.name"></option>
+                </template>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1">Cari Kata Kunci</label>
+              <div class="flex gap-2">
+                <input type="text" x-model="auditSearchText" @keydown.enter="auditOffset = 0; fetchAuditLogs()" placeholder="Username, ID, JSON..."
+                       class="flex-1 bg-surface-card border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <button @click="auditOffset = 0; fetchAuditLogs()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-medium transition-colors">
+                  Cari
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Log Table -->
+          <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
+                  <tr>
+                    <th class="px-4 py-3 whitespace-nowrap">Waktu</th>
+                    <th class="px-4 py-3">Aksi</th>
+                    <th class="px-4 py-3">Aktor</th>
+                    <th class="px-4 py-3">Target / Tim</th>
+                    <th class="px-4 py-3">Metadata</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                  <template x-for="log in auditLogs" :key="log.id">
+                    <tr class="hover:bg-surface-hover transition-colors align-top">
+                      <td class="px-4 py-3 whitespace-nowrap text-slate-400 font-mono text-[11px]" x-text="formatDate(log.created_at)"></td>
+                      <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded font-mono font-semibold text-[10px] bg-surface-elevated border border-surface-border text-blue-300 whitespace-nowrap" x-text="log.action"></span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="font-medium text-white" x-text="log.actor_username || 'System'"></div>
+                        <template x-if="log.actor_discord_id">
+                          <div class="text-[10px] text-slate-400 font-mono" x-text="log.actor_discord_id"></div>
+                        </template>
+                      </td>
+                      <td class="px-4 py-3">
+                        <template x-if="log.team_name">
+                          <div class="font-medium text-blue-300" x-text="'Tim: ' + log.team_name"></div>
+                        </template>
+                        <template x-if="log.target_username">
+                          <div class="text-slate-300" x-text="'Target: @' + log.target_username"></div>
+                        </template>
+                        <template x-if="!log.team_name && !log.target_username">
+                          <span class="text-slate-400">-</span>
+                        </template>
+                      </td>
+                      <td class="px-4 py-3 min-w-[200px]">
+                        <template x-if="log.metadata && Object.keys(log.metadata).length > 0">
+                          <details class="cursor-pointer">
+                            <summary class="text-blue-400 hover:text-blue-300 text-[11px] font-mono">Detail JSON</summary>
+                            <pre class="mt-1 p-2 bg-surface-base rounded text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-32 border border-surface-border" x-text="JSON.stringify(log.metadata, null, 2)"></pre>
+                          </details>
+                        </template>
+                        <template x-if="!log.metadata || Object.keys(log.metadata).length === 0">
+                          <span class="text-slate-400 font-mono text-[11px]">{}</span>
+                        </template>
+                      </td>
+                    </tr>
+                  </template>
+                  <template x-if="auditLogs.length === 0">
+                    <tr>
+                      <td colspan="5" class="px-4 py-8 text-center text-slate-400">
+                        Tidak ada catatan log audit yang cocok.
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="px-4 py-3 border-t border-surface-border bg-surface-elevated/40 flex items-center justify-between text-xs text-slate-400">
+              <div>
+                Menampilkan <span class="text-white font-medium tabular-nums" x-text="auditLogs.length"></span> dari <span class="text-white font-medium tabular-nums" x-text="auditTotal"></span> catatan
+              </div>
+              <div class="flex items-center gap-2">
+                <button @click="if (auditOffset >= auditLimit) { auditOffset -= auditLimit; fetchAuditLogs(); }" :disabled="auditOffset === 0"
+                        class="px-2.5 py-1 rounded bg-surface-card hover:bg-surface-hover disabled:opacity-40 text-slate-200 border border-surface-border transition-colors">
+                  Sebelumnya
+                </button>
+                <span class="font-mono text-xs tabular-nums" x-text="'Hal ' + (Math.floor(auditOffset / auditLimit) + 1)"></span>
+                <button @click="if (auditOffset + auditLimit < auditTotal) { auditOffset += auditLimit; fetchAuditLogs(); }" :disabled="auditOffset + auditLimit >= auditTotal"
+                        class="px-2.5 py-1 rounded bg-surface-card hover:bg-surface-hover disabled:opacity-40 text-slate-200 border border-surface-border transition-colors">
+                  Selanjutnya
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 7: FAQ & STAFF GUIDANCE (NEW FEATURE) -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'faq'" class="space-y-6">
+          
+          <div>
+            <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold mb-2">Panduan & FAQ Panitia</h2>
+            <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+              Panduan ringkas regulasi event, alur kerja sinkronisasi web global NASA Space Apps, etika broadcast, serta daftar slash command bot.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+              <div class="relative flex-1 w-full">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" x-model="faqSearch" placeholder="Cari pertanyaan, aturan, atau nama command..."
+                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              </div>
+
+              <!-- Categories Filter -->
+              <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
+                <button @click="faqCategory = 'ALL'" :class="faqCategory === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                <button @click="faqCategory = 'TEAMS'" :class="faqCategory === 'TEAMS' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Tim</button>
+                <button @click="faqCategory = 'NASA'" :class="faqCategory === 'NASA' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web NASA</button>
+                <button @click="faqCategory = 'ANNOUNCE'" :class="faqCategory === 'ANNOUNCE' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Pengumuman</button>
+                <button @click="faqCategory = 'COMMANDS'" :class="faqCategory === 'COMMANDS' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Commands</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Slash Commands Quick Cheat Sheet -->
+          <div x-show="faqCategory === 'ALL' || faqCategory === 'COMMANDS'" class="bg-surface-card border border-surface-border rounded-lg p-5 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-surface-border">
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300">Daftar Slash Command Bot Discord</h3>
+              <span class="text-[11px] text-slate-400">Gunakan langsung di server Discord</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-surface-elevated text-slate-400 text-[11px] font-mono">
+                  <tr>
+                    <th class="px-3 py-2">Command</th>
+                    <th class="px-3 py-2">Pengguna</th>
+                    <th class="px-3 py-2">Deskripsi & Fungsi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border font-mono text-[11px]">
+                  <template x-for="cmd in filteredCommands" :key="cmd.command">
+                    <tr class="hover:bg-surface-hover">
+                      <td class="px-3 py-2.5 text-blue-400 font-bold whitespace-nowrap" x-text="cmd.command"></td>
+                      <td class="px-3 py-2.5 whitespace-nowrap">
+                        <span class="px-1.5 py-0.2 rounded text-[10px] bg-surface-elevated border border-surface-border"
+                              :class="cmd.scope === 'Admin' ? 'text-amber-400' : 'text-slate-300'" x-text="cmd.scope"></span>
+                      </td>
+                      <td class="px-3 py-2.5 font-sans text-slate-300 text-xs" x-text="cmd.desc"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- FAQ Accordion List -->
+          <div class="space-y-3">
+            <template x-for="(item, idx) in filteredFaqs" :key="idx">
+              <div class="bg-surface-card border border-surface-border rounded-lg p-4">
+                <h3 class="text-xs font-semibold text-white flex items-start gap-2 mb-1.5">
+                  <span class="text-blue-400 font-mono">Q:</span>
+                  <span x-text="item.question"></span>
+                </h3>
+                <div class="text-xs text-slate-300 pl-5 leading-relaxed" x-html="item.answer"></div>
+              </div>
+            </template>
+          </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 8: CONFIGURATION -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'config'" class="space-y-4">
+          <div class="bg-surface-card border border-surface-border rounded-lg p-5">
+            <div class="pb-3 border-b border-surface-border flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Guild Configuration (PostgreSQL)</h2>
+                <p class="text-xs text-slate-400">Pengaturan parameter bot, ID channel Discord, dan ID role panitia tanpa perlu restart service.</p>
+              </div>
+            </div>
+
+            <div class="divide-y divide-surface-border">
+              <template x-for="c in configs" :key="c.key">
+                <div class="py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div class="max-w-md">
+                    <div class="font-semibold text-xs text-white" x-text="c.label || c.key"></div>
+                    <div class="text-[10px] text-slate-400 font-mono" x-text="c.key"></div>
+                    <p class="text-[11px] text-slate-400 mt-0.5" x-text="c.description"></p>
+                  </div>
+                  <div class="flex items-center gap-2 w-full md:w-auto">
+                    <input type="text" x-model="c.value" placeholder="Masukkan ID / Nilai..."
+                           class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-64 font-mono">
+                    <button @click="saveConfig(c.key, c.value)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors">
+                      Simpan
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- Minimal Clean Footer -->
+      <footer class="border-t border-surface-border py-3 px-8 text-center md:text-left text-[11px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2 bg-surface-card/20">
+        <div>NASA Space Apps Challenge Jember 2026 &bull; Staff Command Center</div>
+        <div class="font-mono text-[10px] text-slate-400">Express 5 &bull; discord.js v14 &bull; PostgreSQL</div>
+      </footer>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: TEAM DETAIL -->
+    <!-- ========================================== -->
+    <div x-show="showTeamModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showTeamModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-2xl w-full p-6 space-y-4 my-8 shadow-xl">
+        <template x-if="selectedTeam">
+          <div class="space-y-4">
+            
+            <div class="flex items-start justify-between border-b border-surface-border pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-base font-bold text-white" x-text="selectedTeam.name"></h3>
+                  <span :class="selectedTeam.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'"
+                        class="px-2 py-0.5 rounded border text-[10px] font-semibold" x-text="selectedTeam.status"></span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5" x-text="'ID: ' + selectedTeam.id + ' • Dibuat: ' + formatDate(selectedTeam.created_at)"></p>
+              </div>
+              <button @click="showTeamModal = false" class="p-1 rounded text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Definition List -->
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-surface-input p-3 rounded">
+              <div>
+                <dt class="text-slate-400 text-[10px]">Tantangan:</dt>
+                <dd class="font-medium text-slate-200" x-text="selectedTeam.challenge_title || '-(Belum memilih)-'"></dd>
+              </div>
+              <div>
+                <dt class="text-slate-400 text-[10px]">Ketua Tim:</dt>
+                <dd class="font-medium text-slate-200" x-text="(selectedTeam.leader_username ? '@' + selectedTeam.leader_username : 'Tidak diketahui')"></dd>
+              </div>
+              <div>
+                <dt class="text-slate-400 text-[10px]">Channel Discord:</dt>
+                <dd class="text-slate-300 font-mono text-[11px]" x-text="'Text: ' + (selectedTeam.text_channel_id || '-') + ' • Voice: ' + (selectedTeam.voice_channel_id || '-')"></dd>
+              </div>
+              <div>
+                <dt class="text-slate-400 text-[10px]">Role ID:</dt>
+                <dd class="text-slate-300 font-mono text-[11px]" x-text="selectedTeam.role_id || '-'"></dd>
+              </div>
+            </dl>
+
+            <!-- Web Link -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-300">Tautan Resmi Profil Web NASA Space Apps</label>
+              <div class="flex items-center gap-2">
+                <input type="url" x-model="selectedTeam.nsac_link" placeholder="https://www.spaceappschallenge.org/2026/find-a-team/..."
+                       class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+                <button @click="updateTeamNsacLink()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
+                  Simpan
+                </button>
+              </div>
+            </div>
+
+            <!-- Members List -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-semibold text-white">Anggota Tim (<span x-text="(selectedTeam.members ? selectedTeam.members.length : 0) + '/6'"></span>)</span>
+              </div>
+
+              <div class="divide-y divide-surface-border rounded bg-surface-input">
                 <template x-for="m in (selectedTeam.members || [])" :key="m.id">
-                  <div class="p-3 flex items-center justify-between gap-3 text-xs">
+                  <div class="p-2.5 flex items-center justify-between gap-3 text-xs">
                     <div>
                       <div class="flex items-center gap-2">
-                        <span class="font-semibold text-white" x-text="m.username || 'User'"></span>
-                        <span :class="m.role === 'LEADER' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'"
+                        <span class="font-medium text-white" x-text="m.username || 'User'"></span>
+                        <span :class="m.role === 'LEADER' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'"
                               class="text-[10px] font-bold px-1.5 py-0.2 rounded border" x-text="m.role"></span>
                       </div>
-                      <span class="text-[11px] text-slate-500 font-mono" x-text="'ID: ' + m.discord_id"></span>
+                      <span class="text-[10px] text-slate-400 font-mono" x-text="m.discord_id"></span>
                     </div>
 
                     <div class="flex items-center gap-1.5">
                       <template x-if="m.role !== 'LEADER'">
-                        <button @click="transferLeaderAction(m.discord_id)" title="Pindahkan kepemimpinan ketua tim ke anggota ini"
-                                class="px-2 py-1 rounded bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 text-[11px] font-medium border border-slate-700">
+                        <button @click="transferLeaderAction(m.discord_id)" class="px-2 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-slate-300 text-[11px] border border-surface-border">
                           Jadikan Ketua
                         </button>
                       </template>
                       <template x-if="m.role !== 'LEADER'">
-                        <button @click="removeMemberAction(m.discord_id)" title="Keluarkan anggota dari tim"
-                                class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 text-[11px] font-medium border border-slate-700">
+                        <button @click="removeMemberAction(m.discord_id)" class="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-[11px] border border-rose-500/20">
                           Keluarkan
                         </button>
                       </template>
@@ -1120,799 +1229,88 @@
                 </template>
               </div>
 
-              <!-- Add Member Input -->
-              <div class="flex items-center gap-2 pt-2">
-                <input type="text" x-model="newMemberDiscordId" placeholder="Masukkan Discord ID anggota yang ingin ditambahkan..."
-                       class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
-                <button @click="addMemberAction()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap">
-                  Tambah Anggota
+              <!-- Add member -->
+              <div class="flex items-center gap-2 pt-1">
+                <input type="text" x-model="newMemberDiscordId" placeholder="Discord ID anggota baru..."
+                       class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+                <button @click="addMemberAction()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
+                  Tambah
                 </button>
               </div>
             </div>
 
-            <!-- Danger Zone / Actions -->
-            <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <!-- Danger Zone -->
+            <div class="pt-3 border-t border-surface-border flex items-center justify-between gap-3">
               <div class="flex items-center gap-2">
-                <button @click="renameTeamAction()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700">
-                  Ganti Nama Tim
+                <button @click="renameTeamAction()" class="px-3 py-1.5 rounded bg-surface-elevated hover:bg-surface-hover text-slate-200 text-xs border border-surface-border">
+                  Ganti Nama
                 </button>
                 <template x-if="selectedTeam.status === 'ACTIVE'">
-                  <button @click="archiveTeamAction()" class="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-medium border border-amber-500/30">
-                    Arsipkan Tim
+                  <button @click="archiveTeamAction()" class="px-3 py-1.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs border border-amber-500/20">
+                    Arsipkan
                   </button>
                 </template>
               </div>
 
-              <button @click="deleteTeamAction()" class="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium border border-rose-500/30">
-                Hapus Tim Permanen
+              <button @click="deleteTeamAction()" class="px-3 py-1.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs border border-rose-500/20">
+                Hapus Tim
               </button>
             </div>
+
           </div>
         </template>
       </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900/60 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
-      NSAC Jember 2026 • Portainer Port: <span class="text-slate-400 font-mono">8080</span> • Discord Management Bot & Dashboard
-    </footer>
+    <!-- ========================================== -->
+    <!-- MODAL: TICKET REPLY -->
+    <!-- ========================================== -->
+    <div x-show="showTicketReplyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showTicketReplyModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl">
+        <div class="flex items-start justify-between border-b border-surface-border pb-3">
+          <div>
+            <h3 class="text-sm font-semibold text-white">Balas Tiket Dukungan</h3>
+            <p class="text-xs text-slate-400 mt-0.5" x-text="replyingTicket ? 'Tiket #' + replyingTicket.id + ' oleh @' + (replyingTicket.creator_username || 'User') : ''"></p>
+          </div>
+          <button @click="showTicketReplyModal = false" class="p-1 rounded text-slate-400 hover:text-white">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Pesan Balasan ke Channel Discord</label>
+          <textarea x-model="ticketReplyMessage" rows="5" placeholder="Tulis instruksi atau jawaban untuk peserta..."
+                    class="w-full bg-surface-input border border-surface-border rounded-md p-3 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+          <p class="text-[11px] text-slate-400 mt-1">Pesan ini akan langsung diposting oleh bot ke channel tiket peserta di server Discord.</p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-surface-border">
+          <button @click="showTicketReplyModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">
+            Batal
+          </button>
+          <button @click="sendTicketReply()" :disabled="sendingReply || !ticketReplyMessage.trim()"
+                  class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
+            <span x-text="sendingReply ? 'Mengirim...' : 'Kirim Balasan'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full" x-show="toast.show" x-transition>
+      <div :class="toast.type === 'success' ? 'bg-[#061e16] border-emerald-500/40 text-emerald-200' : 'bg-[#2a0c10] border-rose-500/40 text-rose-200'"
+           class="p-3.5 rounded-md border shadow-lg flex items-start gap-3">
+        <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+        <div class="flex-1 text-xs">
+          <p class="font-semibold text-xs text-white" x-text="toast.title"></p>
+          <p x-text="toast.message" class="mt-0.5 opacity-90 text-[11px]"></p>
+        </div>
+        <button @click="toast.show = false" class="opacity-60 hover:opacity-100 text-sm">&times;</button>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Alpine App Logic -->
-  <script>
-    function dashboardApp() {
-      return {
-        authenticated: false,
-        token: localStorage.getItem('nsac_dashboard_token') || '',
-        userProfile: null,
-        loginPassword: '',
-        loginError: '',
-        loggingIn: false,
-        showPassword: false,
-
-        activeTab: 'overview',
-        stats: {
-          bot: {},
-          guild: {},
-          stats: {}
-        },
-        channels: [],
-        roles: [],
-        teams: [],
-        recruitments: [],
-        configs: [],
-        searchTeam: '',
-        webTeams: [],
-        webTeamFilter: 'ALL',
-        searchWebTeam: '',
-        auditLogs: [],
-        auditTotal: 0,
-        auditLimit: 50,
-        auditOffset: 0,
-        auditFilterAction: '',
-        auditFilterTeamId: '',
-        auditSearchText: '',
-        tickets: [],
-        openTicketsCount: 0,
-        ticketFilterStatus: 'ALL',
-        ticketFilterType: 'ALL',
-        searchTicket: '',
-        showTicketReplyModal: false,
-        replyingTicketId: null,
-        ticketReplyMessage: '',
-        sendingReply: false,
-        teamStatusFilter: 'ALL',
-        selectedTeam: null,
-        showTeamModal: false,
-        newMemberDiscordId: '',
-        syncingNasa: false,
-        postingAnnouncement: false,
-
-        // Announcement Form
-        form: {
-          channelId: '',
-          mentionType: 'none',
-          roleId: '',
-          roleId2: '',
-          title: '',
-          message: '',
-          color: 'PRIMARY',
-          imageUrl: '',
-          imageFile: null,
-          footerText: ''
-        },
-        uploadedFileName: '',
-        previewImageUrl: '',
-
-        toast: {
-          show: false,
-          type: 'success',
-          title: '',
-          message: ''
-        },
-        currentClock: '12:00',
-
-        initApp() {
-          this.updateClock();
-          setInterval(() => this.updateClock(), 30000);
-
-          // Cek URL query parameters untuk token atau error dari Discord OAuth2
-          const urlParams = new URLSearchParams(window.location.search);
-          const incomingToken = urlParams.get('token');
-          const incomingError = urlParams.get('error');
-
-          if (incomingToken) {
-            this.token = incomingToken;
-            localStorage.setItem('nsac_dashboard_token', incomingToken);
-            window.history.replaceState({}, document.title, window.location.pathname);
-            this.authenticated = true;
-            this.verifyToken();
-          } else if (incomingError) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-            this.loginError = incomingError;
-            this.showToast('error', 'Login Ditolak', incomingError);
-          } else if (this.token) {
-            this.verifyToken();
-          }
-
-          // Polling tab Overview setiap 30 detik (hanya jika aktif dan halaman terlihat)
-          setInterval(() => {
-            if (this.authenticated && this.activeTab === 'overview' && !document.hidden) {
-              this.fetchStats();
-            }
-          }, 30000);
-
-          this.$nextTick(() => {
-            if (window.lucide) window.lucide.createIcons();
-          });
-        },
-
-        updateClock() {
-          const now = new Date();
-          const hours = String(now.getHours()).padStart(2, '0');
-          const minutes = String(now.getMinutes()).padStart(2, '0');
-          this.currentClock = `${hours}:${minutes}`;
-        },
-
-        showToast(type, title, message) {
-          this.toast = { show: true, type, title, message };
-          setTimeout(() => {
-            this.toast.show = false;
-          }, 5000);
-          this.$nextTick(() => {
-            if (window.lucide) window.lucide.createIcons();
-          });
-        },
-
-        
-
-        async verifyToken() {
-          try {
-            const res = await fetch('/api/auth/me', {
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            if (res.ok) {
-              this.authenticated = true;
-              this.loadAllData();
-            } else {
-              this.token = '';
-              localStorage.removeItem('nsac_dashboard_token');
-              this.authenticated = false;
-            }
-          } catch (e) {
-            this.authenticated = false;
-          }
-        },
-
-        logout() {
-          fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${this.token}` }
-          }).catch(() => {});
-          this.token = '';
-          localStorage.removeItem('nsac_dashboard_token');
-          this.authenticated = false;
-        },
-
-        async loadAllData() {
-          await Promise.all([
-            this.fetchStats(),
-            this.fetchChannels(),
-            this.fetchRoles(),
-            this.fetchTeams(),
-            this.fetchRecruitments(),
-            this.fetchConfigs(),
-            this.fetchTickets(),
-            this.fetchWebTeams()
-          ]);
-          this.$nextTick(() => {
-            if (window.lucide) window.lucide.createIcons();
-          });
-        },
-
-        async fetchStats() {
-          try {
-            const res = await fetch('/api/stats', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) this.stats = data.data;
-          } catch (e) {}
-        },
-
-        async fetchChannels() {
-          try {
-            const res = await fetch('/api/channels', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) {
-              this.channels = data.channels;
-              if (this.channels.length > 0 && !this.form.channelId) {
-                this.form.channelId = this.channels[0].id;
-              }
-            }
-          } catch (e) {}
-        },
-
-        async fetchRoles() {
-          try {
-            const res = await fetch('/api/roles', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) this.roles = data.roles;
-          } catch (e) {}
-        },
-
-        async fetchTeams() {
-          try {
-            const res = await fetch('/api/teams', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) this.teams = data.teams;
-          } catch (e) {}
-        },
-
-        async fetchRecruitments() {
-          try {
-            const res = await fetch('/api/recruitments', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) this.recruitments = data.recruitments;
-          } catch (e) {}
-        },
-
-        async fetchWebTeams() {
-          try {
-            const res = await fetch('/api/web-teams', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) {
-              this.webTeams = data.webTeams || [];
-            }
-          } catch (e) {}
-        },
-
-        get filteredWebTeams() {
-          let list = this.webTeams || [];
-          if (this.webTeamFilter === 'DISCORD') {
-            list = list.filter(t => t.matched_team_id !== null);
-          } else if (this.webTeamFilter === 'WEB_ONLY') {
-            list = list.filter(t => t.matched_team_id === null);
-          } else if (this.webTeamFilter === 'RECRUITING') {
-            list = list.filter(t => t.is_recruiting === true);
-          } else if (this.webTeamFilter === 'NOT_RECRUITING') {
-            list = list.filter(t => t.is_recruiting === false);
-          }
-
-          if (this.searchWebTeam.trim()) {
-            const q = this.searchWebTeam.toLowerCase();
-            list = list.filter(t =>
-              (t.title && t.title.toLowerCase().includes(q)) ||
-              (t.challenge_title && t.challenge_title.toLowerCase().includes(q)) ||
-              (t.matched_team_name && t.matched_team_name.toLowerCase().includes(q))
-            );
-          }
-          return list;
-        },
-
-        async fetchTickets() {
-          try {
-            const res = await fetch('/api/tickets', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) {
-              this.tickets = data.tickets;
-              this.openTicketsCount = data.openCount || 0;
-            }
-          } catch (e) {}
-        },
-
-        get filteredTickets() {
-          let list = this.tickets || [];
-          if (this.ticketFilterStatus !== 'ALL') {
-            list = list.filter(tk => tk.status === this.ticketFilterStatus);
-          }
-          if (this.ticketFilterType !== 'ALL') {
-            list = list.filter(tk => tk.type === this.ticketFilterType);
-          }
-          if (this.searchTicket.trim()) {
-            const q = this.searchTicket.toLowerCase();
-            list = list.filter(tk =>
-              (tk.creator_username && tk.creator_username.toLowerCase().includes(q)) ||
-              (tk.creator_discord_id && tk.creator_discord_id.includes(q)) ||
-              (tk.discord_channel_id && tk.discord_channel_id.includes(q))
-            );
-          }
-          return list;
-        },
-
-        openReplyModal(ticket) {
-          this.replyingTicketId = ticket.id;
-          this.ticketReplyMessage = '';
-          this.showTicketReplyModal = true;
-        },
-
-        async sendTicketReply() {
-          if (!this.ticketReplyMessage.trim()) return;
-          this.sendingReply = true;
-          try {
-            const res = await fetch(`/api/tickets/${this.replyingTicketId}/reply`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ message: this.ticketReplyMessage.trim() })
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Balasan Terkirim', data.message);
-              this.showTicketReplyModal = false;
-              this.ticketReplyMessage = '';
-            } else {
-              this.showToast('error', 'Gagal Membalas', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          } finally {
-            this.sendingReply = false;
-          }
-        },
-
-        async closeTicketAction(id) {
-          if (!confirm('Tutup tiket ini dan hapus channel dari Discord?')) return;
-          try {
-            const res = await fetch(`/api/tickets/${id}/close`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Tiket Ditutup', data.message);
-              await this.fetchTickets();
-            } else {
-              this.showToast('error', 'Gagal Menutup Tiket', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async fetchAuditLogs() {
-          try {
-            const params = new URLSearchParams({
-              limit: this.auditLimit,
-              offset: this.auditOffset
-            });
-            if (this.auditFilterAction) params.append('action', this.auditFilterAction);
-            if (this.auditFilterTeamId) params.append('teamId', this.auditFilterTeamId);
-            if (this.auditSearchText.trim()) params.append('q', this.auditSearchText.trim());
-
-            const res = await fetch(`/api/audit-logs?${params.toString()}`, {
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.auditLogs = data.logs || [];
-              this.auditTotal = data.total || 0;
-            }
-          } catch (e) {}
-        },
-
-        async fetchConfigs() {
-          try {
-            const res = await fetch('/api/config', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const data = await res.json();
-            if (data.success) this.configs = data.configs;
-          } catch (e) {}
-        },
-
-        get filteredTeams() {
-          let list = this.teams || [];
-          if (this.teamStatusFilter && this.teamStatusFilter !== 'ALL') {
-            list = list.filter(t => t.status === this.teamStatusFilter);
-          }
-          if (!this.searchTeam.trim()) return list;
-          const q = this.searchTeam.toLowerCase();
-          return list.filter(t => 
-            (t.name && t.name.toLowerCase().includes(q)) ||
-            (t.leader_username && t.leader_username.toLowerCase().includes(q)) ||
-            (t.challenge_title && t.challenge_title.toLowerCase().includes(q))
-          );
-        },
-
-        async openTeamDetail(id) {
-          try {
-            const res = await fetch(`/api/teams/${id}`, {
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            const data = await res.json();
-            if (data.success && data.team) {
-              this.selectedTeam = data.team;
-              this.newMemberDiscordId = '';
-              this.showTeamModal = true;
-              this.$nextTick(() => {
-                if (window.lucide) window.lucide.createIcons();
-              });
-            } else {
-              this.showToast('error', 'Gagal Membuka Detail', data.error || 'Data tim tidak ditemukan.');
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async updateTeamNsacLink() {
-          if (!this.selectedTeam) return;
-          try {
-            const res = await fetch(`/api/teams/${this.selectedTeam.id}/nsac-link`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ nsacLink: this.selectedTeam.nsac_link })
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Tautan Disimpan', data.message || 'Tautan web NASA berhasil diperbarui.');
-              await this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal Menyimpan', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async renameTeamAction() {
-          if (!this.selectedTeam) return;
-          const newName = prompt('Masukkan nama tim baru:', this.selectedTeam.name);
-          if (!newName || !newName.trim() || newName.trim() === this.selectedTeam.name) return;
-
-          try {
-            const res = await fetch(`/api/teams/${this.selectedTeam.id}/rename`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ name: newName.trim() })
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Nama Tim Diubah', `Nama tim berhasil diubah menjadi "${newName.trim()}".`);
-              this.selectedTeam.name = newName.trim();
-              await this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal Mengubah Nama', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async transferLeaderAction(discordId) {
-          if (!this.selectedTeam || !discordId) return;
-          if (!confirm('Pindahkan kepemimpinan ketua tim ke anggota ini?')) return;
-
-          try {
-            const res = await fetch(`/api/teams/${this.selectedTeam.id}/transfer-leader`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ discordId })
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Ketua Tim Dipindahkan', 'Kepemimpinan tim berhasil dipindahkan.');
-              await this.openTeamDetail(this.selectedTeam.id);
-              await this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal Memindahkan Ketua', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async addMemberAction() {
-          if (!this.selectedTeam || !this.newMemberDiscordId.trim()) {
-            this.showToast('error', 'Input Kosong', 'Masukkan Discord ID anggota.');
-            return;
-          }
-
-          try {
-            const res = await fetch(`/api/teams/${this.selectedTeam.id}/add-member`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ discordId: this.newMemberDiscordId.trim() })
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Anggota Ditambahkan', 'Anggota berhasil ditambahkan ke tim.');
-              this.newMemberDiscordId = '';
-              await this.openTeamDetail(this.selectedTeam.id);
-              await this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal Menambah Anggota', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async removeMemberAction(discordId) {
-          if (!this.selectedTeam || !discordId) return;
-          if (!confirm('Keluarkan anggota ini dari tim?')) return;
-
-          try {
-            const res = await fetch(`/api/teams/${this.selectedTeam.id}/remove-member`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ discordId })
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Anggota Dikeluarkan', 'Anggota telah dikeluarkan dari tim.');
-              await this.openTeamDetail(this.selectedTeam.id);
-              await this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal Mengeluarkan Anggota', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async archiveTeamAction() {
-          if (!this.selectedTeam) return;
-          if (!confirm(`Arsipkan tim "${this.selectedTeam.name}"? Channel tim akan diarsipkan dan lowongan ditutup.`)) return;
-
-          try {
-            const res = await fetch(`/api/teams/${this.selectedTeam.id}/archive`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Tim Diarsipkan', `Tim "${this.selectedTeam.name}" telah diarsipkan.`);
-              await this.openTeamDetail(this.selectedTeam.id);
-              await this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal Mengarsipkan Tim', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        async deleteTeamAction() {
-          if (!this.selectedTeam) return;
-          if (!confirm(`PERINGATAN: Apakah Anda yakin ingin MENGHAPUS PERMANEN tim "${this.selectedTeam.name}"? Aksi ini akan menghapus channel tim di Discord dan tidak bisa dibatalkan!`)) return;
-
-          const confirmation = prompt(`Ketik nama tim persis ("${this.selectedTeam.name}") untuk konfirmasi:`);
-          if (confirmation !== this.selectedTeam.name) {
-            this.showToast('error', 'Dibatalkan', 'Nama tim yang diketik tidak cocok. Penghapusan dibatalkan.');
-            return;
-          }
-
-          try {
-            const res = await fetch(`/api/teams/${this.selectedTeam.id}/delete`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Tim Dihapus', `Tim "${this.selectedTeam.name}" berhasil dihapus secara permanen.`);
-              this.showTeamModal = false;
-              this.selectedTeam = null;
-              await this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal Menghapus Tim', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Kesalahan', e.message);
-          }
-        },
-
-        getRoleName(id) {
-          const r = this.roles.find(role => role.id === id);
-          return r ? r.name : 'Role';
-        },
-
-        getEmbedBorderColor(colorKey) {
-          const map = {
-            'PRIMARY': '#5865f2',
-            'SUCCESS': '#57f287',
-            'DANGER': '#ed4245',
-            'WARNING': '#fee75c',
-            'INFO': '#5865f2'
-          };
-          return map[colorKey] || '#5865f2';
-        },
-
-        handleFileUpload(event) {
-          const file = event.target.files[0];
-          if (file) {
-            this.form.imageFile = file;
-            this.uploadedFileName = file.name;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              this.previewImageUrl = e.target.result;
-            };
-            reader.readAsDataURL(file);
-          }
-        },
-
-        clearImage() {
-          this.form.imageFile = null;
-          this.form.imageUrl = '';
-          this.uploadedFileName = '';
-          this.previewImageUrl = '';
-        },
-
-        renderDiscordMarkdown(text) {
-          if (!text) return '';
-          let escaped = text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-          
-          // Bold **text**
-          escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-          // Italic *text*
-          escaped = escaped.replace(/\*(.*?)\*/g, '<em>$1</em>');
-          // Inline code `text`
-          escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
-          // Quote lines > quote
-          escaped = escaped.replace(/^>\s+(.*)$/gm, '<blockquote>$1</blockquote>');
-          // Line breaks
-          escaped = escaped.replace(/\n/g, '<br>');
-          return escaped;
-        },
-
-        async confirmPostAnnouncement() {
-          if (!this.form.channelId) {
-            this.showToast('error', 'Channel Belum Dipilih', 'Pilih channel tujuan pengumuman.');
-            return;
-          }
-          if (!this.form.title.trim()) {
-            this.showToast('error', 'Judul Wajib Diisi', 'Masukkan judul pengumuman.');
-            return;
-          }
-          if (!this.form.message.trim()) {
-            this.showToast('error', 'Isi Pesan Kosong', 'Tuliskan pesan pengumuman.');
-            return;
-          }
-
-          if (!confirm(`Kirim pengumuman "${this.form.title}" ke channel pilihan sekarang?`)) {
-            return;
-          }
-
-          this.postingAnnouncement = true;
-          try {
-            const formData = new FormData();
-            formData.append('channelId', this.form.channelId);
-            formData.append('title', this.form.title);
-            formData.append('message', this.form.message);
-            formData.append('color', this.form.color);
-            formData.append('mentionType', this.form.mentionType);
-            formData.append('roleId', this.form.roleId);
-            formData.append('roleId2', this.form.roleId2 || '');
-            formData.append('imageUrl', this.form.imageUrl || '');
-            formData.append('footerText', this.form.footerText || '');
-            if (this.form.imageFile) {
-              formData.append('image', this.form.imageFile);
-            }
-
-            const res = await fetch('/api/announce', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${this.token}` },
-              body: formData
-            });
-
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Pengumuman Terkirim!', `Pengumuman berhasil diposting ke #${data.data.channelName}.`);
-              // Reset form optional
-              this.form.title = '';
-              this.form.message = '';
-              this.clearImage();
-            } else {
-              this.showToast('error', 'Gagal Mengirim', data.error || 'Terjadi kesalahan saat memposting.');
-            }
-          } catch (err) {
-            this.showToast('error', 'Kesalahan Jaringan', err.message);
-          } finally {
-            this.postingAnnouncement = false;
-          }
-        },
-
-        async triggerNasaSync() {
-          this.syncingNasa = true;
-          try {
-            const res = await fetch('/api/teams/sync-nasa', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-              const summaryMsg = `Total: ${data.totalWebTeams || 0} tim web (${data.recruitingCount || 0} mencari anggota, ${data.nonRecruitingCount || 0} tidak, ${data.webOnlyCount || 0} hanya di web). Lowongan: +${data.createdCount || 0} baru, ${data.updatedCount || 0} diperbarui, ${data.closedCount || 0} ditutup.`;
-              this.showToast('success', 'Sinkronisasi Selesai', summaryMsg);
-              await this.fetchWebTeams();
-              this.loadAllData();
-            } else {
-              this.showToast('error', 'Sinkronisasi Gagal', data.error || 'Gagal menyinkronkan data.');
-            }
-          } catch (e) {
-            this.showToast('error', 'Gagal', e.message);
-          } finally {
-            this.syncingNasa = false;
-          }
-        },
-
-        async closeRecruitment(id) {
-          if (!confirm('Tutup lowongan ini dari board rekrutmen?')) return;
-          try {
-            const res = await fetch(`/api/recruitments/${id}/close`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${this.token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Berhasil', 'Lowongan telah ditutup.');
-              this.loadAllData();
-            } else {
-              this.showToast('error', 'Gagal', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Gagal', e.message);
-          }
-        },
-
-        async saveConfig(key, value) {
-          try {
-            const res = await fetch('/api/config', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ key, value })
-            });
-            const data = await res.json();
-            if (data.success) {
-              this.showToast('success', 'Konfigurasi Tersimpan', `Kunci ${key} berhasil diperbarui.`);
-            } else {
-              this.showToast('error', 'Gagal Menyimpan', data.error);
-            }
-          } catch (e) {
-            this.showToast('error', 'Gagal', e.message);
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Alpine.js Application Logic loaded from /js/app.js -->
 </body>
 </html>

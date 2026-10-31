@@ -1,0 +1,66 @@
+[x-cloak] {
+  display: none !important;
+}
+
+html {
+  scrollbar-gutter: stable;
+  color-scheme: dark;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070a12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Discord Markdown Rendering */
+.discord-markdown strong {
+  font-weight: 700;
+  color: #f2f3f5;
+}
+
+.discord-markdown em {
+  font-style: italic;
+}
+
+.discord-markdown code {
+  background: #1e1f22;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.discord-markdown blockquote {
+  border-left: 3px solid #4e5058;
+  padding-left: 8px;
+  color: #b5bac1;
+  margin: 4px 0;
+}
+
+.discord-markdown a {
+  color: #00a8fc;
+  text-decoration: none;
+}
+
+.discord-markdown a:hover {
+  text-decoration: underline;
+}
+
+/* Tabular Numerals */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
