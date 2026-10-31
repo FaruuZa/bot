@@ -189,6 +189,21 @@ function dashboardApp() {
       this.updateClock();
       setInterval(() => this.updateClock(), 1000);
 
+      // Check URL query parameters for token or error from OAuth callback
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      const urlError = urlParams.get('error');
+
+      if (urlToken) {
+        this.token = urlToken;
+        localStorage.setItem('nsac_dashboard_token', urlToken);
+        // Clean URL to prevent leaking token in browser address bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (urlError) {
+        this.loginError = decodeURIComponent(urlError);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
       if (this.token) {
         this.checkAuth();
       }
@@ -220,20 +235,30 @@ function dashboardApp() {
           const data = await res.json();
           this.userProfile = data.user;
           this.authenticated = true;
+          this.loginError = '';
           this.loadAllData();
         } else {
+          const errData = await res.json().catch(() => ({}));
+          this.loginError = errData.error || 'Sesi telah kedaluwarsa. Silakan login kembali.';
           this.logout();
         }
       } catch (e) {
+        this.loginError = 'Gagal menghubungi server: ' + e.message;
         this.logout();
       }
     },
 
     login() {
-      window.location.href = '/api/auth/login';
+      window.location.href = '/api/auth/discord/login';
     },
 
     logout() {
+      if (this.token) {
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        }).catch(() => {});
+      }
       localStorage.removeItem('nsac_dashboard_token');
       this.token = '';
       this.authenticated = false;
