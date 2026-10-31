@@ -17,6 +17,15 @@ import { getActiveTeamMembers } from '../../database/queries/memberQueries.js';
 import { TicketService } from '../../services/ticketService.js';
 import { getTickets, getTicketById, countOpenTickets } from '../../database/queries/ticketQueries.js';
 import { getAuditLogs } from '../../database/queries/auditQueries.js';
+import {
+  getAllDynamicEmbeds,
+  getDynamicEmbedById,
+  createDynamicEmbed,
+  updateDynamicEmbedHeader,
+  updateDynamicEmbedFields,
+  deleteDynamicEmbed
+} from '../../database/queries/faqQueries.js';
+import { FAQService } from '../../services/faqService.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)
@@ -356,8 +365,10 @@ export function createApiRouter(client) {
         mentionType = 'none',
         roleId = '',
         roleId2 = '',
+        roleIds = [],
         imageUrl = '',
-        footerText = ''
+        footerText = '',
+        blocks = []
       } = req.body;
 
       if (!channelId) {
@@ -416,19 +427,69 @@ export function createApiRouter(client) {
         embed.setImage(imageUrl.trim());
       }
 
-      // Mentions construction
+      // Multi-Role Mentions construction
       const mentions = [];
-      if (mentionType === 'everyone') mentions.push('@everyone');
-      else if (mentionType === 'here') mentions.push('@here');
-      else if (mentionType === 'role' && roleId) mentions.push(`<@&${roleId}>`);
+      if (mentionType === 'everyone') {
+        mentions.push('@everyone');
+      } else if (mentionType === 'here') {
+        mentions.push('@here');
+      } else if (mentionType === 'role') {
+        let parsedRoleIds = [];
+        if (Array.isArray(roleIds)) {
+          parsedRoleIds = roleIds;
+        } else if (typeof roleIds === 'string' && roleIds.trim()) {
+          try {
+            parsedRoleIds = JSON.parse(roleIds);
+          } catch {
+            parsedRoleIds = roleIds.split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
+        if (roleId && !parsedRoleIds.includes(roleId)) parsedRoleIds.push(roleId);
+        if (roleId2 && !parsedRoleIds.includes(roleId2)) parsedRoleIds.push(roleId2);
 
-      if (roleId2) mentions.push(`<@&${roleId2}>`);
+        for (const rid of parsedRoleIds) {
+          if (rid && /^\d+$/.test(rid)) {
+            mentions.push(`<@&${rid}>`);
+          }
+        }
+      }
 
       const content = mentions.length > 0 ? mentions.join(' ') : undefined;
 
+      // Interleaved Multi-Embed Blocks (Teks & Gambar bergantian)
+      let parsedBlocks = [];
+      if (Array.isArray(blocks)) {
+        parsedBlocks = blocks;
+      } else if (typeof blocks === 'string' && blocks.trim()) {
+        try {
+          parsedBlocks = JSON.parse(blocks);
+        } catch {
+          parsedBlocks = [];
+        }
+      }
+
+      const allEmbeds = [embed];
+      if (Array.isArray(parsedBlocks)) {
+        for (const blk of parsedBlocks) {
+          if (!blk || (!blk.text && !blk.imageUrl && !blk.title)) continue;
+          const bEmbed = new EmbedBuilder().setColor(embedColor);
+          if (blk.title && blk.title.trim()) {
+            bEmbed.setTitle(blk.title.trim().substring(0, 256));
+          }
+          if (blk.text && blk.text.trim()) {
+            bEmbed.setDescription(blk.text.trim().substring(0, 4096));
+          }
+          if (blk.imageUrl && (blk.imageUrl.startsWith('http://') || blk.imageUrl.startsWith('https://'))) {
+            bEmbed.setImage(blk.imageUrl.trim());
+          }
+          allEmbeds.push(bEmbed);
+          if (allEmbeds.length >= 10) break; // Discord limit is max 10 embeds per message
+        }
+      }
+
       const sentMsg = await targetChannel.send({
         content,
-        embeds: [embed],
+        embeds: allEmbeds,
         files: files.length > 0 ? files : undefined,
         allowedMentions: { parse: ['roles', 'users', 'everyone'] }
       });
@@ -437,7 +498,7 @@ export function createApiRouter(client) {
       AuditService.log(client, {
         action: AUDIT_ACTIONS.ANNOUNCEMENT_POSTED || 'ANNOUNCEMENT_POSTED',
         title: 'Web Dashboard Announcement',
-        details: `Pengumuman "${safeTitle}" berhasil diposting ke channel #${targetChannel.name} oleh Web Dashboard.`
+        details: `Pengumuman "${safeTitle}" (${allEmbeds.length} embed) berhasil diposting ke channel #${targetChannel.name} oleh Web Dashboard.`
       }).catch(() => {});
 
       return res.json({
@@ -445,11 +506,182 @@ export function createApiRouter(client) {
         data: {
           messageId: sentMsg.id,
           channelId: targetChannel.id,
-          channelName: targetChannel.name
+          channelName: targetChannel.name,
+          embedCount: allEmbeds.length
         }
       });
     } catch (err) {
       logger.error(`[Dashboard API] /announce error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // Dynamic Live Embeds (Rules / FAQ / Guides)
+  // ==========================================
+  router.get('/dynamic-embeds', requireAuth, async (req, res) => {
+    try {
+      const embeds = await getAllDynamicEmbeds();
+      return res.json({ success: true, embeds });
+    } catch (err) {
+      logger.error(`[Dashboard API] GET /dynamic-embeds error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.get('/dynamic-embeds/:id', requireAuth, async (req, res) => {
+    try {
+      const embed = await getDynamicEmbedById(req.params.id);
+      if (!embed) {
+        return res.status(404).json({ success: false, error: 'Dynamic embed tidak ditemukan' });
+      }
+      return res.json({ success: true, embed });
+    } catch (err) {
+      logger.error(`[Dashboard API] GET /dynamic-embeds/:id error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/dynamic-embeds', requireAuth, async (req, res) => {
+    try {
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan' });
+
+      const { id, channelId, title, description = '', color = 'PRIMARY', fields = [] } = req.body;
+
+      if (!id || !id.trim()) {
+        return res.status(400).json({ success: false, error: 'ID embed wajib diisi (misal: faq-peserta, rules).' });
+      }
+      const safeId = id.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+
+      const existing = await getDynamicEmbedById(safeId);
+      if (existing) {
+        return res.status(400).json({ success: false, error: `Embed dengan ID "${safeId}" sudah ada. Gunakan ID lain atau edit yang sudah ada.` });
+      }
+
+      if (!channelId) {
+        return res.status(400).json({ success: false, error: 'Channel Discord tujuan wajib dipilih.' });
+      }
+      if (!title || !title.trim()) {
+        return res.status(400).json({ success: false, error: 'Judul embed wajib diisi.' });
+      }
+
+      const targetChannel = guild.channels.cache.get(channelId)
+        || await guild.channels.fetch(channelId).catch(() => null);
+
+      if (!targetChannel || !targetChannel.isTextBased()) {
+        return res.status(400).json({ success: false, error: 'Channel Discord tidak valid atau bukan text channel.' });
+      }
+
+      // Build Discord embed
+      const embedData = {
+        title: title.trim(),
+        description: description?.trim() || '',
+        color: color || 'PRIMARY',
+        fields: Array.isArray(fields) ? fields : []
+      };
+
+      const embed = FAQService.buildEmbed(embedData);
+      const sentMsg = await targetChannel.send({ embeds: [embed] });
+
+      const record = await createDynamicEmbed({
+        id: safeId,
+        channelId: targetChannel.id,
+        messageId: sentMsg.id,
+        title: embedData.title,
+        description: embedData.description,
+        color: embedData.color,
+        fields: embedData.fields
+      });
+
+      AuditService.log(client, {
+        action: 'DYNAMIC_EMBED_CREATED',
+        title: 'Dynamic Embed Created',
+        details: `Embed "${safeId}" diposting ke #${targetChannel.name} (Msg ID: ${sentMsg.id}).`
+      }).catch(() => {});
+
+      return res.json({ success: true, embed: record });
+    } catch (err) {
+      logger.error(`[Dashboard API] POST /dynamic-embeds error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.put('/dynamic-embeds/:id', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await getDynamicEmbedById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Dynamic embed tidak ditemukan' });
+      }
+
+      const { title, description, color, fields } = req.body;
+
+      if (title !== undefined || description !== undefined || color !== undefined) {
+        await updateDynamicEmbedHeader(id, {
+          title: title ? title.trim() : existing.title,
+          description: description !== undefined ? description.trim() : existing.description,
+          color: color || existing.color
+        });
+      }
+
+      if (fields !== undefined) {
+        const safeFields = Array.isArray(fields) ? fields : [];
+        await updateDynamicEmbedFields(id, safeFields);
+      }
+
+      const updatedRecord = await getDynamicEmbedById(id);
+
+      // Sync to live Discord message in-place
+      await FAQService.syncDiscordMessage(client, updatedRecord);
+
+      AuditService.log(client, {
+        action: 'DYNAMIC_EMBED_UPDATED',
+        title: 'Dynamic Embed Updated',
+        details: `Dynamic embed "${id}" diperbarui dan disinkronkan ke Discord.`
+      }).catch(() => {});
+
+      return res.json({ success: true, embed: updatedRecord });
+    } catch (err) {
+      logger.error(`[Dashboard API] PUT /dynamic-embeds/:id error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.delete('/dynamic-embeds/:id', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await getDynamicEmbedById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Dynamic embed tidak ditemukan' });
+      }
+
+      // Try deleting message from Discord channel
+      try {
+        const guild = getGuild();
+        if (guild) {
+          const channel = guild.channels.cache.get(existing.channel_id)
+            || await guild.channels.fetch(existing.channel_id).catch(() => null);
+          if (channel && channel.isTextBased()) {
+            const msg = await channel.messages.fetch(existing.message_id).catch(() => null);
+            if (msg) await msg.delete().catch(() => {});
+          }
+        }
+      } catch (e) {
+        logger.warn(`[Dashboard API] Could not delete Discord message for embed "${id}": ${e.message}`);
+      }
+
+      await deleteDynamicEmbed(id);
+
+      AuditService.log(client, {
+        action: 'DYNAMIC_EMBED_DELETED',
+        title: 'Dynamic Embed Deleted',
+        details: `Dynamic embed "${id}" dihapus dari database & channel.`
+      }).catch(() => {});
+
+      return res.json({ success: true, message: `Embed "${id}" berhasil dihapus.` });
+    } catch (err) {
+      logger.error(`[Dashboard API] DELETE /dynamic-embeds/:id error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
     }
   });

@@ -9,6 +9,7 @@ import teamCmd from './commands/team/team.js';
 import ticketCmd from './commands/ticket/close.js';
 import setupCmd from './commands/admin/setup.js';
 import faqCmd from './commands/admin/faq.js';
+import embedCmd from './commands/admin/embed.js';
 import announceCmd from './commands/admin/announce.js';
 import purgeCmd from './commands/admin/purge.js';
 import challengeCmd from './commands/team/challenge.js';
@@ -45,6 +46,7 @@ const commandList = [
   ticketCmd,
   setupCmd,
   faqCmd,
+  embedCmd,
   announceCmd,
   purgeCmd,
   challengeCmd
