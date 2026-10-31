@@ -50,7 +50,7 @@ export function createApiRouter(client) {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ')
       ? authHeader.slice(7)
-      : req.headers['x-dashboard-token'] || req.query.token;
+      : req.headers['x-dashboard-token'];
 
     if (!token || !activeTokens.has(token)) {
       return res.status(401).json({ success: false, error: 'Akses tidak sah. Silakan login terlebih dahulu.' });

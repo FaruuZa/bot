@@ -434,10 +434,11 @@
                   </div>
 
                   <!-- Mention Ping Above Embed -->
-                  <div class="mt-1 text-sm font-medium" x-show="form.mentionType !== 'none' || form.roleId">
+                  <div class="mt-1 text-sm font-medium" x-show="form.mentionType !== 'none' || form.roleId || form.roleId2">
                     <span x-show="form.mentionType === 'everyone'" class="bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer">@everyone</span>
                     <span x-show="form.mentionType === 'here'" class="bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer">@here</span>
                     <span x-show="form.mentionType === 'role' && form.roleId" class="bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer" x-text="'@' + getRoleName(form.roleId)"></span>
+                    <span x-show="form.mentionType === 'role' && form.roleId2" class="ml-1 bg-[#5865f2]/20 text-[#c9cdfb] px-1 rounded hover:underline cursor-pointer" x-text="'@' + getRoleName(form.roleId2)"></span>
                   </div>
 
                   <!-- Discord Embed Box -->
@@ -1215,6 +1216,7 @@
           channelId: '',
           mentionType: 'none',
           roleId: '',
+          roleId2: '',
           title: '',
           message: '',
           color: 'PRIMARY',
@@ -1236,6 +1238,13 @@
         initApp() {
           this.updateClock();
           setInterval(() => this.updateClock(), 30000);
+
+          // Polling tab Overview setiap 30 detik (hanya jika aktif dan halaman terlihat)
+          setInterval(() => {
+            if (this.authenticated && this.activeTab === 'overview' && !document.hidden) {
+              this.fetchStats();
+            }
+          }, 30000);
 
           if (this.token) {
             this.verifyToken();
@@ -1821,6 +1830,7 @@
             formData.append('color', this.form.color);
             formData.append('mentionType', this.form.mentionType);
             formData.append('roleId', this.form.roleId);
+            formData.append('roleId2', this.form.roleId2 || '');
             formData.append('imageUrl', this.form.imageUrl || '');
             formData.append('footerText', this.form.footerText || '');
             if (this.form.imageFile) {
