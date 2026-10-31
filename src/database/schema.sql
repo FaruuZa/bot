@@ -192,3 +192,23 @@ CREATE INDEX IF NOT EXISTS idx_recruitments_external_slug ON team_recruitments(e
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS reminder_count INT DEFAULT 0;
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS last_reminded_at TIMESTAMP WITH TIME ZONE;
 
+
+-- 12. Web Teams Table (Snapshots of all NASA Space Apps teams from official web)
+CREATE TABLE IF NOT EXISTS web_teams (
+    slug TEXT PRIMARY KEY,
+    nasa_id TEXT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT,
+    challenge_title TEXT,
+    join_enabled BOOLEAN NOT NULL DEFAULT false,
+    can_accept_members BOOLEAN NOT NULL DEFAULT false,
+    is_recruiting BOOLEAN NOT NULL DEFAULT false,
+    desired_skills JSONB DEFAULT '[]'::jsonb,
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    present_in_latest_sync BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_web_teams_is_recruiting ON web_teams(is_recruiting);
+CREATE INDEX IF NOT EXISTS idx_web_teams_present ON web_teams(present_in_latest_sync);

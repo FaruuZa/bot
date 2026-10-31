@@ -621,6 +621,70 @@ export function createApiRouter(client) {
     }
   });
 
+  // ==========================================
+  // NASA Web Teams (Snapshots from spaceappschallenge.org)
+  // ==========================================
+  router.get('/web-teams', requireAuth, async (req, res) => {
+    try {
+      const { recruiting, matched, q } = req.query;
+
+      // 1. Get all web teams from DB
+      const { rows: webTeams } = await pool.query(`
+        SELECT * FROM web_teams
+        ORDER BY is_recruiting DESC, title ASC
+      `);
+
+      // 2. Get active local teams for matching
+      const { rows: localTeams } = await pool.query(`
+        SELECT id, name, nsac_link
+        FROM teams
+        WHERE status != 'DISBANDED'
+      `);
+
+      // 3. Perform matching using identical logic
+      let list = webTeams.map((wt) => {
+        const matchedLocal = localTeams.find((lt) => {
+          const nameMatches = lt.name && wt.title && lt.name.trim().toLowerCase() === wt.title.trim().toLowerCase();
+          const linkMatches = lt.nsac_link && wt.slug && lt.nsac_link.toLowerCase().includes(wt.slug.toLowerCase());
+          return nameMatches || linkMatches;
+        });
+
+        return {
+          ...wt,
+          matched_team_id: matchedLocal ? matchedLocal.id : null,
+          matched_team_name: matchedLocal ? matchedLocal.name : null
+        };
+      });
+
+      // 4. Filters
+      if (recruiting === 'true') {
+        list = list.filter(t => t.is_recruiting === true);
+      } else if (recruiting === 'false') {
+        list = list.filter(t => t.is_recruiting === false);
+      }
+
+      if (matched === 'true') {
+        list = list.filter(t => t.matched_team_id !== null);
+      } else if (matched === 'false') {
+        list = list.filter(t => t.matched_team_id === null);
+      }
+
+      if (q && q.trim()) {
+        const query = q.trim().toLowerCase();
+        list = list.filter(t =>
+          (t.title && t.title.toLowerCase().includes(query)) ||
+          (t.challenge_title && t.challenge_title.toLowerCase().includes(query)) ||
+          (t.matched_team_name && t.matched_team_name.toLowerCase().includes(query))
+        );
+      }
+
+      return res.json({ success: true, webTeams: list });
+    } catch (err) {
+      logger.error(`[Dashboard API] /web-teams error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Trigger manual sync from NASA Space Apps Website
   router.post('/teams/sync-nasa', requireAuth, async (req, res) => {
     try {

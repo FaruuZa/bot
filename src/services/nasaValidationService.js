@@ -81,6 +81,54 @@ const teamSyncCooldowns = new Map();
 
 export class NasaValidationService {
   /**
+   * Upsert snapshot data tim dari web resmi NASA Space Apps ke tabel web_teams
+   * @param {Object} webTeam
+   * @param {import('pg').Pool|import('pg').PoolClient} [client=pool]
+   */
+  static async upsertWebTeam(webTeam, client = pool) {
+    const slug = (webTeam.slug && String(webTeam.slug).trim()) || webTeam.url;
+    if (!slug) return null;
+
+    const title = (webTeam.title && String(webTeam.title).trim()) || 'Untitled Team';
+    const url = webTeam.url || '';
+    const nasaId = webTeam.id || webTeam.nasaId || null;
+    const description = webTeam.description || null;
+    const challengeTitle = webTeam.challengeTitle || null;
+    const joinEnabled = !!webTeam.joinEnabled;
+    const canAcceptMembers = webTeam.canAcceptMembers !== false;
+    const isRecruiting = joinEnabled && canAcceptMembers;
+    const desiredSkills = Array.isArray(webTeam.desiredSkills) ? JSON.stringify(webTeam.desiredSkills) : '[]';
+
+    const sql = `
+      INSERT INTO web_teams (
+        slug, nasa_id, title, url, description, challenge_title,
+        join_enabled, can_accept_members, is_recruiting, desired_skills,
+        last_synced_at, present_in_latest_sync, created_at, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW(), true, NOW(), NOW())
+      ON CONFLICT (slug) DO UPDATE SET
+        nasa_id = COALESCE(EXCLUDED.nasa_id, web_teams.nasa_id),
+        title = EXCLUDED.title,
+        url = EXCLUDED.url,
+        description = COALESCE(EXCLUDED.description, web_teams.description),
+        challenge_title = COALESCE(EXCLUDED.challenge_title, web_teams.challenge_title),
+        join_enabled = EXCLUDED.join_enabled,
+        can_accept_members = EXCLUDED.can_accept_members,
+        is_recruiting = EXCLUDED.is_recruiting,
+        desired_skills = CASE WHEN EXCLUDED.desired_skills = '[]'::jsonb THEN web_teams.desired_skills ELSE EXCLUDED.desired_skills END,
+        last_synced_at = NOW(),
+        present_in_latest_sync = true,
+        updated_at = NOW()
+      RETURNING *;
+    `;
+    const res = await client.query(sql, [
+      slug, nasaId, title, url, description, challengeTitle,
+      joinEnabled, canAcceptMembers, isRecruiting, desiredSkills
+    ]);
+    return res.rows[0];
+  }
+
+  /**
    * Get remaining cooldown time in milliseconds for a team
    * @param {number} teamId
    * @returns {number} remaining ms, 0 if not on cooldown
@@ -284,8 +332,18 @@ export class NasaValidationService {
           }
         }
 
+        let teamSlug = '';
+        try {
+          const parsed = new URL(trimmedUrl);
+          const parts = parsed.pathname.split('/').filter(Boolean);
+          teamSlug = parts[parts.length - 1] || '';
+        } catch {
+          teamSlug = trimmedUrl;
+        }
+
         return {
           valid: true,
+          slug: teamSlug,
           inputUrl: trimmedUrl,
           isJember: true,
           extractedTitle,
@@ -344,6 +402,39 @@ export class NasaValidationService {
     const val = await this.validateTeamUrl(team.nsac_link);
     if (!val.valid) {
       return { success: false, error: val.error || 'Gagal memvalidasi profil tim di web NASA.' };
+    }
+
+    // Upsert snapshot into web_teams
+    try {
+      let slug = val.slug;
+      if (!slug && team.nsac_link) {
+        try {
+          const parsed = new URL(team.nsac_link);
+          const parts = parsed.pathname.split('/').filter(Boolean);
+          slug = parts[parts.length - 1] || team.nsac_link;
+        } catch {
+          slug = team.nsac_link;
+        }
+      }
+      if (slug) {
+        const existingWeb = await pool.query('SELECT join_enabled, can_accept_members FROM web_teams WHERE slug = $1 OR url = $2', [slug, team.nsac_link]);
+        const prev = existingWeb.rows[0];
+        const joinEnabled = prev ? prev.join_enabled : val.isLookingForTeammates;
+        const canAcceptMembers = prev ? prev.can_accept_members : val.isLookingForTeammates;
+
+        await this.upsertWebTeam({
+          slug,
+          title: val.extractedTitle || team.name,
+          url: team.nsac_link,
+          description: val.description,
+          challengeTitle: val.challengeTitle,
+          joinEnabled,
+          canAcceptMembers,
+          desiredSkills: val.desiredSkills
+        });
+      }
+    } catch (upsertErr) {
+      logger.warn(`[NasaSync] Gagal upsert web team snapshot untuk tim ${team.id}: ${upsertErr.message}`);
     }
 
     const guild = client.guilds.cache.get(env.GUILD_ID);
@@ -701,7 +792,11 @@ export class NasaValidationService {
         throw new Error(body.errors[0]?.message || 'Kesalahan pada respons GraphQL Space Apps');
       }
 
+      const totalCount = body.data?.teams?.totalCount || 0;
       const edges = body.data?.teams?.edges || [];
+      if (totalCount > edges.length) {
+        logger.warn(`[NasaSync] totalCount (${totalCount}) melebihi jumlah edges (${edges.length}). Beberapa tim web mungkin tidak terambil.`);
+      }
       return edges.map(({ node }) => ({
         id: node.id,
         title: (node.title || 'Untitled Team').trim(),
@@ -818,6 +913,19 @@ export class NasaValidationService {
     let updatedCount = 0;
     let closedCount = 0;
     let openWebTeamsCount = 0;
+
+    // 1. Upsert snapshot untuk SETIAP webTeam sebelum filter isOpenRec
+    for (const webTeam of webTeams) {
+      const isOpenRec = webTeam.joinEnabled && webTeam.canAcceptMembers;
+      if (isOpenRec && !webTeam.description && webTeam.url) {
+        webTeam.description = await this.extractTeamDescriptionFromUrl(webTeam.url);
+      }
+      try {
+        await this.upsertWebTeam(webTeam);
+      } catch (err) {
+        logger.warn(`[NasaSync] Gagal upsert snapshot tim web "${webTeam.title}": ${err.message}`);
+      }
+    }
 
     for (const webTeam of webTeams) {
       const isOpenRec = webTeam.joinEnabled && webTeam.canAcceptMembers;
@@ -1033,12 +1141,34 @@ export class NasaValidationService {
 
     const totalOpenRec = await countOpenRecruitments();
 
-    logger.info(`[NasaSync] Sinkronisasi open recruitment selesai. Ditemukan ${openWebTeamsCount} tim open rec di web NASA. Baru: ${createdCount}, Diperbarui: ${updatedCount}, Ditutup: ${closedCount}. Total lowongan aktif di bot: ${totalOpenRec}.`);
+    // Tandai tim yang tidak muncul dalam sync kali ini
+    const fetchedSlugs = webTeams.map(wt => (wt.slug && String(wt.slug).trim()) || wt.url).filter(Boolean);
+    if (fetchedSlugs.length > 0) {
+      await pool.query(
+        `UPDATE web_teams SET present_in_latest_sync = false WHERE slug != ALL($1::text[])`,
+        [fetchedSlugs]
+      ).catch((err) => logger.warn(`[NasaSync] Gagal update present_in_latest_sync: ${err.message}`));
+    }
+
+    const recruitingCount = webTeams.filter(wt => wt.joinEnabled && wt.canAcceptMembers).length;
+    const nonRecruitingCount = webTeams.length - recruitingCount;
+    const webOnlyCount = webTeams.filter(wt => {
+      return !localTeams.some(lt => {
+        const nameMatches = lt.name && wt.title && lt.name.trim().toLowerCase() === wt.title.trim().toLowerCase();
+        const linkMatches = lt.nsac_link && wt.slug && lt.nsac_link.toLowerCase().includes(wt.slug.toLowerCase());
+        return nameMatches || linkMatches;
+      });
+    }).length;
+
+    logger.info(`[NasaSync] Sinkronisasi open recruitment selesai. Total web teams: ${webTeams.length} (${recruitingCount} open, ${nonRecruitingCount} closed, ${webOnlyCount} web-only). Baru: ${createdCount}, Diperbarui: ${updatedCount}, Ditutup: ${closedCount}. Total lowongan aktif di bot: ${totalOpenRec}.`);
 
     return {
       success: true,
       totalWebTeams: webTeams.length,
       openWebTeamsCount,
+      recruitingCount,
+      nonRecruitingCount,
+      webOnlyCount,
       createdCount,
       updatedCount,
       closedCount,
