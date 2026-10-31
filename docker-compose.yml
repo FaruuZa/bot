@@ -23,7 +23,7 @@ services:
       - bot_network
 
   # ==========================================
-  # Discord Bot
+  # Discord Bot & Web Dashboard
   # ==========================================
   bot:
     build:
@@ -31,10 +31,14 @@ services:
       dockerfile: Dockerfile
     container_name: nsac_jember_bot
     restart: unless-stopped
+    ports:
+      - "8080:8080"
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       CLIENT_ID: ${CLIENT_ID}
       GUILD_ID: ${GUILD_ID}
+      PORT: ${PORT:-8080}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-nsac2026}
       MIN_TEAM_SIZE: ${MIN_TEAM_SIZE:-2}
       MAX_TEAM_SIZE: ${MAX_TEAM_SIZE:-6}
       INVITATION_EXPIRE_HOURS: ${INVITATION_EXPIRE_HOURS:-24}

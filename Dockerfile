@@ -1,4 +1,4 @@
-﻿# ==========================================
+# ==========================================
 # Stage 1: Build dependencies
 # ==========================================
 FROM node:20-alpine AS deps
@@ -31,6 +31,7 @@ COPY package.json ./
 # Use non-root user
 USER botuser
 
-# Discord bot uses outbound WebSocket only, no inbound ports needed
+# Web Dashboard Port
+EXPOSE 8080
 
 CMD ["node", "src/index.js"]

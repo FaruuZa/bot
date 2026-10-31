@@ -8,6 +8,7 @@ import { markExpiredInvitations } from '../database/queries/invitationQueries.js
 import { CountdownService } from '../services/countdownService.js';
 import { NasaValidationService } from '../services/nasaValidationService.js';
 import { TicketService } from '../services/ticketService.js';
+import { DashboardServer } from '../dashboard/server.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -85,6 +86,13 @@ export default {
       } else {
         logger.warn(`[Startup] Target Guild with ID ${env.GUILD_ID} was not found in cache.`);
       }
+    }
+
+    // 11. Start Web Dashboard on configured port (default: 8080)
+    try {
+      DashboardServer.start(client);
+    } catch (err) {
+      logger.error(`[Startup Error] Failed to start Web Dashboard: ${err.message}`);
     }
 
     logger.success('[Startup] Hackathon Management Bot is fully initialized and ready!');

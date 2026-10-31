@@ -31,5 +31,9 @@ export const env = {
   // Hackathon Team Rules (Numerical parameters)
   MIN_TEAM_SIZE: parseInt(process.env.MIN_TEAM_SIZE || '2', 10),
   MAX_TEAM_SIZE: parseInt(process.env.MAX_TEAM_SIZE || '6', 10),
-  INVITATION_EXPIRE_HOURS: parseInt(process.env.INVITATION_EXPIRE_HOURS || '24', 10)
+  INVITATION_EXPIRE_HOURS: parseInt(process.env.INVITATION_EXPIRE_HOURS || '24', 10),
+
+  // Web Dashboard
+  PORT: parseInt(process.env.PORT || process.env.DASHBOARD_PORT || '8080', 10),
+  DASHBOARD_PASSWORD: process.env.DASHBOARD_PASSWORD || 'nsac2026'
 };
