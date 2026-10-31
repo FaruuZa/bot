@@ -71,21 +71,122 @@ export function createApiRouter(client) {
   };
 
   // ==========================================
-  // 1. Auth Endpoints
+  // 1. Discord OAuth2 Auth Endpoints (Pure OAuth2 RBAC)
   // ==========================================
-  router.post('/auth/login', (req, res) => {
-    const { password } = req.body || {};
-    if (!password || password !== env.DASHBOARD_PASSWORD) {
-      return res.status(401).json({ success: false, error: 'Kata sandi dashboard salah.' });
+
+  // Discord OAuth2 Login redirect
+  router.get('/auth/discord/login', (req, res) => {
+    if (!env.CLIENT_ID) {
+      return res.status(500).send('CLIENT_ID belum dikonfigurasi di server.');
+    }
+    const redirectUri = getRedirectUri(req);
+    const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${env.CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify`;
+    return res.redirect(discordAuthUrl);
+  });
+
+  // Discord OAuth2 Callback
+  router.get('/auth/discord/callback', async (req, res) => {
+    const { code, error, error_description } = req.query;
+
+    if (error || !code) {
+      const msg = error_description || 'Otorisasi Discord dibatalkan atau gagal.';
+      return res.redirect(`/?error=${encodeURIComponent(msg)}`);
     }
 
-    const token = crypto.randomUUID();
-    activeTokens.add(token);
-    return res.json({ success: true, token, user: 'Panitia / Administrator' });
+    if (!env.DISCORD_CLIENT_SECRET) {
+      logger.error('[OAuth2 Error] DISCORD_CLIENT_SECRET belum diatur di file .env');
+      return res.redirect(`/?error=${encodeURIComponent('Server belum mengonfigurasi DISCORD_CLIENT_SECRET.')}`);
+    }
+
+    try {
+      const redirectUri = getRedirectUri(req);
+
+      // Exchange code for access token
+      const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          client_id: env.CLIENT_ID,
+          client_secret: env.DISCORD_CLIENT_SECRET,
+          grant_type: 'authorization_code',
+          code: String(code),
+          redirect_uri: redirectUri
+        })
+      });
+
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok || !tokenData.access_token) {
+        logger.error(`[OAuth2 Error] Gagal exchange token Discord: ${JSON.stringify(tokenData)}`);
+        return res.redirect(`/?error=${encodeURIComponent(tokenData.error_description || 'Gagal menukar kode otorisasi Discord. Pastikan Redirect URI di Discord Developer Portal sesuai.')}`);
+      }
+
+      // Fetch user profile from Discord
+      const userRes = await fetch('https://discord.com/api/v10/users/@me', {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`
+        }
+      });
+
+      const userData = await userRes.json();
+      if (!userRes.ok || !userData.id) {
+        return res.redirect(`/?error=${encodeURIComponent('Gagal mengambil data profil pengguna dari Discord.')}`);
+      }
+
+      // Check Guild Member & Staff / Admin Permissions
+      const guild = getGuild();
+      if (!guild) {
+        return res.redirect(`/?error=${encodeURIComponent('Server Discord NSAC Jember tidak ditemukan oleh bot.')}`);
+      }
+
+      const member = guild.members.cache.get(userData.id)
+        || await guild.members.fetch(userData.id).catch(() => null);
+
+      if (!member) {
+        return res.redirect(`/?error=${encodeURIComponent('Akses Ditolak: Anda belum bergabung di server Discord NSAC Jember.')}`);
+      }
+
+      const isStaffOrAdmin = PermissionService.isStaff(member);
+      if (!isStaffOrAdmin) {
+        return res.redirect(`/?error=${encodeURIComponent('Akses Ditolak: Akun Discord @' + userData.username + ' tidak memiliki role Staff/Panitia/Admin di server NSAC Jember.')}`);
+      }
+
+      // Create authenticated session
+      const sessionToken = crypto.randomBytes(32).toString('hex');
+      const avatarUrl = userData.avatar
+        ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png?size=128`
+        : `https://cdn.discordapp.com/embed/avatars/${(parseInt(userData.discriminator || '0', 10) || 0) % 5}.png`;
+
+      activeSessions.set(sessionToken, {
+        userId: userData.id,
+        username: userData.username,
+        globalName: userData.global_name || userData.username,
+        avatar: userData.avatar,
+        avatarUrl,
+        isStaff: true,
+        createdAt: Date.now()
+      });
+
+      logger.info(`[OAuth2 Login] Panitia @${userData.username} (${userData.id}) berhasil login ke Web Dashboard.`);
+
+      await AuditService.log(client, {
+        action: 'GENERAL_LOG',
+        title: 'Dashboard Login',
+        actorId: userData.id,
+        actorTag: userData.username,
+        details: `Panitia @${userData.username} (${userData.id}) berhasil login ke Web Dashboard via Discord OAuth2.`
+      }).catch(() => {});
+
+      return res.redirect(`/?token=${sessionToken}`);
+    } catch (err) {
+      logger.error(`[OAuth2 Error] Exception callback: ${err.message}`);
+      return res.redirect(`/?error=${encodeURIComponent('Terjadi kesalahan internal saat autentikasi Discord.')}`);
+    }
   });
 
   router.get('/auth/me', requireAuth, (req, res) => {
-    return res.json({ success: true, authenticated: true });
+    return res.json({ success: true, authenticated: true, user: req.user });
   });
 
   router.post('/auth/logout', requireAuth, (req, res) => {
@@ -93,8 +194,11 @@ export function createApiRouter(client) {
     const token = authHeader.startsWith('Bearer ')
       ? authHeader.slice(7)
       : req.headers['x-dashboard-token'];
-    if (token) activeTokens.delete(token);
-    return res.json({ success: true });
+
+    if (token) {
+      activeSessions.delete(token);
+    }
+    return res.json({ success: true, message: 'Berhasil logout.' });
   });
 
   // ==========================================

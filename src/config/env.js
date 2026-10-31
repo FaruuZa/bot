@@ -35,7 +35,6 @@ export const env = {
 
   // Web Dashboard
   PORT: parseInt(process.env.PORT || process.env.DASHBOARD_PORT || '8080', 10),
-  DASHBOARD_PASSWORD: process.env.DASHBOARD_PASSWORD || 'nsac2026',
   DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET || process.env.CLIENT_SECRET || '',
   DASHBOARD_BASE_URL: process.env.DASHBOARD_BASE_URL || ''
 };

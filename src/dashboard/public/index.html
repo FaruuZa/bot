@@ -68,35 +68,19 @@
         <span>Masuk dengan Akun Discord Panitia</span>
       </a>
 
-      <div class="relative flex py-2 items-center mb-4">
-        <div class="flex-grow border-t border-slate-800"></div>
-        <span class="flex-shrink mx-3 text-[11px] text-slate-500 font-medium">atau masuk dengan kata sandi</span>
-        <div class="flex-grow border-t border-slate-800"></div>
+      <div class="mt-4 p-4 bg-slate-950/70 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-2 text-center">
+        <div class="flex items-center justify-center gap-1.5 text-indigo-400 font-semibold text-xs">
+          <i data-lucide="shield-check" class="w-4 h-4"></i> Autentikasi RBAC Discord
+        </div>
+        <p class="text-[11px] leading-relaxed">
+          Akses dashboard diamankan sepenuhnya menggunakan akun Discord. Hanya anggota server dengan role <strong>Panitia / Staff / Administrator</strong> yang dapat masuk.
+        </p>
       </div>
 
-      <form @submit.prevent="submitLogin()" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Kata Sandi Panitia</label>
-          <div class="relative">
-            <input :type="showPassword ? 'text' : 'password'" x-model="loginPassword" required autofocus
-                   placeholder="Masukkan kata sandi..."
-                   class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
-            <button type="button" @click="showPassword = !showPassword" class="absolute right-3 top-3 text-slate-400 hover:text-white">
-              <i :data-lucide="showPassword ? 'eye-off' : 'eye'" class="w-5 h-5"></i>
-            </button>
-          </div>
-          <p x-show="loginError" x-text="loginError" class="text-xs text-rose-400 mt-2 font-medium"></p>
-        </div>
-
-        <button type="submit" :disabled="loggingIn"
-                class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2">
-          <span x-show="!loggingIn">Masuk ke Dashboard</span>
-          <span x-show="loggingIn" class="flex items-center gap-2">
-            <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-            Memverifikasi...
-          </span>
-        </button>
-      </form>
+      <div x-show="loginError" class="mt-4 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300 flex items-start gap-2.5">
+        <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5"></i>
+        <span x-text="loginError" class="leading-relaxed"></span>
+      </div>
       <div class="mt-6 text-center text-xs text-slate-500">
         Portainer Container Port: <span class="text-slate-400 font-mono">8080</span>
       </div>
@@ -1315,30 +1299,7 @@
           });
         },
 
-        async submitLogin() {
-          this.loggingIn = true;
-          this.loginError = '';
-          try {
-            const res = await fetch('/api/auth/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ password: this.loginPassword })
-            });
-            const data = await res.json();
-            if (data.success && data.token) {
-              this.token = data.token;
-              localStorage.setItem('nsac_dashboard_token', data.token);
-              this.authenticated = true;
-              this.loadAllData();
-            } else {
-              this.loginError = data.error || 'Kata sandi salah.';
-            }
-          } catch (e) {
-            this.loginError = 'Gagal menghubungi server web dashboard.';
-          } finally {
-            this.loggingIn = false;
-          }
-        },
+        
 
         async verifyToken() {
           try {
