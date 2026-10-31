@@ -85,11 +85,48 @@ export function createApiRouter(client) {
   router.get('/stats', requireAuth, async (req, res) => {
     try {
       const guild = getGuild();
-      const [teamsRes, recruitRes, activeMembersRes] = await Promise.all([
+
+      if (guild) {
+        if (guild.members.cache.size < guild.memberCount) {
+          await guild.members.fetch().catch((err) => {
+            logger.warn(`[Dashboard API] /stats guild.members.fetch failed: ${err.message}`);
+          });
+        }
+        if (guild.roles.cache.size === 0) {
+          await guild.roles.fetch().catch((err) => {
+            logger.warn(`[Dashboard API] /stats guild.roles.fetch failed: ${err.message}`);
+          });
+        }
+      }
+
+      const [teamsRes, recruitRes, inTeamsRes] = await Promise.all([
         pool.query("SELECT COUNT(*) FROM teams WHERE status != 'DISBANDED'"),
         pool.query("SELECT COUNT(*) FROM team_recruitments WHERE status = 'OPEN'"),
-        pool.query("SELECT COUNT(*) FROM team_members WHERE status = 'ACTIVE'")
+        pool.query("SELECT COUNT(DISTINCT user_id) as count FROM team_members WHERE status = 'ACTIVE'")
       ]);
+
+      const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+      const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
+
+      let participantCount = null;
+      let participantRoleConfigured = false;
+      if (participantRoleId && guild) {
+        const role = guild.roles.cache.get(participantRoleId);
+        if (role) {
+          participantCount = role.members.size;
+          participantRoleConfigured = true;
+        }
+      }
+
+      let noTeamCount = null;
+      if (noTeamRoleId && guild) {
+        const role = guild.roles.cache.get(noTeamRoleId);
+        if (role) {
+          noTeamCount = role.members.size;
+        }
+      }
+
+      const inTeamsCount = parseInt(inTeamsRes.rows[0]?.count || '0', 10);
 
       return res.json({
         success: true,
@@ -110,7 +147,10 @@ export function createApiRouter(client) {
           stats: {
             totalTeams: parseInt(teamsRes.rows[0]?.count || '0', 10),
             openRecruitments: parseInt(recruitRes.rows[0]?.count || '0', 10),
-            totalParticipants: parseInt(activeMembersRes.rows[0]?.count || '0', 10)
+            participantCount,
+            participantRoleConfigured,
+            inTeamsCount,
+            noTeamCount
           }
         }
       });
