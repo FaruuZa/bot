@@ -9,7 +9,10 @@ import { GuildConfigService, CONFIG_DEFINITIONS } from '../../services/guildConf
 import { NasaValidationService } from '../../services/nasaValidationService.js';
 import { AuditService } from '../../services/auditService.js';
 import { AUDIT_ACTIONS } from '../../config/constants.js';
-import { closeRecruitment, getRecruitmentById } from '../../database/queries/recruitmentQueries.js';
+import { closeRecruitment, getRecruitmentById, getOpenRecruitmentByTeam } from '../../database/queries/recruitmentQueries.js';
+import { TeamService } from '../../services/teamService.js';
+import { getTeamById } from '../../database/queries/teamQueries.js';
+import { getActiveTeamMembers } from '../../database/queries/memberQueries.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)
@@ -329,10 +332,23 @@ export function createApiRouter(client) {
   // ==========================================
   router.get('/teams', requireAuth, async (req, res) => {
     try {
+      const { status, limit = 50, offset = 0 } = req.query;
+      const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+      const parsedOffset = Math.max(parseInt(offset, 10) || 0, 0);
+
+      const params = [];
+      let whereClause = "WHERE t.status != 'DISBANDED'";
+      if (status && ['PENDING', 'ACTIVE', 'ARCHIVED'].includes(String(status).toUpperCase())) {
+        params.push(String(status).toUpperCase());
+        whereClause = `WHERE t.status = $${params.length}`;
+      }
+
+      params.push(parsedLimit, parsedOffset);
+
       const { rows: teams } = await pool.query(`
         SELECT 
-          t.id, t.name, t.status, t.nsac_link, t.created_at,
-          t.text_channel_id, t.voice_channel_id,
+          t.id, t.name, t.status, t.nsac_link, t.created_at, t.last_synced_at,
+          t.text_channel_id, t.voice_channel_id, t.category_id, t.role_id,
           u.username as leader_username, u.discord_id as leader_discord_id,
           c.title as challenge_title,
           (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id AND tm.status = 'ACTIVE') as member_count,
@@ -341,12 +357,208 @@ export function createApiRouter(client) {
         LEFT JOIN users u ON t.leader_id = u.id
         LEFT JOIN challenges c ON t.challenge_id = c.id
         LEFT JOIN team_recruitments tr ON tr.team_id = t.id AND tr.status = 'OPEN'
-        WHERE t.status != 'DISBANDED'
+        ${whereClause}
         ORDER BY t.created_at DESC
-      `);
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+      `, params);
 
       return res.json({ success: true, teams });
     } catch (err) {
+      logger.error(`[Dashboard API] /teams error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.get('/teams/:id', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      if (isNaN(teamId)) {
+        return res.status(400).json({ success: false, error: 'ID Tim tidak valid.' });
+      }
+
+      const team = await getTeamById(teamId);
+      if (!team || team.status === 'DISBANDED') {
+        return res.status(404).json({ success: false, error: 'Tim tidak ditemukan.' });
+      }
+
+      const [members, openRecruit] = await Promise.all([
+        getActiveTeamMembers(teamId),
+        getOpenRecruitmentByTeam(teamId)
+      ]);
+
+      return res.json({
+        success: true,
+        team: {
+          ...team,
+          members: members.map(m => ({
+            id: m.id,
+            user_id: m.user_id,
+            username: m.username,
+            discord_id: m.discord_id,
+            role: m.role,
+            status: m.status,
+            joined_at: m.joined_at
+          })),
+          recruitment: openRecruit ? {
+            id: openRecruit.id,
+            status: openRecruit.status,
+            slots_needed: openRecruit.slots_needed,
+            description: openRecruit.description
+          } : null
+        }
+      });
+    } catch (err) {
+      logger.error(`[Dashboard API] GET /teams/:id error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/teams/:id/rename', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const { name } = req.body || {};
+      if (!name || !name.trim()) {
+        return res.status(400).json({ success: false, error: 'Nama tim baru wajib diisi.' });
+      }
+
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const result = await TeamService.renameTeam(teamId, name.trim(), guild, client, 'Web Dashboard');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[Dashboard API] renameTeam error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/teams/:id/transfer-leader', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const { discordId } = req.body || {};
+      if (!discordId || !discordId.trim()) {
+        return res.status(400).json({ success: false, error: 'Discord ID ketua baru wajib diisi.' });
+      }
+
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const result = await TeamService.transferLeader(teamId, discordId.trim(), guild, client, 'Web Dashboard');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[Dashboard API] transferLeader error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/teams/:id/add-member', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const { discordId } = req.body || {};
+      if (!discordId || !discordId.trim()) {
+        return res.status(400).json({ success: false, error: 'Discord ID anggota wajib diisi.' });
+      }
+
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const result = await TeamService.addMemberToTeam(teamId, discordId.trim(), guild, client, 'Web Dashboard');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[Dashboard API] addMemberToTeam error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/teams/:id/remove-member', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const { discordId } = req.body || {};
+      if (!discordId || !discordId.trim()) {
+        return res.status(400).json({ success: false, error: 'Discord ID anggota wajib diisi.' });
+      }
+
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const result = await TeamService.removeMemberFromTeam(teamId, discordId.trim(), guild, client, 'Web Dashboard');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[Dashboard API] removeMemberFromTeam error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/teams/:id/archive', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const result = await TeamService.archiveTeam(teamId, guild, client, 'Web Dashboard');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[Dashboard API] archiveTeam error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/teams/:id/delete', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const result = await TeamService.deleteTeam(teamId, guild, client, 'Web Dashboard');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (err) {
+      logger.error(`[Dashboard API] deleteTeam error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/teams/:id/nsac-link', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const { nsacLink } = req.body || {};
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const trimmedLink = nsacLink && String(nsacLink).trim().length > 0 ? String(nsacLink).trim() : null;
+      const result = await TeamService.setTeamNsacLink(teamId, trimmedLink, guild, client, 'Web Dashboard');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      if (trimmedLink) {
+        try {
+          await NasaValidationService.syncTeam(teamId, client);
+        } catch (syncErr) {
+          logger.warn(`[Dashboard API] Sync NASA after link update failed for team ${teamId}: ${syncErr.message}`);
+        }
+      }
+
+      return res.json({ success: true, message: 'Tautan web NASA berhasil disimpan.', team: result.team });
+    } catch (err) {
+      logger.error(`[Dashboard API] setTeamNsacLink error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
     }
   });

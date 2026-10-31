@@ -494,6 +494,12 @@
             <input type="text" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
                    class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           </div>
+          <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+            <button @click="teamStatusFilter = 'ALL'" :class="teamStatusFilter === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Semua</button>
+            <button @click="teamStatusFilter = 'ACTIVE'" :class="teamStatusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Aktif</button>
+            <button @click="teamStatusFilter = 'PENDING'" :class="teamStatusFilter === 'PENDING' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Pending</button>
+            <button @click="teamStatusFilter = 'ARCHIVED'" :class="teamStatusFilter === 'ARCHIVED' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded-lg transition-all">Arsip</button>
+          </div>
         </div>
 
         <!-- Teams Table -->
@@ -508,12 +514,12 @@
                   <th class="px-5 py-3.5">Anggota</th>
                   <th class="px-5 py-3.5">Status</th>
                   <th class="px-5 py-3.5">Lowongan</th>
-                  <th class="px-5 py-3.5 text-right">Web NASA</th>
+                  <th class="px-5 py-3.5 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-800/60 font-medium">
                 <template x-for="t in filteredTeams" :key="t.id">
-                  <tr class="hover:bg-slate-800/30 transition-colors">
+                  <tr @click="openTeamDetail(t.id)" class="hover:bg-slate-800/40 cursor-pointer transition-colors">
                     <td class="px-5 py-4">
                       <div class="font-bold text-white text-sm" x-text="t.name"></div>
                       <div class="text-[10px] text-slate-500" x-text="'ID: ' + t.id"></div>
@@ -527,7 +533,7 @@
                       <span class="bg-slate-800 px-2 py-1 rounded text-white font-mono text-[11px]" x-text="(t.member_count || 1) + ' / 6'"></span>
                     </td>
                     <td class="px-5 py-4">
-                      <span :class="t.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'"
+                      <span :class="t.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : (t.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-700/50 text-slate-400 border-slate-600')"
                             class="px-2.5 py-0.5 rounded-full border text-[10px] font-semibold" x-text="t.status"></span>
                     </td>
                     <td class="px-5 py-4">
@@ -541,21 +547,16 @@
                       </template>
                     </td>
                     <td class="px-5 py-4 text-right">
-                      <template x-if="t.nsac_link">
-                        <a :href="t.nsac_link" target="_blank" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 hover:underline text-xs">
-                          Buka <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                        </a>
-                      </template>
-                      <template x-if="!t.nsac_link">
-                        <span class="text-slate-500 text-xs">Belum diatur</span>
-                      </template>
+                      <button @click.stop="openTeamDetail(t.id)" class="px-3 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold transition-all">
+                        Kelola
+                      </button>
                     </td>
                   </tr>
                 </template>
                 <template x-if="filteredTeams.length === 0">
                   <tr>
                     <td colspan="7" class="px-5 py-8 text-center text-slate-500">
-                      Tidak ada data tim yang cocok dengan pencarian.
+                      Tidak ada data tim yang cocok dengan filter atau pencarian.
                     </td>
                   </tr>
                 </template>
@@ -646,6 +647,128 @@
 
     </main>
 
+    <!-- ========================================== -->
+    <!-- TEAM DETAIL MODAL -->
+    <!-- ========================================== -->
+    <div x-show="showTeamModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
+      <div @click.away="showTeamModal = false" class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8">
+        <template x-if="selectedTeam">
+          <div class="space-y-5">
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between border-b border-slate-800 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-lg font-bold text-white" x-text="selectedTeam.name"></h3>
+                  <span :class="selectedTeam.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : (selectedTeam.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-700/50 text-slate-400 border-slate-600')"
+                        class="px-2.5 py-0.5 rounded-full border text-[10px] font-semibold" x-text="selectedTeam.status"></span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5" x-text="'ID Tim: ' + selectedTeam.id + ' • Dibuat: ' + new Date(selectedTeam.created_at).toLocaleDateString('id-ID')"></p>
+              </div>
+              <button @click="showTeamModal = false" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+              </button>
+            </div>
+
+            <!-- Team Overview Info -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-950 p-4 rounded-xl border border-slate-800">
+              <div>
+                <span class="text-slate-500 block">Tantangan (Challenge):</span>
+                <span class="font-medium text-slate-200" x-text="selectedTeam.challenge_title || '*(Belum memilih)*'"></span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Ketua Tim (Leader):</span>
+                <span class="font-medium text-slate-200" x-text="(selectedTeam.leader_username ? '@' + selectedTeam.leader_username : 'Tidak diketahui') + (selectedTeam.leader_discord_id ? ' (' + selectedTeam.leader_discord_id + ')' : '')"></span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Discord Channels:</span>
+                <span class="font-medium text-slate-300 font-mono text-[11px]" x-text="'Text: ' + (selectedTeam.text_channel_id || '-') + ' • Voice: ' + (selectedTeam.voice_channel_id || '-')"></span>
+              </div>
+              <div>
+                <span class="text-slate-500 block">Discord Role:</span>
+                <span class="font-medium text-slate-300 font-mono text-[11px]" x-text="'Role ID: ' + (selectedTeam.role_id || '-')"></span>
+              </div>
+            </div>
+
+            <!-- NSAC Link Editor -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+              <label class="block text-xs font-semibold text-slate-300">Tautan Resmi Profil Web NASA Space Apps</label>
+              <div class="flex items-center gap-2">
+                <input type="url" x-model="selectedTeam.nsac_link" placeholder="https://www.spaceappschallenge.org/2026/find-a-team/..."
+                       class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+                <button @click="updateTeamNsacLink()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap">
+                  Simpan Link
+                </button>
+              </div>
+            </div>
+
+            <!-- Members List (Roster) -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider">Daftar Anggota Tim (<span x-text="(selectedTeam.members ? selectedTeam.members.length : 0) + '/6'"></span>)</h4>
+              </div>
+              
+              <div class="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
+                <template x-for="m in (selectedTeam.members || [])" :key="m.id">
+                  <div class="p-3 flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-semibold text-white" x-text="m.username || 'User'"></span>
+                        <span :class="m.role === 'LEADER' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'"
+                              class="text-[10px] font-bold px-1.5 py-0.2 rounded border" x-text="m.role"></span>
+                      </div>
+                      <span class="text-[11px] text-slate-500 font-mono" x-text="'ID: ' + m.discord_id"></span>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                      <template x-if="m.role !== 'LEADER'">
+                        <button @click="transferLeaderAction(m.discord_id)" title="Pindahkan kepemimpinan ketua tim ke anggota ini"
+                                class="px-2 py-1 rounded bg-slate-800 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 text-[11px] font-medium border border-slate-700">
+                          Jadikan Ketua
+                        </button>
+                      </template>
+                      <template x-if="m.role !== 'LEADER'">
+                        <button @click="removeMemberAction(m.discord_id)" title="Keluarkan anggota dari tim"
+                                class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 text-[11px] font-medium border border-slate-700">
+                          Keluarkan
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Add Member Input -->
+              <div class="flex items-center gap-2 pt-2">
+                <input type="text" x-model="newMemberDiscordId" placeholder="Masukkan Discord ID anggota yang ingin ditambahkan..."
+                       class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+                <button @click="addMemberAction()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap">
+                  Tambah Anggota
+                </button>
+              </div>
+            </div>
+
+            <!-- Danger Zone / Actions -->
+            <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <button @click="renameTeamAction()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700">
+                  Ganti Nama Tim
+                </button>
+                <template x-if="selectedTeam.status === 'ACTIVE'">
+                  <button @click="archiveTeamAction()" class="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-medium border border-amber-500/30">
+                    Arsipkan Tim
+                  </button>
+                </template>
+              </div>
+
+              <button @click="deleteTeamAction()" class="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium border border-rose-500/30">
+                Hapus Tim Permanen
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
     <!-- Footer -->
     <footer class="bg-slate-900/60 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
       NSAC Jember 2026 • Portainer Port: <span class="text-slate-400 font-mono">8080</span> • Discord Management Bot & Dashboard
@@ -675,6 +798,10 @@
         recruitments: [],
         configs: [],
         searchTeam: '',
+        teamStatusFilter: 'ALL',
+        selectedTeam: null,
+        showTeamModal: false,
+        newMemberDiscordId: '',
         syncingNasa: false,
         postingAnnouncement: false,
 
@@ -852,13 +979,220 @@
         },
 
         get filteredTeams() {
-          if (!this.searchTeam.trim()) return this.teams;
+          let list = this.teams || [];
+          if (this.teamStatusFilter && this.teamStatusFilter !== 'ALL') {
+            list = list.filter(t => t.status === this.teamStatusFilter);
+          }
+          if (!this.searchTeam.trim()) return list;
           const q = this.searchTeam.toLowerCase();
-          return this.teams.filter(t => 
+          return list.filter(t => 
             (t.name && t.name.toLowerCase().includes(q)) ||
             (t.leader_username && t.leader_username.toLowerCase().includes(q)) ||
             (t.challenge_title && t.challenge_title.toLowerCase().includes(q))
           );
+        },
+
+        async openTeamDetail(id) {
+          try {
+            const res = await fetch(`/api/teams/${id}`, {
+              headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success && data.team) {
+              this.selectedTeam = data.team;
+              this.newMemberDiscordId = '';
+              this.showTeamModal = true;
+              this.$nextTick(() => {
+                if (window.lucide) window.lucide.createIcons();
+              });
+            } else {
+              this.showToast('error', 'Gagal Membuka Detail', data.error || 'Data tim tidak ditemukan.');
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
+        },
+
+        async updateTeamNsacLink() {
+          if (!this.selectedTeam) return;
+          try {
+            const res = await fetch(`/api/teams/${this.selectedTeam.id}/nsac-link`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ nsacLink: this.selectedTeam.nsac_link })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Tautan Disimpan', data.message || 'Tautan web NASA berhasil diperbarui.');
+              await this.loadAllData();
+            } else {
+              this.showToast('error', 'Gagal Menyimpan', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
+        },
+
+        async renameTeamAction() {
+          if (!this.selectedTeam) return;
+          const newName = prompt('Masukkan nama tim baru:', this.selectedTeam.name);
+          if (!newName || !newName.trim() || newName.trim() === this.selectedTeam.name) return;
+
+          try {
+            const res = await fetch(`/api/teams/${this.selectedTeam.id}/rename`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ name: newName.trim() })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Nama Tim Diubah', `Nama tim berhasil diubah menjadi "${newName.trim()}".`);
+              this.selectedTeam.name = newName.trim();
+              await this.loadAllData();
+            } else {
+              this.showToast('error', 'Gagal Mengubah Nama', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
+        },
+
+        async transferLeaderAction(discordId) {
+          if (!this.selectedTeam || !discordId) return;
+          if (!confirm('Pindahkan kepemimpinan ketua tim ke anggota ini?')) return;
+
+          try {
+            const res = await fetch(`/api/teams/${this.selectedTeam.id}/transfer-leader`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ discordId })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Ketua Tim Dipindahkan', 'Kepemimpinan tim berhasil dipindahkan.');
+              await this.openTeamDetail(this.selectedTeam.id);
+              await this.loadAllData();
+            } else {
+              this.showToast('error', 'Gagal Memindahkan Ketua', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
+        },
+
+        async addMemberAction() {
+          if (!this.selectedTeam || !this.newMemberDiscordId.trim()) {
+            this.showToast('error', 'Input Kosong', 'Masukkan Discord ID anggota.');
+            return;
+          }
+
+          try {
+            const res = await fetch(`/api/teams/${this.selectedTeam.id}/add-member`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ discordId: this.newMemberDiscordId.trim() })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Anggota Ditambahkan', 'Anggota berhasil ditambahkan ke tim.');
+              this.newMemberDiscordId = '';
+              await this.openTeamDetail(this.selectedTeam.id);
+              await this.loadAllData();
+            } else {
+              this.showToast('error', 'Gagal Menambah Anggota', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
+        },
+
+        async removeMemberAction(discordId) {
+          if (!this.selectedTeam || !discordId) return;
+          if (!confirm('Keluarkan anggota ini dari tim?')) return;
+
+          try {
+            const res = await fetch(`/api/teams/${this.selectedTeam.id}/remove-member`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ discordId })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Anggota Dikeluarkan', 'Anggota telah dikeluarkan dari tim.');
+              await this.openTeamDetail(this.selectedTeam.id);
+              await this.loadAllData();
+            } else {
+              this.showToast('error', 'Gagal Mengeluarkan Anggota', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
+        },
+
+        async archiveTeamAction() {
+          if (!this.selectedTeam) return;
+          if (!confirm(`Arsipkan tim "${this.selectedTeam.name}"? Channel tim akan diarsipkan dan lowongan ditutup.`)) return;
+
+          try {
+            const res = await fetch(`/api/teams/${this.selectedTeam.id}/archive`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Tim Diarsipkan', `Tim "${this.selectedTeam.name}" telah diarsipkan.`);
+              await this.openTeamDetail(this.selectedTeam.id);
+              await this.loadAllData();
+            } else {
+              this.showToast('error', 'Gagal Mengarsipkan Tim', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
+        },
+
+        async deleteTeamAction() {
+          if (!this.selectedTeam) return;
+          if (!confirm(`PERINGATAN: Apakah Anda yakin ingin MENGHAPUS PERMANEN tim "${this.selectedTeam.name}"? Aksi ini akan menghapus channel tim di Discord dan tidak bisa dibatalkan!`)) return;
+
+          const confirmation = prompt(`Ketik nama tim persis ("${this.selectedTeam.name}") untuk konfirmasi:`);
+          if (confirmation !== this.selectedTeam.name) {
+            this.showToast('error', 'Dibatalkan', 'Nama tim yang diketik tidak cocok. Penghapusan dibatalkan.');
+            return;
+          }
+
+          try {
+            const res = await fetch(`/api/teams/${this.selectedTeam.id}/delete`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast('success', 'Tim Dihapus', `Tim "${this.selectedTeam.name}" berhasil dihapus secara permanen.`);
+              this.showTeamModal = false;
+              this.selectedTeam = null;
+              await this.loadAllData();
+            } else {
+              this.showToast('error', 'Gagal Menghapus Tim', data.error);
+            }
+          } catch (e) {
+            this.showToast('error', 'Kesalahan', e.message);
+          }
         },
 
         getRoleName(id) {
