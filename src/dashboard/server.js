@@ -40,8 +40,8 @@ export class DashboardServer {
     const publicPath = path.join(__dirname, 'public');
     app.use(express.static(publicPath));
 
-    // Fallback to index.html for SPA
-    app.get('*', (req, res) => {
+    // Fallback to index.html for SPA (compatible with Express 4 and Express 5)
+    app.use((req, res) => {
       res.sendFile(path.join(publicPath, 'index.html'));
     });
 
