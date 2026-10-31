@@ -676,21 +676,6 @@ export default {
         return await interaction.update({ embeds: [embed], components });
       }
 
-      // K. Team Panel: Quick Action (Approve / Archive / Delete from panel)
-      if (customId.startsWith('team_panel_action_approve_')) {
-        if (!PermissionService.isStaff(interaction.member)) {
-          return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
-        }
-        const teamId = parseInt(customId.replace('team_panel_action_approve_', ''), 10);
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        try {
-          await TeamService.finalizeTeamCreation(teamId, interaction.guild, interaction.client);
-          return await interaction.editReply({ embeds: [successEmbed('Approved', `Tim #${teamId} berhasil disetujui dan channel telah dibuat.`)] });
-        } catch (err) {
-          return await interaction.editReply({ embeds: [errorEmbed('Approval Failed', err.message)] });
-        }
-      }
-
       if (customId.startsWith('team_panel_action_archive_')) {
         if (!PermissionService.isStaff(interaction.member)) {
           return await replyDismissable(interaction, { embeds: [errorEmbed('Staff Only', 'Unauthorized')] });
@@ -2543,15 +2528,6 @@ export default {
         const embed = teamInfoEmbed(team, members);
 
         const actionButtons = new ActionRowBuilder();
-
-        if (team.status === 'PENDING') {
-          actionButtons.addComponents(
-            new ButtonBuilder()
-              .setCustomId(`team_panel_action_approve_${team.id}`)
-              .setLabel('Force Approve Tim')
-              .setStyle(ButtonStyle.Success)
-          );
-        }
 
         if (team.status === 'ACTIVE') {
           actionButtons.addComponents(

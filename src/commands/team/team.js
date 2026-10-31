@@ -214,12 +214,6 @@ export default {
     )
     .addSubcommand((sub) =>
       sub
-        .setName('approve')
-        .setDescription('[Staff] Force-approve tim yang pending')
-        .addStringOption((opt) => opt.setName('name').setDescription('Nama tim pending').setRequired(true))
-    )
-    .addSubcommand((sub) =>
-      sub
         .setName('add-member')
         .setDescription('[Staff] Tambah anggota ke tim')
         .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
@@ -278,12 +272,6 @@ export default {
         .setDescription('[Staff Override] Kirim ulang undangan ke anggota')
         .addStringOption((opt) => opt.setName('team').setDescription('Nama tim').setRequired(true))
         .addUserOption((opt) => opt.setName('user').setDescription('User yang diundang').setRequired(true))
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('cancel-registration')
-        .setDescription('[Staff Override] Batalkan pendaftaran tim yang pending')
-        .addStringOption((opt) => opt.setName('team').setDescription('Nama tim pending').setRequired(true))
     )
     .addSubcommand((sub) =>
       sub
@@ -804,26 +792,6 @@ export default {
       });
     }
 
-    // 9. APPROVE (Staff Force Finalize)
-    if (subcommand === 'approve') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-      const name = interaction.options.getString('name');
-      const team = await getTeamByName(name);
-
-      if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${name}" tidak ditemukan.`)] });
-      }
-
-      try {
-        await TeamService.finalizeTeamCreation(team.id, interaction.guild, interaction.client);
-        return await interaction.editReply({
-          embeds: [successEmbed('Tim Diapprove', `Tim **${team.name}** berhasil di-approve dan channel sudah diprovisioning.`)]
-        });
-      } catch (err) {
-        return await interaction.editReply({ embeds: [errorEmbed('Gagal Approve', err.message)] });
-      }
-    }
 
     // 10. ADD-MEMBER (Staff)
     if (subcommand === 'add-member' || subcommand === 'force-add') {
@@ -1006,36 +974,6 @@ export default {
       });
     }
 
-    // 17. CANCEL-REGISTRATION (Staff)
-    if (subcommand === 'cancel-registration') {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-      const teamName = interaction.options.getString('team');
-      const team = await getTeamByName(teamName);
-      if (!team) {
-        return await interaction.editReply({ embeds: [errorEmbed('Tidak Ditemukan', `Tim "${teamName}" tidak ditemukan.`)] });
-      }
-
-      if (team.status !== TEAM_STATUS.PENDING) {
-        return await interaction.editReply({ embeds: [errorEmbed('Error', `Tim "${team.name}" bukan dalam status PENDING.`)] });
-      }
-
-      await cancelPendingInvitationsForTeam(team.id);
-      await updateTeamStatus(team.id, TEAM_STATUS.DISBANDED);
-
-      await AuditService.log(interaction.client, {
-        action: AUDIT_ACTIONS.REGISTRATION_REJECTED,
-        title: 'Pendaftaran Dibatalkan oleh Staff',
-        actorTag: interaction.user.tag,
-        teamId: team.id,
-        teamName: team.name,
-        details: `Pendaftaran tim "${team.name}" dibatalkan oleh staff.`
-      });
-
-      return await interaction.editReply({
-        embeds: [successEmbed('Pendaftaran Dibatalkan', `Pendaftaran tim **${team.name}** berhasil dibatalkan.`)]
-      });
-    }
 
     // 18. FORCE-REGISTER (Staff Instant Provisioning)
     if (subcommand === 'force-register') {
