@@ -508,10 +508,19 @@ export class TeamService {
       challengeValue = trimmed.length > 200 ? `**${trimmed.substring(0, 197)}...**` : `**${trimmed}**`;
     }
 
+    let cleanDesc = description?.trim();
+    if (cleanDesc && cleanDesc.startsWith('"') && cleanDesc.endsWith('"')) {
+      cleanDesc = cleanDesc.slice(1, -1).trim();
+    }
+
+    const aboutContent = cleanDesc && cleanDesc.length > 0
+      ? (cleanDesc.length > 2000 ? `${cleanDesc.substring(0, 1997)}...` : cleanDesc)
+      : '*(Tim belum mencantumkan deskripsi profil / About the Team)*';
+
     const embed = new EmbedBuilder()
       .setTitle(`Lowongan Tim — ${teamName}`)
       .setColor(EMBED_COLORS.PRIMARY)
-      .setDescription(description ? `"${description}"` : 'Tim ini sedang mencari anggota baru untuk melengkapi formasi tim.');
+      .setDescription(`**About the Team**\n${aboutContent}`);
 
     if (isExternal) {
       embed.addFields(

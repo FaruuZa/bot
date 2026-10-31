@@ -32,6 +32,18 @@ export default {
           { name: 'Blue (Info)', value: 'INFO' }
         )
     )
+    .addAttachmentOption((opt) =>
+      opt
+        .setName('image')
+        .setDescription('Upload file gambar / poster pengumuman')
+        .setRequired(false)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('image_url')
+        .setDescription('URL gambar luar (opsional jika tidak upload file)')
+        .setRequired(false)
+    )
     .addRoleOption((opt) =>
       opt
         .setName('role')
@@ -68,18 +80,36 @@ export default {
     const title = interaction.options.getString('title');
     const rawMessage = interaction.options.getString('message');
     const colorChoice = interaction.options.getString('color') || 'PRIMARY';
+    const imageAttachment = interaction.options.getAttachment('image');
+    const imageUrlInput = interaction.options.getString('image_url');
     const role = interaction.options.getRole('role');
     const role2 = interaction.options.getRole('role2');
     const mentionChoice = interaction.options.getString('mention');
 
     const formattedMessage = rawMessage.replace(/\\n/g, '\n');
+    const safeTitle = title.length > 256 ? `${title.substring(0, 253)}...` : title;
+    const safeDesc = formattedMessage.length > 4096 ? `${formattedMessage.substring(0, 4093)}...` : formattedMessage;
 
     const embed = new EmbedBuilder()
       .setColor(EMBED_COLORS[colorChoice] || EMBED_COLORS.PRIMARY)
-      .setTitle(`📢 ${title}`)
-      .setDescription(formattedMessage)
+      .setTitle(`📢 ${safeTitle}`)
+      .setDescription(safeDesc)
       .setFooter({ text: `Announced by ${interaction.user.tag}` })
       .setTimestamp();
+
+    // Attach image if provided
+    let finalImageUrl = null;
+    if (imageAttachment) {
+      if (imageAttachment.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(imageAttachment.name)) {
+        finalImageUrl = imageAttachment.url;
+      }
+    } else if (imageUrlInput && (imageUrlInput.startsWith('http://') || imageUrlInput.startsWith('https://'))) {
+      finalImageUrl = imageUrlInput.trim();
+    }
+
+    if (finalImageUrl) {
+      embed.setImage(finalImageUrl);
+    }
 
     // Construct outer text mentions so Discord triggers audio/push alerts
     const mentions = [];

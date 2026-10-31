@@ -262,11 +262,34 @@ export class NasaValidationService {
           }
         }
 
+        // 8. Extract About the Team Description
+        let description = null;
+        const descMatch = html.match(/\\"[,\s]*description\\":\\"([\s\S]*?)\\",\\"[a-zA-Z]/);
+        if (descMatch) {
+          try {
+            let raw = descMatch[1];
+            let decoded = raw
+              .replace(/\\u003c/gi, '<')
+              .replace(/\\u003e/gi, '>')
+              .replace(/\\u0026/gi, '&')
+              .replace(/\\"/gi, '"')
+              .replace(/\\n/gi, '\n')
+              .replace(/\\\\/gi, '\\');
+            const clean = decoded.replace(/<[^>]+>/g, '').trim().replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+            if (clean.length > 0) {
+              description = clean;
+            }
+          } catch (e) {
+            logger.warn(`[NasaValidation] Failed to parse team description: ${e.message}`);
+          }
+        }
+
         return {
           valid: true,
           inputUrl: trimmedUrl,
           isJember: true,
           extractedTitle,
+          description,
           challengeId,
           challengeTitle,
           isLookingForTeammates,
@@ -382,12 +405,7 @@ export class NasaValidationService {
         const maxAvailable = env.MAX_TEAM_SIZE - currentCount;
         if (maxAvailable > 0 && recruitChannel && recruitChannel.isTextBased()) {
           const slots = maxAvailable;
-          const skillsText = val.desiredSkills && val.desiredSkills.length > 0
-            ? `Keahlian yang dicari: ${val.desiredSkills.join(', ')}`
-            : '';
-          const description = skillsText
-            ? `Disinkronkan dari profil resmi web NASA.\n\n${skillsText}`
-            : 'Disinkronkan dari profil resmi web NASA — Tim sedang membuka lowongan anggota baru.';
+          const description = val.description || 'Tim sedang membuka lowongan anggota baru untuk melengkapi formasi tim.';
 
           const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
             teamName: team.name,
@@ -396,7 +414,8 @@ export class NasaValidationService {
             challengeTitle: team.challenge_title || val.challengeTitle,
             slotsNeeded: slots,
             currentCount,
-            maxTeamSize: env.MAX_TEAM_SIZE
+            maxTeamSize: env.MAX_TEAM_SIZE,
+            desiredSkills: val.desiredSkills
           });
 
           const boardMsg = await recruitChannel.send({ embeds: [recruitEmbed] }).catch(() => null);
@@ -701,6 +720,47 @@ export class NasaValidationService {
   }
 
   /**
+   * Mengambil teks deskripsi (About the Team) dari halaman profil tim Space Apps
+   * @param {string} url
+   * @returns {Promise<string|null>}
+   */
+  static async extractTeamDescriptionFromUrl(url) {
+    if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) return null;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        method: 'GET',
+        dispatcher: sslSafeDispatcher,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) return null;
+      const html = await res.text();
+      const match = html.match(/\\"[,\s]*description\\":\\"([\s\S]*?)\\",\\"[a-zA-Z]/);
+      if (match) {
+        let raw = match[1];
+        let decoded = raw
+          .replace(/\\u003c/gi, '<')
+          .replace(/\\u003e/gi, '>')
+          .replace(/\\u0026/gi, '&')
+          .replace(/\\"/gi, '"')
+          .replace(/\\n/gi, '\n')
+          .replace(/\\\\/gi, '\\');
+        let clean = decoded.replace(/<[^>]+>/g, '').trim();
+        clean = clean.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+        return clean.length > 0 ? clean : null;
+      }
+    } catch (e) {
+      logger.warn(`[NasaSync] Could not extract description from ${url}: ${e.message}`);
+    }
+    return null;
+  }
+
+  /**
    * Sinkronkan tim berstatus Open Recruitment dari web resmi NASA Space Apps (Jember)
    * ke recruitment board Discord bot.
    *
@@ -765,6 +825,11 @@ export class NasaValidationService {
       if (isOpenRec) {
         openWebTeamsCount++;
 
+        // Pastikan kita punya About the Team description dari halaman tim web NASA jika belum ada
+        if (!webTeam.description && webTeam.url) {
+          webTeam.description = await this.extractTeamDescriptionFromUrl(webTeam.url);
+        }
+
         // Cek apakah tim cocok dengan tim lokal yang sudah terdaftar di Discord
         const matchedLocal = localTeams.find((lt) => {
           const nameMatches = lt.name && webTeam.title && lt.name.trim().toLowerCase() === webTeam.title.trim().toLowerCase();
@@ -779,9 +844,17 @@ export class NasaValidationService {
           if (existingRecruit) {
             // Update pesan yang sudah ada
             const activeCount = await countActiveTeamMembers(matchedLocal.id);
+            const isPlaceholder = !existingRecruit.description ||
+              existingRecruit.description.startsWith('Disinkronkan') ||
+              existingRecruit.description.startsWith('Tim ini terdaftar');
+
+            const finalDesc = (isPlaceholder && webTeam.description)
+              ? webTeam.description
+              : (existingRecruit.description || webTeam.description);
+
             const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
               teamName: matchedLocal.name,
-              description: existingRecruit.description || webTeam.description,
+              description: finalDesc,
               leaderDiscordId: matchedLocal.leader_discord_id,
               challengeTitle: matchedLocal.challenge_title || webTeam.challengeTitle,
               slotsNeeded: existingRecruit.slots_needed,
@@ -811,11 +884,14 @@ export class NasaValidationService {
             const msg = await recruitChannel.messages.fetch(existingRecruit.message_id).catch(() => null);
             if (msg) {
               await msg.edit({ embeds: [recruitEmbed], components: [row] }).catch(() => {});
+              if (isPlaceholder && webTeam.description) {
+                await pool.query('UPDATE team_recruitments SET description = $1 WHERE id = $2', [finalDesc, existingRecruit.id]);
+              }
               updatedCount++;
             } else {
               const newMsg = await recruitChannel.send({ embeds: [recruitEmbed], components: [row] }).catch(() => null);
               if (newMsg) {
-                await pool.query('UPDATE team_recruitments SET message_id = $1 WHERE id = $2', [newMsg.id, existingRecruit.id]);
+                await pool.query('UPDATE team_recruitments SET message_id = $1, description = $2 WHERE id = $3', [newMsg.id, finalDesc, existingRecruit.id]);
                 updatedCount++;
               }
             }
@@ -823,7 +899,7 @@ export class NasaValidationService {
             // Belum ada post rekrutmen untuk tim lokal ini: buatkan otomatis
             const activeCount = await countActiveTeamMembers(matchedLocal.id);
             const slots = Math.max(1, env.MAX_TEAM_SIZE - activeCount);
-            const description = webTeam.description || 'Disinkronkan dari profil resmi web NASA Space Apps.';
+            const description = webTeam.description || 'Tim sedang membuka lowongan anggota baru untuk melengkapi formasi tim.';
 
             const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
               teamName: matchedLocal.name,
@@ -871,9 +947,17 @@ export class NasaValidationService {
           // Kasus 2: Tim BELUM terdaftar di Discord (External web team)
           const existingRecruit = openRecruitments.find((r) => r.external_slug === webTeam.slug);
 
+          const isPlaceholder = existingRecruit && (!existingRecruit.description ||
+            existingRecruit.description.startsWith('Disinkronkan') ||
+            existingRecruit.description.startsWith('Tim ini terdaftar'));
+
+          const finalDesc = (isPlaceholder && webTeam.description)
+            ? webTeam.description
+            : (existingRecruit?.description || webTeam.description || '*(Tim belum mencantumkan deskripsi profil / About the Team)*');
+
           const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
             teamName: webTeam.title,
-            description: webTeam.description || 'Tim ini terdaftar di situs resmi NASA Space Apps Challenge dan sedang membuka lowongan anggota.',
+            description: finalDesc,
             challengeTitle: webTeam.challengeTitle,
             isExternal: true,
             desiredSkills: webTeam.desiredSkills
@@ -892,11 +976,14 @@ export class NasaValidationService {
             const msg = await recruitChannel.messages.fetch(existingRecruit.message_id).catch(() => null);
             if (msg) {
               await msg.edit({ embeds: [recruitEmbed], components: [buttonRow] }).catch(() => {});
+              if (isPlaceholder && webTeam.description) {
+                await pool.query('UPDATE team_recruitments SET description = $1 WHERE id = $2', [finalDesc, existingRecruit.id]);
+              }
               updatedCount++;
             } else {
               const newMsg = await recruitChannel.send({ embeds: [recruitEmbed], components: [buttonRow] }).catch(() => null);
               if (newMsg) {
-                await pool.query('UPDATE team_recruitments SET message_id = $1 WHERE id = $2', [newMsg.id, existingRecruit.id]);
+                await pool.query('UPDATE team_recruitments SET message_id = $1, description = $2 WHERE id = $3', [newMsg.id, finalDesc, existingRecruit.id]);
                 updatedCount++;
               }
             }
@@ -917,7 +1004,7 @@ export class NasaValidationService {
                 externalTeamName: webTeam.title,
                 externalUrl: webTeam.url,
                 externalSlug: webTeam.slug,
-                description: webTeam.description
+                description: finalDesc
               });
               createdCount++;
             }
