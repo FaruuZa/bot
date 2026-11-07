@@ -106,16 +106,12 @@
 
             <button @click="switchTab('teams')"
                     :class="activeTab === 'teams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
-              <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i>
-              <span>Tim Discord</span>
-            </button>
-
-            <button @click="switchTab('webteams'); fetchWebTeams()"
-                    :class="activeTab === 'webteams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
-                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
-              <i data-lucide="globe" class="w-4 h-4 flex-shrink-0"></i>
-              <span>Tim Web NASA</span>
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i>
+                <span>Manajemen Tim</span>
+              </div>
+              <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300 border border-surface-border" x-text="teams.length || 0"></span>
             </button>
 
             <button @click="switchTab('tickets')"
@@ -148,6 +144,13 @@
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
               <i data-lucide="help-circle" class="w-4 h-4 flex-shrink-0"></i>
               <span>Panduan & FAQ Staf</span>
+            </button>
+
+            <button @click="switchTab('presence'); fetchBotPresence()"
+                    :class="activeTab === 'presence' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
+              <i data-lucide="bot" class="w-4 h-4 flex-shrink-0"></i>
+              <span>Teks & Status Bot</span>
             </button>
 
             <button @click="switchTab('config')"
@@ -221,11 +224,11 @@
             <button @click="switchTab('announce'); mobileMenuOpen = false" :class="activeTab === 'announce' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
               <i data-lucide="megaphone" class="w-4 h-4"></i> Studio Siaran & FAQ
             </button>
-            <button @click="switchTab('teams'); mobileMenuOpen = false" :class="activeTab === 'teams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
-              <i data-lucide="users" class="w-4 h-4"></i> Tim Discord
-            </button>
-            <button @click="switchTab('webteams'); fetchWebTeams(); mobileMenuOpen = false" :class="activeTab === 'webteams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
-              <i data-lucide="globe" class="w-4 h-4"></i> Tim Web NASA
+            <button @click="switchTab('teams'); mobileMenuOpen = false" :class="activeTab === 'teams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+              <div class="flex items-center gap-3">
+                <i data-lucide="users" class="w-4 h-4"></i> Manajemen Tim
+              </div>
+              <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300" x-text="teams.length || 0"></span>
             </button>
             <button @click="switchTab('tickets'); mobileMenuOpen = false" :class="activeTab === 'tickets' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
               <div class="flex items-center gap-3">
@@ -240,6 +243,9 @@
             </button>
             <button @click="switchTab('faq'); mobileMenuOpen = false" :class="activeTab === 'faq' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
               <i data-lucide="help-circle" class="w-4 h-4"></i> Panduan & FAQ
+            </button>
+            <button @click="switchTab('presence'); fetchBotPresence(); mobileMenuOpen = false" :class="activeTab === 'presence' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+              <i data-lucide="bot" class="w-4 h-4"></i> Teks & Status Bot
             </button>
             <button @click="switchTab('config'); mobileMenuOpen = false" :class="activeTab === 'config' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
               <i data-lucide="sliders" class="w-4 h-4"></i> Konfigurasi Bot
@@ -956,221 +962,252 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- TAB 3: TEAMS & RECRUITMENT -->
-        <!-- ========================================== -->
+        <!-- TAB 3: TEAMS MANAGEMENT (COMBINED DISCORD & WEB NASA) -->
         <section x-show="activeTab === 'teams'" class="space-y-6">
           
-          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Tabel Tim Terdaftar di Discord</h2>
-
-          <!-- Filter & Controls -->
-          <div class="flex flex-col sm:flex-row items-center gap-3">
-            <div class="relative flex-1 w-full">
-              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
-                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+          <!-- Unified Subtab Navigation Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
+            <div>
+              <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Pusat Manajemen Tim</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Monitoring data tim terdaftar di Discord dan sinkronisasi snapshot resmi NASA Space Apps Challenge.</p>
             </div>
 
-            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs w-full sm:w-auto">
-              <button @click="teamStatusFilter = 'ALL'" :class="teamStatusFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Semua</button>
-              <button @click="teamStatusFilter = 'ACTIVE'" :class="teamStatusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Aktif</button>
-              <button @click="teamStatusFilter = 'PENDING'" :class="teamStatusFilter === 'PENDING' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Pending</button>
-              <button @click="teamStatusFilter = 'ARCHIVED'" :class="teamStatusFilter === 'ARCHIVED' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Arsip</button>
+            <!-- Segmented Pill Switcher -->
+            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
+              <button @click="teamSubTab = 'discord'"
+                      :class="teamSubTab === 'discord' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                <span>Tim Discord</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/25" x-text="teams.length"></span>
+              </button>
+              <button @click="teamSubTab = 'web'; fetchWebTeams()"
+                      :class="teamSubTab === 'web' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                <span>Tim Web NASA</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/25" x-text="webTeams.length"></span>
+              </button>
             </div>
           </div>
 
-          <!-- Teams Table -->
-          <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs text-slate-300">
-                <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
-                  <tr>
-                    <th class="px-4 py-3">Nama Tim</th>
-                    <th class="px-4 py-3">Ketua Tim</th>
-                    <th class="px-4 py-3">Tantangan</th>
-                    <th class="px-4 py-3">Anggota</th>
-                    <th class="px-4 py-3">Status</th>
-                    <th class="px-4 py-3">Lowongan</th>
-                    <th class="px-4 py-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-surface-border">
-                  <template x-for="t in filteredTeams" :key="t.id">
-                    <tr @click="openTeamDetail(t.id)" class="hover:bg-surface-hover cursor-pointer transition-colors">
-                      <td class="px-4 py-3">
-                        <div class="font-semibold text-white" x-text="t.name"></div>
-                        <div class="text-[10px] text-slate-400 font-mono" x-text="'ID: ' + t.id"></div>
-                      </td>
-                      <td class="px-4 py-3">
-                        <div class="text-slate-200" x-text="t.leader_username ? '@' + t.leader_username : 'Tidak diketahui'"></div>
-                        <div class="text-[10px] text-slate-400 font-mono" x-text="t.leader_discord_id || ''"></div>
-                      </td>
-                      <td class="px-4 py-3 max-w-xs truncate text-slate-300" x-text="t.challenge_title || '-(Belum memilih)-'"></td>
-                      <td class="px-4 py-3">
-                        <span class="font-mono text-[11px] tabular-nums" x-text="(t.member_count || 1) + ' / 6'"></span>
-                      </td>
-                      <td class="px-4 py-3">
-                        <span :class="t.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : (t.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-slate-800 text-slate-400 border-slate-700')"
-                              class="px-2 py-0.5 rounded border text-[10px] font-semibold" x-text="t.status"></span>
-                      </td>
-                      <td class="px-4 py-3">
-                        <template x-if="t.recruitment_id">
-                          <span class="text-emerald-400 font-medium text-[11px] inline-flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> <span x-text="t.slots_needed + ' slot'"></span>
-                          </span>
-                        </template>
-                        <template x-if="!t.recruitment_id">
-                          <span class="text-slate-400">-</span>
-                        </template>
-                      </td>
-                      <td class="px-4 py-3 text-right">
-                        <button @click.stop="openTeamDetail(t.id)" class="px-2.5 py-1 bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 rounded text-xs transition-colors">
-                          Kelola
-                        </button>
-                      </td>
-                    </tr>
-                  </template>
-                  <template x-if="filteredTeams.length === 0">
+          <!-- ========================================== -->
+          <!-- SUB-VIEW 1: DISCORD TEAMS -->
+          <!-- ========================================== -->
+          <div x-show="teamSubTab === 'discord'" class="space-y-6">
+            <!-- Filter & Controls -->
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+              <div class="relative flex-1 w-full">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
+                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              </div>
+
+              <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs w-full sm:w-auto">
+                <button @click="teamStatusFilter = 'ALL'" :class="teamStatusFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Semua</button>
+                <button @click="teamStatusFilter = 'ACTIVE'" :class="teamStatusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Aktif</button>
+                <button @click="teamStatusFilter = 'PENDING'" :class="teamStatusFilter === 'PENDING' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Pending</button>
+                <button @click="teamStatusFilter = 'ARCHIVED'" :class="teamStatusFilter === 'ARCHIVED' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Arsip</button>
+              </div>
+            </div>
+
+            <!-- Teams Table -->
+            <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
                     <tr>
-                      <td colspan="7" class="px-4 py-8 text-center text-slate-400">
-                        Tidak ada data tim yang sesuai filter.
-                      </td>
+                      <th class="px-4 py-3">Nama Tim</th>
+                      <th class="px-4 py-3">Ketua Tim</th>
+                      <th class="px-4 py-3">Tantangan</th>
+                      <th class="px-4 py-3">Anggota</th>
+                      <th class="px-4 py-3">Status</th>
+                      <th class="px-4 py-3">Lowongan</th>
+                      <th class="px-4 py-3 text-right">Aksi</th>
                     </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Recruitment Board Section (Clean list without nested boxes) -->
-          <div class="space-y-3 pt-4 border-t border-surface-border">
-            <div class="flex items-center justify-between">
-              <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Lowongan Aktif di Recruitment Board</h3>
-              <span class="text-xs text-slate-400" x-text="recruitments.length + ' Lowongan Terbuka'"></span>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              <template x-for="r in recruitments" :key="r.id">
-                <div class="bg-surface-card border border-surface-border rounded-lg p-4 flex flex-col justify-between space-y-3">
-                  <div>
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                      <span class="font-semibold text-white text-xs truncate" x-text="r.local_team_name || r.external_team_name || 'Tim Tanpa Nama'"></span>
-                      <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">OPEN</span>
-                    </div>
-                    <div class="text-[11px] text-slate-400 mb-2 truncate" x-text="'Tantangan: ' + (r.challenge_title || 'Belum diatur')"></div>
-                    
-                    <div class="text-[11px] text-slate-300 max-h-20 overflow-y-auto mb-2 leading-relaxed">
-                      <span class="text-slate-400 font-medium block text-[10px] mb-0.5">About the Team:</span>
-                      <span x-text="r.description || '-(Tidak ada deskripsi profil)-'"></span>
-                    </div>
-
-                    <div class="text-xs text-slate-400 flex items-center justify-between">
-                      <span>Slot: <strong class="text-white" x-text="r.slots_needed + ' orang'"></strong></span>
-                      <span class="text-[10px] text-slate-400" x-text="r.team_id ? 'Tim Discord' : 'Web NASA'"></span>
-                    </div>
-                  </div>
-
-                  <div class="flex items-center gap-2 pt-2 border-t border-surface-border">
-                    <template x-if="r.external_url">
-                      <a :href="r.external_url" target="_blank" class="flex-1 bg-surface-elevated hover:bg-surface-hover text-center text-xs py-1.5 rounded text-white border border-surface-border transition-colors">
-                        Profil NASA
-                      </a>
+                  </thead>
+                  <tbody class="divide-y divide-surface-border">
+                    <template x-for="t in filteredTeams" :key="t.id">
+                      <tr @click="openTeamDetail(t.id)" class="hover:bg-surface-hover cursor-pointer transition-colors">
+                        <td class="px-4 py-3">
+                          <div class="font-semibold text-white" x-text="t.name"></div>
+                          <div class="text-[10px] text-slate-400 font-mono" x-text="'ID: ' + t.id"></div>
+                        </td>
+                        <td class="px-4 py-3">
+                          <div class="text-slate-200" x-text="t.leader_username ? '@' + t.leader_username : 'Tidak diketahui'"></div>
+                          <div class="text-[10px] text-slate-400 font-mono" x-text="t.leader_discord_id || ''"></div>
+                        </td>
+                        <td class="px-4 py-3 max-w-xs truncate text-slate-300" x-text="t.challenge_title || '-(Belum memilih)-'"></td>
+                        <td class="px-4 py-3">
+                          <span class="font-mono text-[11px] tabular-nums" x-text="(t.member_count || 1) + ' / 6'"></span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <span :class="t.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : (t.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-slate-800 text-slate-400 border-slate-700')"
+                                class="px-2 py-0.5 rounded border text-[10px] font-semibold" x-text="t.status"></span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <template x-if="t.recruitment_id">
+                            <span class="text-emerald-400 font-medium text-[11px] inline-flex items-center gap-1">
+                              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> <span x-text="t.slots_needed + ' slot'"></span>
+                            </span>
+                          </template>
+                          <template x-if="!t.recruitment_id">
+                            <span class="text-slate-400">-</span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                          <button @click.stop="openTeamDetail(t.id)" class="px-2.5 py-1 bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 rounded text-xs transition-colors">
+                            Kelola
+                          </button>
+                        </td>
+                      </tr>
                     </template>
-                    <button @click="closeRecruitment(r.id)" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs py-1.5 rounded transition-colors">
-                      Tutup
-                    </button>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-        </section>
-
-        <!-- ========================================== -->
-        <!-- TAB 4: NASA WEB TEAMS -->
-        <!-- ========================================== -->
-        <section x-show="activeTab === 'webteams'" class="space-y-4">
-          
-          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Snapshot Tim Web Resmi NASA Space Apps</h2>
-
-          <div class="flex flex-col sm:flex-row items-center gap-3">
-            <div class="relative flex-1 w-full">
-              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" x-model="searchWebTeam" placeholder="Cari nama tim di web NASA, tantangan, atau slug..."
-                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                    <template x-if="filteredTeams.length === 0">
+                      <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+                          Tidak ada data tim yang sesuai filter.
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
-              <button @click="webTeamFilter = 'ALL'" :class="webTeamFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
-              <button @click="webTeamFilter = 'DISCORD'" :class="webTeamFilter === 'DISCORD' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Di Discord</button>
-              <button @click="webTeamFilter = 'WEB_ONLY'" :class="webTeamFilter === 'WEB_ONLY' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web Only</button>
-              <button @click="webTeamFilter = 'RECRUITING'" :class="webTeamFilter === 'RECRUITING' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Mencari Anggota</button>
-            </div>
-          </div>
+            <!-- Recruitment Board Section (Clean list without nested boxes) -->
+            <div class="space-y-3 pt-4 border-t border-surface-border">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Lowongan Aktif di Recruitment Board</h3>
+                <span class="text-xs text-slate-400" x-text="recruitments.length + ' Lowongan Terbuka'"></span>
+              </div>
 
-          <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs text-slate-300">
-                <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
-                  <tr>
-                    <th class="px-4 py-3">Nama Tim (Web NASA)</th>
-                    <th class="px-4 py-3">Tantangan</th>
-                    <th class="px-4 py-3">Status Rekrutmen</th>
-                    <th class="px-4 py-3">Korelasi Discord</th>
-                    <th class="px-4 py-3">Terakhir Sync</th>
-                    <th class="px-4 py-3 text-right">Tautan</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-surface-border">
-                  <template x-for="wt in filteredWebTeams" :key="wt.slug">
-                    <tr class="hover:bg-surface-hover transition-colors">
-                      <td class="px-4 py-3">
-                        <div class="font-semibold text-white" x-text="wt.title"></div>
-                        <div class="text-[10px] text-slate-400 font-mono" x-text="'/' + wt.slug"></div>
-                      </td>
-                      <td class="px-4 py-3 max-w-xs text-slate-300" x-text="wt.challenge_title || '-(Belum memilih)-'"></td>
-                      <td class="px-4 py-3">
-                        <template x-if="wt.is_recruiting">
-                          <span class="text-emerald-400 font-medium text-[11px] inline-flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mencari Anggota
-                          </span>
-                        </template>
-                        <template x-if="!wt.is_recruiting">
-                          <span class="text-slate-400 text-[11px]">Tidak Mencari</span>
-                        </template>
-                      </td>
-                      <td class="px-4 py-3">
-                        <template x-if="wt.matched_team_name">
-                          <span class="text-blue-400 text-[11px] font-medium" x-text="'Discord: ' + wt.matched_team_name"></span>
-                        </template>
-                        <template x-if="!wt.matched_team_name">
-                          <span class="text-slate-400 text-[11px]">Hanya di Web</span>
-                        </template>
-                      </td>
-                      <td class="px-4 py-3 text-slate-400 whitespace-nowrap text-[11px]" x-text="formatDate(wt.last_synced_at)"></td>
-                      <td class="px-4 py-3 text-right">
-                        <a :href="wt.url" target="_blank"
-                           class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-xs text-slate-200 transition-colors">
-                          <span>Buka Web</span>
-                          <i data-lucide="external-link" class="w-3 h-3"></i>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <template x-for="r in recruitments" :key="r.id">
+                  <div class="bg-surface-card border border-surface-border rounded-lg p-4 flex flex-col justify-between space-y-3">
+                    <div>
+                      <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="font-semibold text-white text-xs truncate" x-text="r.local_team_name || r.external_team_name || 'Tim Tanpa Nama'"></span>
+                        <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">OPEN</span>
+                      </div>
+                      <div class="text-[11px] text-slate-400 mb-2 truncate" x-text="'Tantangan: ' + (r.challenge_title || 'Belum diatur')"></div>
+                      
+                      <div class="text-[11px] text-slate-300 max-h-20 overflow-y-auto mb-2 leading-relaxed">
+                        <span class="text-slate-400 font-medium block text-[10px] mb-0.5">About the Team:</span>
+                        <span x-text="r.description || '-(Tidak ada deskripsi profil)-'"></span>
+                      </div>
+
+                      <div class="text-xs text-slate-400 flex items-center justify-between">
+                        <span>Slot: <strong class="text-white" x-text="r.slots_needed + ' orang'"></strong></span>
+                        <span class="text-[10px] text-slate-400" x-text="r.team_id ? 'Tim Discord' : 'Web NASA'"></span>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-2 border-t border-surface-border">
+                      <template x-if="r.external_url">
+                        <a :href="r.external_url" target="_blank" class="flex-1 bg-surface-elevated hover:bg-surface-hover text-center text-xs py-1.5 rounded text-white border border-surface-border transition-colors">
+                          Profil NASA
                         </a>
-                      </td>
-                    </tr>
-                  </template>
-                  <template x-if="filteredWebTeams.length === 0">
+                      </template>
+                      <button @click="closeRecruitment(r.id)" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs py-1.5 rounded transition-colors">
+                        Tutup
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- SUB-VIEW 2: NASA WEB TEAMS -->
+          <!-- ========================================== -->
+          <div x-show="teamSubTab === 'web'" class="space-y-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div class="relative flex-1 w-full">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" x-model="searchWebTeam" placeholder="Cari nama tim di web NASA, tantangan, atau slug..."
+                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              </div>
+
+              <div class="flex items-center gap-2 w-full sm:w-auto">
+                <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
+                  <button @click="webTeamFilter = 'ALL'" :class="webTeamFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                  <button @click="webTeamFilter = 'DISCORD'" :class="webTeamFilter === 'DISCORD' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Di Discord</button>
+                  <button @click="webTeamFilter = 'WEB_ONLY'" :class="webTeamFilter === 'WEB_ONLY' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web Only</button>
+                  <button @click="webTeamFilter = 'RECRUITING'" :class="webTeamFilter === 'RECRUITING' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Mencari Anggota</button>
+                </div>
+
+                <button @click="syncNasaTeams()" :disabled="syncingNasa"
+                        class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="syncingNasa ? 'animate-spin' : ''"></i>
+                  <span x-text="syncingNasa ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
                     <tr>
-                      <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-                        Tidak ada data tim web NASA yang cocok.
-                      </td>
+                      <th class="px-4 py-3">Nama Tim (Web NASA)</th>
+                      <th class="px-4 py-3">Tantangan</th>
+                      <th class="px-4 py-3">Status Rekrutmen</th>
+                      <th class="px-4 py-3">Korelasi Discord</th>
+                      <th class="px-4 py-3">Terakhir Sync</th>
+                      <th class="px-4 py-3 text-right">Tautan</th>
                     </tr>
-                  </template>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody class="divide-y divide-surface-border">
+                    <template x-for="wt in filteredWebTeams" :key="wt.slug">
+                      <tr class="hover:bg-surface-hover transition-colors">
+                        <td class="px-4 py-3">
+                          <div class="font-semibold text-white" x-text="wt.title"></div>
+                          <div class="text-[10px] text-slate-400 font-mono" x-text="'/' + wt.slug"></div>
+                        </td>
+                        <td class="px-4 py-3 max-w-xs text-slate-300" x-text="wt.challenge_title || '-(Belum memilih)-'"></td>
+                        <td class="px-4 py-3">
+                          <template x-if="wt.is_recruiting">
+                            <span class="text-emerald-400 font-medium text-[11px] inline-flex items-center gap-1">
+                              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Mencari Anggota
+                            </span>
+                          </template>
+                          <template x-if="!wt.is_recruiting">
+                            <span class="text-slate-400 text-[11px]">Tidak Mencari</span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3">
+                          <template x-if="wt.matched_team_name">
+                            <span class="text-blue-400 text-[11px] font-medium" x-text="'Discord: ' + wt.matched_team_name"></span>
+                          </template>
+                          <template x-if="!wt.matched_team_name">
+                            <span class="text-slate-400 text-[11px]">Hanya di Web</span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3 text-slate-400 whitespace-nowrap text-[11px]" x-text="formatDate(wt.last_synced_at)"></td>
+                        <td class="px-4 py-3 text-right">
+                          <a :href="wt.url" target="_blank"
+                             class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-xs text-slate-200 transition-colors">
+                            <span>Buka Web</span>
+                            <i data-lucide="external-link" class="w-3 h-3"></i>
+                          </a>
+                        </td>
+                      </tr>
+                    </template>
+                    <template x-if="filteredWebTeams.length === 0">
+                      <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                          Tidak ada data tim web NASA yang cocok.
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>
 
-        <!-- ========================================== -->
         <!-- TAB 5: TICKETS INBOX -->
         <!-- ========================================== -->
         <section x-show="activeTab === 'tickets'" class="space-y-4">
@@ -1483,32 +1520,366 @@
         </section>
 
         <!-- ========================================== -->
+        <!-- ========================================== -->
+        <!-- TAB 7: BOT PRESENCE & ACTIVITY MANAGEMENT -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'presence'" class="space-y-6">
+          <div class="border-b border-surface-border pb-4">
+            <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Teks & Status Bot Discord</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Atur status online bot, rotasi perputaran aktivitas otomatis (cycle), dan template teks dinamis dengan placeholder variabel realtime.</p>
+          </div>
+
+          <!-- Live Bot Profile Preview Banner -->
+          <div class="bg-surface-card border border-surface-border rounded-lg p-5">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <div class="relative flex-shrink-0">
+                  <img :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'"
+                       class="w-14 h-14 rounded-full object-cover bg-surface-border ring-2 ring-surface-border" alt="Bot Avatar">
+                  <!-- Status Indicator Dot -->
+                  <span class="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-surface-card"
+                        :class="{
+                          'bg-emerald-500': botPresence.statusType === 'online',
+                          'bg-amber-500': botPresence.statusType === 'idle',
+                          'bg-rose-500': botPresence.statusType === 'dnd',
+                          'bg-slate-500': botPresence.statusType === 'invisible'
+                        }"></span>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-base font-bold text-white" x-text="stats.bot.tag ? stats.bot.tag.split('#')[0] : 'NSAC Jember'"></span>
+                    <span class="bg-[#5865F2] text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">BOT</span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-semibold"
+                          :class="{
+                            'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30': botPresence.statusType === 'online',
+                            'bg-amber-500/15 text-amber-400 border border-amber-500/30': botPresence.statusType === 'idle',
+                            'bg-rose-500/15 text-rose-400 border border-rose-500/30': botPresence.statusType === 'dnd',
+                            'bg-slate-700 text-slate-400 border border-slate-600': botPresence.statusType === 'invisible'
+                          }"
+                          x-text="botPresence.statusType"></span>
+                  </div>
+                  <div class="text-xs text-slate-300 mt-1 flex items-center gap-1.5">
+                    <span class="text-slate-400 text-[11px]">Aktivitas Live:</span>
+                    <span class="font-medium text-blue-400" x-text="currentActivityDisplay || 'Memuat status bot...'"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Live Variable Badges -->
+              <div class="flex flex-wrap items-center gap-2 bg-surface-input p-3 rounded-lg border border-surface-border text-xs">
+                <div class="text-[10px] font-mono uppercase text-slate-400 w-full mb-0.5">Nilai Placeholder Realtime:</div>
+                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                  <span class="text-slate-400 font-mono">{countdown}:</span> <strong class="text-white" x-text="livePresenceVariables.countdown || '-'"></strong>
+                </div>
+                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                  <span class="text-slate-400 font-mono">{teams}:</span> <strong class="text-white" x-text="livePresenceVariables.teams ?? 0"></strong>
+                </div>
+                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                  <span class="text-slate-400 font-mono">{participants}:</span> <strong class="text-white" x-text="livePresenceVariables.participants ?? 0"></strong>
+                </div>
+                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                  <span class="text-slate-400 font-mono">{members}:</span> <strong class="text-white" x-text="livePresenceVariables.members ?? 0"></strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Master Cycle Settings -->
+          <div class="bg-surface-card border border-surface-border rounded-lg p-5 space-y-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300">Pengaturan Rotasi & Indikator</h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <!-- Status Type Selector -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-300">Status Indikator Online</label>
+                <select x-model="botPresence.statusType"
+                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <option value="online">Online (Hijau)</option>
+                  <option value="idle">Singgah / Idle (Kuning)</option>
+                  <option value="dnd">Jangan Ganggu / DND (Merah)</option>
+                  <option value="invisible">Tidak Terlihat / Invisible (Offline)</option>
+                </select>
+                <p class="text-[11px] text-slate-400">Warna titik status profil bot di server Discord.</p>
+              </div>
+
+              <!-- Cycle Toggle -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-300">Mode Perputaran (Cycle)</label>
+                <select x-model="botPresence.enabled"
+                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <option :value="true">Aktif (Putar Teks Bergantian)</option>
+                  <option :value="false">Nonaktif (Gunakan Teks Pertama Saja)</option>
+                </select>
+                <p class="text-[11px] text-slate-400">Ganti teks status secara berkala mengikuti daftar aktivitas.</p>
+              </div>
+
+              <!-- Interval Duration -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-300">Interval Pergantian</label>
+                <select x-model.number="botPresence.intervalSeconds"
+                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <option :value="15">15 Detik (Cepat)</option>
+                  <option :value="30">30 Detik</option>
+                  <option :value="60">60 Detik (1 Menit - Standar)</option>
+                  <option :value="90">90 Detik (1.5 Menit)</option>
+                  <option :value="120">120 Detik (2 Menit)</option>
+                  <option :value="300">300 Detik (5 Menit)</option>
+                  <option :value="600">600 Detik (10 Menit)</option>
+                </select>
+                <p class="text-[11px] text-slate-400">Jeda waktu sebelum bot berganti ke teks status berikutnya.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sequence of Activity Messages -->
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300">Daftar Urutan Teks Aktivitas</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Teks yang akan diputar berurutan. Anda dapat menyisipkan placeholder variabel atau menuliskan pesan kustom.</p>
+              </div>
+
+              <button @click="addPresenceActivity()"
+                      class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>Tambah Pesan Status</span>
+              </button>
+            </div>
+
+            <!-- Activities Cards List -->
+            <div class="space-y-3">
+              <template x-for="(act, idx) in (botPresence.activities || [])" :key="act.id || idx">
+                <div class="bg-surface-card border border-surface-border rounded-lg p-4 space-y-3 transition-colors"
+                     :class="act.enabled ? '' : 'opacity-60 bg-surface-card/60'">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border pb-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-5 h-5 rounded-full bg-surface-elevated border border-surface-border flex items-center justify-center font-mono text-[10px] text-slate-300 font-bold" x-text="idx + 1"></span>
+                      <span class="text-xs font-semibold text-white">Pesan Aktivitas #<span x-text="idx + 1"></span></span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <!-- Enabled checkbox -->
+                      <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer mr-2">
+                        <input type="checkbox" x-model="act.enabled" class="rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
+                        <span class="text-[11px]">Aktif</span>
+                      </label>
+
+                      <!-- Reorder Buttons -->
+                      <div class="flex items-center gap-1">
+                        <button @click="movePresenceActivity(idx, -1)" :disabled="idx === 0"
+                                title="Pindah ke Atas"
+                                class="p-1 rounded bg-surface-elevated hover:bg-surface-hover disabled:opacity-30 border border-surface-border text-slate-300 transition-colors">
+                          <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button @click="movePresenceActivity(idx, 1)" :disabled="idx === (botPresence.activities.length - 1)"
+                                title="Pindah ke Bawah"
+                                class="p-1 rounded bg-surface-elevated hover:bg-surface-hover disabled:opacity-30 border border-surface-border text-slate-300 transition-colors">
+                          <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i>
+                        </button>
+                      </div>
+
+                      <!-- Delete Button -->
+                      <button @click="removePresenceActivity(idx)" :disabled="botPresence.activities.length <= 1"
+                              title="Hapus Pesan Ini"
+                              class="p-1 rounded bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-30 border border-rose-500/20 text-rose-300 transition-colors">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <!-- Activity Type -->
+                    <div class="md:col-span-1 space-y-1">
+                      <label class="block text-[11px] font-medium text-slate-400">Tipe Aktivitas</label>
+                      <select x-model="act.type"
+                              class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                        <option value="WATCHING">Menonton (Watching)</option>
+                        <option value="PLAYING">Bermain (Playing)</option>
+                        <option value="LISTENING">Mendengarkan (Listening)</option>
+                        <option value="COMPETING">Bertanding (Competing)</option>
+                        <option value="CUSTOM">Kustom (Custom)</option>
+                      </select>
+                    </div>
+
+                    <!-- Custom Message Text -->
+                    <div class="md:col-span-3 space-y-1.5">
+                      <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-medium text-slate-400">Teks Status / Template</label>
+                        <div class="flex items-center gap-1">
+                          <span class="text-[10px] text-slate-400">Sisipkan:</span>
+                          <button type="button" @click="insertPresenceTag(idx, '{countdown}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-blue-400 border border-surface-border font-mono text-[10px]">+ {countdown}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{teams}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-emerald-400 border border-surface-border font-mono text-[10px]">+ {teams}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{participants}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-purple-400 border border-surface-border font-mono text-[10px]">+ {participants}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{members}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-amber-400 border border-surface-border font-mono text-[10px]">+ {members}</button>
+                        </div>
+                      </div>
+
+                      <input type="text" x-model="act.text" placeholder="Masukkan teks status bot..."
+                             class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-sans">
+
+                      <!-- Live Result Preview for this item -->
+                      <div class="bg-surface-base/80 border border-surface-border rounded px-3 py-1.5 text-[11px] flex items-center justify-between">
+                        <div class="text-slate-400">
+                          Pratinjau Hasil: <span class="text-slate-200 font-medium ml-1" x-text="getResolvedPreview(act.text)"></span>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400" x-text="'Tipe: ' + act.type"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Bottom Action Buttons -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-surface-border">
+            <button @click="resetPresenceConfig()"
+                    class="w-full sm:w-auto px-4 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover text-slate-300 text-xs border border-surface-border transition-colors">
+              Reset ke Konfigurasi Bawaan
+            </button>
+
+            <button @click="saveBotPresence()" :disabled="savingPresence"
+                    class="w-full sm:w-auto px-6 py-2 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+              <i data-lucide="check" class="w-4 h-4" x-show="!savingPresence"></i>
+              <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin" x-show="savingPresence"></i>
+              <span x-text="savingPresence ? 'Menerapkan ke Bot...' : 'Simpan & Terapkan ke Bot'"></span>
+            </button>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
         <!-- TAB 8: CONFIGURATION -->
         <!-- ========================================== -->
         <section x-show="activeTab === 'config'" class="space-y-4">
-          <div class="bg-surface-card border border-surface-border rounded-lg p-5">
-            <div class="pb-3 border-b border-surface-border flex items-center justify-between mb-4">
+          <div class="bg-surface-card border border-surface-border rounded-lg p-5 space-y-4">
+            <div class="pb-3 border-b border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 class="text-sm font-semibold text-white">Guild Configuration (PostgreSQL)</h2>
-                <p class="text-xs text-slate-400">Pengaturan parameter bot, ID channel Discord, dan ID role panitia tanpa perlu restart service.</p>
+                <p class="text-xs text-slate-400">Pilih ID channel, role Discord, dan parameter bot langsung dari daftar pilihan tanpa perlu input manual.</p>
+              </div>
+
+              <!-- Category filter pills -->
+              <div class="flex items-center gap-1 bg-surface-input p-1 rounded-md border border-surface-border text-xs overflow-x-auto">
+                <button @click="configCategoryFilter = 'ALL'" :class="configCategoryFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                <button @click="configCategoryFilter = 'ROLES'" :class="configCategoryFilter === 'ROLES' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Role</button>
+                <button @click="configCategoryFilter = 'CHANNELS'" :class="configCategoryFilter === 'CHANNELS' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Channel</button>
+                <button @click="configCategoryFilter = 'SCHEDULE'" :class="configCategoryFilter === 'SCHEDULE' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Jadwal</button>
+                <button @click="configCategoryFilter = 'SYSTEM'" :class="configCategoryFilter === 'SYSTEM' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Sistem</button>
               </div>
             </div>
 
+            <!-- Search box for configs -->
+            <div class="relative w-full">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" x-model="searchConfig" placeholder="Cari nama konfigurasi, key, atau deskripsi..."
+                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+            </div>
+
             <div class="divide-y divide-surface-border">
-              <template x-for="c in configs" :key="c.key">
-                <div class="py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <template x-for="c in filteredConfigs" :key="c.key">
+                <div class="py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div class="max-w-md">
-                    <div class="font-semibold text-xs text-white" x-text="c.label || c.key"></div>
-                    <div class="text-[10px] text-slate-400 font-mono" x-text="c.key"></div>
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-xs text-white" x-text="c.label || c.key"></span>
+                      <span class="text-[9px] font-mono px-1.5 py-0.2 rounded uppercase"
+                            :class="{
+                              'bg-purple-500/15 text-purple-400 border border-purple-500/20': c.category === 'ROLES',
+                              'bg-blue-500/15 text-blue-400 border border-blue-500/20': c.category === 'CHANNELS',
+                              'bg-amber-500/15 text-amber-400 border border-amber-500/20': c.category === 'SCHEDULE',
+                              'bg-slate-700 text-slate-300 border border-slate-600': c.category === 'SYSTEM'
+                            }"
+                            x-text="c.category || c.type"></span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 font-mono mt-0.5" x-text="c.key"></div>
                     <p class="text-[11px] text-slate-400 mt-0.5" x-text="c.description"></p>
+                    <template x-if="c.value">
+                      <div class="text-[10px] text-slate-500 font-mono mt-0.5">Nilai saat ini: <span class="text-slate-400" x-text="c.value"></span></div>
+                    </template>
                   </div>
+
+                  <!-- Interactive Value Controls based on Type -->
                   <div class="flex items-center gap-2 w-full md:w-auto">
-                    <input type="text" x-model="c.value" placeholder="Masukkan ID / Nilai..."
-                           class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-64 font-mono">
-                    <button @click="saveConfig(c.key, c.value)" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors">
-                      Simpan
+                    <!-- 1. ROLE Type Dropdown -->
+                    <template x-if="c.type === 'ROLE' && !manualConfigMode[c.key]">
+                      <select x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                        <option value="">-- Pilih Role (Belum Diatur) --</option>
+                        <template x-for="r in (configOptions.roles || [])" :key="r.id">
+                          <option :value="r.id" x-text="'@' + r.name + ' (' + r.id + ')'"></option>
+                        </template>
+                      </select>
+                    </template>
+
+                    <!-- 2. CHANNEL Type Dropdown -->
+                    <template x-if="c.type === 'CHANNEL' && !manualConfigMode[c.key]">
+                      <select x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                        <option value="">-- Pilih Channel Text --</option>
+                        <template x-for="ch in (configOptions.textChannels || [])" :key="ch.id">
+                          <option :value="ch.id" x-text="'#' + ch.name + ' (' + ch.id + ')'"></option>
+                        </template>
+                      </select>
+                    </template>
+
+                    <!-- 3. VOICE_CHANNEL Type Dropdown -->
+                    <template x-if="c.type === 'VOICE_CHANNEL' && !manualConfigMode[c.key]">
+                      <select x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                        <option value="">-- Pilih Voice Channel --</option>
+                        <template x-for="vc in (configOptions.voiceChannels || [])" :key="vc.id">
+                          <option :value="vc.id" x-text="'🔊 ' + vc.name + ' (' + vc.id + ')'"></option>
+                        </template>
+                      </select>
+                    </template>
+
+                    <!-- 4. CATEGORY Type Dropdown -->
+                    <template x-if="c.type === 'CATEGORY' && !manualConfigMode[c.key]">
+                      <select x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                        <option value="">-- Pilih Kategori --</option>
+                        <template x-for="cat in (configOptions.categories || [])" :key="cat.id">
+                          <option :value="cat.id" x-text="'📁 ' + cat.name + ' (' + cat.id + ')'"></option>
+                        </template>
+                      </select>
+                    </template>
+
+                    <!-- 5. BOOLEAN Dropdown -->
+                    <template x-if="c.type === 'BOOLEAN'">
+                      <select x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                        <option value="true">Buka Pendaftaran (true)</option>
+                        <option value="false">Tutup Pendaftaran (false)</option>
+                      </select>
+                    </template>
+
+                    <!-- 6. DATETIME or TEXT or MANUAL MODE Input -->
+                    <template x-if="c.type === 'TEXT' || c.type === 'DATETIME' || manualConfigMode[c.key]">
+                      <input type="text" x-model="c.value" :placeholder="c.type === 'DATETIME' ? '2026-10-03T09:00:00+07:00' : 'Masukkan ID / Nilai...'"
+                             class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72 font-mono">
+                    </template>
+
+                    <!-- Toggle manual ID button for Discord objects -->
+                    <template x-if="['ROLE', 'CHANNEL', 'VOICE_CHANNEL', 'CATEGORY'].includes(c.type)">
+                      <button @click="toggleManualConfig(c.key)"
+                              :title="manualConfigMode[c.key] ? 'Beralih ke mode Dropdown Pilihan' : 'Beralih ke input manual ID Snowflake'"
+                              class="p-1.5 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-400 hover:text-white transition-colors flex-shrink-0">
+                        <i data-lucide="edit-3" class="w-3.5 h-3.5" x-show="!manualConfigMode[c.key]"></i>
+                        <i data-lucide="list" class="w-3.5 h-3.5" x-show="manualConfigMode[c.key]"></i>
+                      </button>
+                    </template>
+
+                    <!-- Save Button -->
+                    <button @click="saveConfig(c.key, c.value)" :disabled="savingConfigKey === c.key"
+                            class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5">
+                      <span x-text="savingConfigKey === c.key ? 'Menyimpan...' : 'Simpan'"></span>
                     </button>
                   </div>
+                </div>
+              </template>
+
+              <template x-if="filteredConfigs.length === 0">
+                <div class="py-8 text-center text-slate-400 text-xs">
+                  Tidak ada pengaturan yang cocok dengan filter.
                 </div>
               </template>
             </div>

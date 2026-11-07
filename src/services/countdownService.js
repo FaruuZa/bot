@@ -4,7 +4,44 @@ import { pool } from '../database/pool.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
+export const DEFAULT_PRESENCE_CONFIG = {
+  enabled: true,
+  intervalSeconds: 60,
+  statusType: 'online', // 'online' | 'idle' | 'dnd' | 'invisible'
+  activities: [
+    {
+      id: 'default_1',
+      type: 'WATCHING',
+      text: '{countdown}',
+      enabled: true
+    },
+    {
+      id: 'default_2',
+      type: 'WATCHING',
+      text: '{teams} Tim • {participants} Peserta',
+      enabled: true
+    },
+    {
+      id: 'default_3',
+      type: 'LISTENING',
+      text: 'Ketik /team untuk info tim',
+      enabled: true
+    }
+  ]
+};
+
+const ACTIVITY_TYPE_MAP = {
+  PLAYING: ActivityType.Playing,
+  STREAMING: ActivityType.Streaming,
+  LISTENING: ActivityType.Listening,
+  WATCHING: ActivityType.Watching,
+  COMPETING: ActivityType.Competing,
+  CUSTOM: ActivityType.Custom
+};
+
 export class CountdownService {
+  /** @type {import('discord.js').Client|null} */
+  static client = null;
   /** @type {NodeJS.Timeout|null} */
   static presenceInterval = null;
   /** @type {NodeJS.Timeout|null} */
@@ -13,6 +50,8 @@ export class CountdownService {
   static presenceStep = 0;
   /** @type {number} */
   static lastChannelUpdate = 0;
+  /** @type {string} */
+  static currentPresenceText = '';
 
   /**
    * Get the countdown status and labels
@@ -84,6 +123,126 @@ export class CountdownService {
   }
 
   /**
+   * Get current presence configuration parsed from DB or defaults.
+   * @returns {typeof DEFAULT_PRESENCE_CONFIG}
+   */
+  static getPresenceConfig() {
+    const raw = GuildConfigService.get('BOT_PRESENCE_CONFIG');
+    if (!raw) return JSON.parse(JSON.stringify(DEFAULT_PRESENCE_CONFIG));
+
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        enabled: parsed.enabled !== false,
+        intervalSeconds: Math.max(10, Math.min(3600, parseInt(parsed.intervalSeconds, 10) || 60)),
+        statusType: ['online', 'idle', 'dnd', 'invisible'].includes(parsed.statusType) ? parsed.statusType : 'online',
+        activities: Array.isArray(parsed.activities) && parsed.activities.length > 0
+          ? parsed.activities.map((a, idx) => ({
+              id: a.id || `act_${idx + 1}`,
+              type: a.type && ACTIVITY_TYPE_MAP[a.type] !== undefined ? a.type : 'WATCHING',
+              text: (a.text || '').trim() || 'NSAC Jember 2026',
+              enabled: a.enabled !== false
+            }))
+          : JSON.parse(JSON.stringify(DEFAULT_PRESENCE_CONFIG.activities))
+      };
+    } catch (e) {
+      logger.warn(`[CountdownService] Failed to parse BOT_PRESENCE_CONFIG: ${e.message}`);
+      return JSON.parse(JSON.stringify(DEFAULT_PRESENCE_CONFIG));
+    }
+  }
+
+  /**
+   * Gather dynamic placeholder variables for bot texts.
+   * @param {import('discord.js').Client} [client]
+   * @returns {Promise<{ countdown: string, teams: number, participants: number, members: number }>}
+   */
+  static async getLiveVariables(client = this.client) {
+    const countdown = this.getCountdownInfo();
+
+    let teamCount = 0;
+    try {
+      const { rows } = await pool.query(`SELECT COUNT(*) as count FROM teams WHERE status = 'ACTIVE'`);
+      teamCount = parseInt(rows[0]?.count || 0, 10);
+    } catch {}
+
+    let participantCount = 0;
+    let memberCount = 0;
+
+    if (client) {
+      const guild = client.guilds.cache.get(env.GUILD_ID) || client.guilds.cache.first();
+      if (guild) {
+        memberCount = guild.memberCount || guild.members.cache.size || 0;
+        const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+        if (participantRoleId) {
+          participantCount = guild.roles.cache.get(participantRoleId)?.members?.size || 0;
+        }
+      }
+    }
+
+    return {
+      countdown: countdown.label || 'NSAC Jember 2026',
+      teams: teamCount,
+      participants: participantCount,
+      members: memberCount
+    };
+  }
+
+  /**
+   * Interpolate template placeholders like {teams}, {participants}, {countdown}, {members}.
+   * @param {string} text
+   * @param {Awaited<ReturnType<typeof CountdownService.getLiveVariables>>} vars
+   * @returns {string}
+   */
+  static interpolateText(text, vars) {
+    if (!text) return '';
+    return text
+      .replace(/{countdown}/gi, vars.countdown)
+      .replace(/{teams}|{teamCount}/gi, String(vars.teams))
+      .replace(/{participants}|{participantCount}/gi, String(vars.participants))
+      .replace(/{members}/gi, String(vars.members));
+  }
+
+  /**
+   * Save and immediately apply presence config.
+   * @param {typeof DEFAULT_PRESENCE_CONFIG} newConfig
+   * @param {import('discord.js').Client} [client]
+   */
+  static async savePresenceConfig(newConfig, client = this.client) {
+    const sanitized = {
+      enabled: newConfig.enabled !== false,
+      intervalSeconds: Math.max(10, Math.min(3600, parseInt(newConfig.intervalSeconds, 10) || 60)),
+      statusType: ['online', 'idle', 'dnd', 'invisible'].includes(newConfig.statusType) ? newConfig.statusType : 'online',
+      activities: (newConfig.activities || []).map((a, idx) => ({
+        id: a.id || `act_${Date.now()}_${idx}`,
+        type: a.type && ACTIVITY_TYPE_MAP[a.type] !== undefined ? a.type : 'WATCHING',
+        text: (a.text || '').trim() || 'NSAC Jember 2026',
+        enabled: a.enabled !== false
+      }))
+    };
+
+    await GuildConfigService.set('BOT_PRESENCE_CONFIG', JSON.stringify(sanitized));
+
+    // Restart presence timer with new interval
+    if (this.presenceInterval) {
+      clearInterval(this.presenceInterval);
+    }
+
+    if (client) {
+      this.presenceStep = 0;
+      await this.rotateBotPresence(client);
+
+      if (sanitized.enabled) {
+        this.presenceInterval = setInterval(() => {
+          this.rotateBotPresence(client);
+        }, sanitized.intervalSeconds * 1000);
+      }
+    }
+
+    logger.info(`[CountdownService] Presence config saved. Cycle enabled: ${sanitized.enabled}, interval: ${sanitized.intervalSeconds}s.`);
+    return sanitized;
+  }
+
+  /**
    * Update the locked voice channel name at the top of the server
    * @param {import('discord.js').Client} client 
    */
@@ -116,58 +275,44 @@ export class CountdownService {
   }
 
   /**
-   * Rotate bot presence activities
+   * Rotate bot presence activities based on dynamic configuration
    * @param {import('discord.js').Client} client 
    */
   static async rotateBotPresence(client) {
-    if (!client.user) return;
+    if (!client || !client.user) return;
 
     try {
-      const countdown = this.getCountdownInfo();
+      const config = this.getPresenceConfig();
+      const status = config.statusType || 'online';
+      const enabledActs = config.activities.filter((a) => a.enabled);
 
-      switch (this.presenceStep % 3) {
-        case 0:
-          // Activity 1: Countdown / Phase
-          if (countdown.phase === 'HACKING') {
-            client.user.setActivity(countdown.label, { type: ActivityType.Competing });
-          } else if (countdown.phase === 'UPCOMING') {
-            client.user.setActivity(countdown.label, { type: ActivityType.Watching });
-          } else {
-            client.user.setActivity('NSAC Jember 2026 🚀', { type: ActivityType.Watching });
-          }
-          break;
-
-        case 1: {
-          // Activity 2: Server Live Stats
-          let teamCount = 0;
-          try {
-            const { rows } = await pool.query(`SELECT COUNT(*) as count FROM teams WHERE status = 'ACTIVE'`);
-            teamCount = parseInt(rows[0]?.count || 0, 10);
-          } catch {}
-
-          const guild = client.guilds.cache.get(env.GUILD_ID);
-          const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
-          let participantCount = 0;
-
-          if (guild && participantRoleId) {
-            participantCount = guild.roles.cache.get(participantRoleId)?.members?.size || 0;
-          }
-
-          if (participantCount > 0) {
-            client.user.setActivity(`${teamCount} Tim • ${participantCount} Peserta`, { type: ActivityType.Watching });
-          } else {
-            client.user.setActivity(`${teamCount} Tim Bertanding 🚀`, { type: ActivityType.Watching });
-          }
-          break;
-        }
-
-        case 2:
-          // Activity 3: Actionable Tip / Command Help
-          client.user.setActivity('Ketik /team untuk info tim', { type: ActivityType.Listening });
-          break;
+      if (enabledActs.length === 0) {
+        client.user.setPresence({ status, activities: [] });
+        this.currentPresenceText = '';
+        return;
       }
 
-      this.presenceStep = (this.presenceStep + 1) % 3;
+      const activeItem = enabledActs[this.presenceStep % enabledActs.length];
+      const vars = await this.getLiveVariables(client);
+      const resolvedText = this.interpolateText(activeItem.text, vars);
+      const actType = ACTIVITY_TYPE_MAP[activeItem.type] ?? ActivityType.Watching;
+
+      client.user.setPresence({
+        status,
+        activities: [
+          {
+            name: resolvedText,
+            type: actType
+          }
+        ]
+      });
+
+      this.currentPresenceText = `${activeItem.type}: ${resolvedText}`;
+
+      // Increment step only if cycling is enabled
+      if (config.enabled && enabledActs.length > 1) {
+        this.presenceStep = (this.presenceStep + 1) % enabledActs.length;
+      }
     } catch (err) {
       logger.warn(`[CountdownService] Presence rotation error: ${err.message}`);
     }
@@ -178,24 +323,29 @@ export class CountdownService {
    * @param {import('discord.js').Client} client 
    */
   static start(client) {
+    this.client = client;
     if (this.presenceInterval) clearInterval(this.presenceInterval);
     if (this.channelInterval) clearInterval(this.channelInterval);
+
+    const config = this.getPresenceConfig();
 
     // Initial triggers
     this.rotateBotPresence(client);
     this.updateCountdownChannel(client);
 
-    // Rotate bot presence every 90 seconds
-    this.presenceInterval = setInterval(() => {
-      this.rotateBotPresence(client);
-    }, 90 * 1000);
+    // Rotate bot presence according to config
+    if (config.enabled) {
+      this.presenceInterval = setInterval(() => {
+        this.rotateBotPresence(client);
+      }, (config.intervalSeconds || 60) * 1000);
+    }
 
     // Check and update countdown channel every 10 minutes
     this.channelInterval = setInterval(() => {
       this.updateCountdownChannel(client);
     }, 10 * 60 * 1000);
 
-    logger.info('[CountdownService] Presence rotation & countdown updater started.');
+    logger.info(`[CountdownService] Presence rotation (${config.intervalSeconds}s) & countdown updater started.`);
   }
 
   /**

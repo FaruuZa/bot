@@ -61,10 +61,43 @@ function dashboardApp() {
     configs: [],
     searchTeam: '',
     teamStatusFilter: 'ALL',
+    teamSubTab: 'discord', // 'discord' | 'web'
 
     webTeams: [],
     webTeamFilter: 'ALL',
     searchWebTeam: '',
+
+    // Enhanced Config state
+    configOptions: {
+      roles: [],
+      textChannels: [],
+      voiceChannels: [],
+      categories: []
+    },
+    configCategoryFilter: 'ALL',
+    searchConfig: '',
+    manualConfigMode: {},
+    savingConfigKey: '',
+
+    // Bot Presence & Status Cycle state
+    botPresence: {
+      enabled: true,
+      intervalSeconds: 60,
+      statusType: 'online',
+      activities: []
+    },
+    livePresenceVariables: {
+      countdown: '',
+      teams: 0,
+      participants: 0,
+      members: 0
+    },
+    currentActivityDisplay: '',
+    availablePlaceholders: [],
+    activityTypes: [],
+    statusTypes: [],
+    savingPresence: false,
+    loadingPresence: false,
 
     tickets: [],
     openTicketsCount: 0,
@@ -215,6 +248,15 @@ function dashboardApp() {
           this.fetchChannels();
           this.fetchRoles();
         }
+        if (val === 'presence') {
+          this.fetchBotPresence();
+        }
+        if (val === 'config') {
+          this.fetchConfigs();
+        }
+        if (val === 'teams' && this.teamSubTab === 'web') {
+          this.fetchWebTeams();
+        }
         this.$nextTick(() => {
           if (window.lucide) window.lucide.createIcons();
         });
@@ -307,7 +349,8 @@ function dashboardApp() {
         this.fetchConfigs(),
         this.fetchTickets(),
         this.fetchWebTeams(),
-        this.fetchDynamicEmbeds()
+        this.fetchDynamicEmbeds(),
+        this.fetchBotPresence()
       ]);
       this.$nextTick(() => {
         if (window.lucide) window.lucide.createIcons();
@@ -445,7 +488,12 @@ function dashboardApp() {
       try {
         const res = await fetch('/api/config', { headers: { 'Authorization': `Bearer ${this.token}` } });
         const data = await res.json();
-        if (data.success) this.configs = data.configs;
+        if (data.success) {
+          this.configs = data.configs || [];
+          if (data.options) {
+            this.configOptions = data.options;
+          }
+        }
       } catch (e) {}
     },
 
@@ -1139,6 +1187,7 @@ function dashboardApp() {
 
     async saveConfig(key, value) {
       try {
+        this.savingConfigKey = key;
         const res = await fetch('/api/config', {
           method: 'POST',
           headers: {
@@ -1155,7 +1204,142 @@ function dashboardApp() {
         }
       } catch (e) {
         this.showToast('error', 'Gagal', e.message);
+      } finally {
+        this.savingConfigKey = '';
       }
+    },
+
+    toggleManualConfig(key) {
+      this.manualConfigMode[key] = !this.manualConfigMode[key];
+    },
+
+    get filteredConfigs() {
+      let list = this.configs || [];
+      if (this.configCategoryFilter && this.configCategoryFilter !== 'ALL') {
+        list = list.filter((c) => c.category === this.configCategoryFilter);
+      }
+      if (this.searchConfig && this.searchConfig.trim()) {
+        const q = this.searchConfig.toLowerCase().trim();
+        list = list.filter((c) =>
+          (c.label && c.label.toLowerCase().includes(q)) ||
+          (c.key && c.key.toLowerCase().includes(q)) ||
+          (c.description && c.description.toLowerCase().includes(q))
+        );
+      }
+      return list;
+    },
+
+    // ==========================================
+    // BOT PRESENCE & ACTIVITY MANAGEMENT
+    // ==========================================
+    async fetchBotPresence() {
+      try {
+        this.loadingPresence = true;
+        const res = await fetch('/api/bot-presence', {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.botPresence = data.config || this.botPresence;
+          this.livePresenceVariables = data.liveVariables || {};
+          this.currentActivityDisplay = data.currentActivity || '';
+          this.availablePlaceholders = data.availablePlaceholders || [];
+          this.activityTypes = data.activityTypes || [];
+          this.statusTypes = data.statusTypes || [];
+        }
+      } catch (e) {
+        this.showToast('error', 'Gagal Memuat Status', e.message);
+      } finally {
+        this.loadingPresence = false;
+        this.$nextTick(() => {
+          if (window.lucide) window.lucide.createIcons();
+        });
+      }
+    },
+
+    async saveBotPresence() {
+      try {
+        this.savingPresence = true;
+        const res = await fetch('/api/bot-presence', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.botPresence)
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.showToast('success', 'Tersimpan', data.message || 'Status bot berhasil diperbarui.');
+          await this.fetchBotPresence();
+        } else {
+          this.showToast('error', 'Gagal Menyimpan', data.error);
+        }
+      } catch (e) {
+        this.showToast('error', 'Gagal Menyimpan', e.message);
+      } finally {
+        this.savingPresence = false;
+      }
+    },
+
+    addPresenceActivity() {
+      if (!this.botPresence.activities) this.botPresence.activities = [];
+      this.botPresence.activities.push({
+        id: 'act_' + Date.now(),
+        type: 'WATCHING',
+        text: 'NSAC Jember 2026',
+        enabled: true
+      });
+      this.$nextTick(() => {
+        if (window.lucide) window.lucide.createIcons();
+      });
+    },
+
+    removePresenceActivity(index) {
+      if (!this.botPresence.activities || this.botPresence.activities.length <= 1) {
+        this.showToast('error', 'Peringatan', 'Minimal harus ada 1 teks aktivitas status.');
+        return;
+      }
+      this.botPresence.activities.splice(index, 1);
+    },
+
+    movePresenceActivity(index, direction) {
+      if (!this.botPresence.activities) return;
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= this.botPresence.activities.length) return;
+      const item = this.botPresence.activities.splice(index, 1)[0];
+      this.botPresence.activities.splice(targetIndex, 0, item);
+    },
+
+    insertPresenceTag(index, tag) {
+      if (!this.botPresence.activities || !this.botPresence.activities[index]) return;
+      const current = this.botPresence.activities[index].text || '';
+      this.botPresence.activities[index].text = current ? `${current} ${tag}` : tag;
+    },
+
+    resetPresenceConfig() {
+      if (!confirm('Kembalikan konfigurasi teks status bot ke pengaturan bawaan?')) return;
+      this.botPresence = {
+        enabled: true,
+        intervalSeconds: 60,
+        statusType: 'online',
+        activities: [
+          { id: 'default_1', type: 'WATCHING', text: '{countdown}', enabled: true },
+          { id: 'default_2', type: 'WATCHING', text: '{teams} Tim • {participants} Peserta', enabled: true },
+          { id: 'default_3', type: 'LISTENING', text: 'Ketik /team untuk info tim', enabled: true }
+        ]
+      };
+      this.saveBotPresence();
+    },
+
+    getResolvedPreview(text) {
+      if (!text) return '';
+      const v = this.livePresenceVariables || {};
+      return text
+        .replace(/{countdown}/gi, v.countdown || 'H-3 Menuju Hackathon')
+        .replace(/{teams}|{teamCount}/gi, String(v.teams ?? 0))
+        .replace(/{participants}|{participantCount}/gi, String(v.participants ?? 0))
+        .replace(/{members}/gi, String(v.members ?? 0));
     },
 
     get filteredFaqs() {

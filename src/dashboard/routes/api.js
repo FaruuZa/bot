@@ -26,6 +26,7 @@ import {
   deleteDynamicEmbed
 } from '../../database/queries/faqQueries.js';
 import { FAQService } from '../../services/faqService.js';
+import { CountdownService } from '../../services/countdownService.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)
@@ -1058,17 +1059,52 @@ export function createApiRouter(client) {
   // ==========================================
   router.get('/config', requireAuth, async (req, res) => {
     try {
+      const guild = getGuild();
+      const discordOptions = {
+        roles: [],
+        textChannels: [],
+        voiceChannels: [],
+        categories: []
+      };
+
+      if (guild) {
+        await guild.channels.fetch().catch(() => {});
+        await guild.roles.fetch().catch(() => {});
+
+        discordOptions.roles = guild.roles.cache
+          .filter((r) => r.id !== guild.id)
+          .sort((a, b) => b.position - a.position)
+          .map((r) => ({ id: r.id, name: r.name, color: r.hexColor }));
+
+        discordOptions.textChannels = guild.channels.cache
+          .filter((c) => c.isTextBased())
+          .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
+          .map((c) => ({ id: c.id, name: c.name, type: c.type }));
+
+        discordOptions.voiceChannels = guild.channels.cache
+          .filter((c) => c.type === ChannelType.GuildVoice)
+          .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
+          .map((c) => ({ id: c.id, name: c.name }));
+
+        discordOptions.categories = guild.channels.cache
+          .filter((c) => c.type === ChannelType.GuildCategory)
+          .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
+          .map((c) => ({ id: c.id, name: c.name }));
+      }
+
       const configs = [];
       for (const [key, def] of Object.entries(CONFIG_DEFINITIONS)) {
+        if (key === 'BOT_PRESENCE_CONFIG') continue;
         configs.push({
           key,
           label: def.label,
           type: def.type,
+          category: def.category || 'SYSTEM',
           description: def.description,
           value: GuildConfigService.get(key) || ''
         });
       }
-      return res.json({ success: true, configs });
+      return res.json({ success: true, configs, options: discordOptions });
     } catch (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -1081,8 +1117,71 @@ export function createApiRouter(client) {
         return res.status(400).json({ success: false, error: 'Kunci konfigurasi tidak valid.' });
       }
 
-      await GuildConfigService.set(key, String(value || '').trim());
+      await GuildConfigService.set(key, String(value ?? '').trim());
       return res.json({ success: true, message: `Konfigurasi ${key} berhasil diperbarui.` });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // Bot Presence & Activity Management Endpoints
+  // ==========================================
+  router.get('/bot-presence', requireAuth, async (req, res) => {
+    try {
+      const config = CountdownService.getPresenceConfig();
+      const liveVariables = await CountdownService.getLiveVariables(client);
+      const currentActivity = CountdownService.currentPresenceText;
+
+      return res.json({
+        success: true,
+        config,
+        liveVariables,
+        currentActivity,
+        availablePlaceholders: [
+          { tag: '{countdown}', label: 'Hitung Mundur Hackathon', sample: liveVariables.countdown },
+          { tag: '{teams}', label: 'Jumlah Tim Aktif', sample: String(liveVariables.teams) },
+          { tag: '{participants}', label: 'Jumlah Peserta Terdaftar', sample: String(liveVariables.participants) },
+          { tag: '{members}', label: 'Total Member Server', sample: String(liveVariables.members) }
+        ],
+        activityTypes: [
+          { value: 'WATCHING', label: 'Menonton (Watching)' },
+          { value: 'PLAYING', label: 'Bermain (Playing)' },
+          { value: 'LISTENING', label: 'Mendengarkan (Listening)' },
+          { value: 'COMPETING', label: 'Bertanding (Competing)' },
+          { value: 'CUSTOM', label: 'Kustom (Custom)' }
+        ],
+        statusTypes: [
+          { value: 'online', label: 'Online (Hijau)' },
+          { value: 'idle', label: 'Idle (Kuning)' },
+          { value: 'dnd', label: 'Jangan Ganggu (Merah)' },
+          { value: 'invisible', label: 'Invisible (Offline)' }
+        ]
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/bot-presence', requireAuth, async (req, res) => {
+    try {
+      const { enabled, intervalSeconds, statusType, activities } = req.body;
+      if (!Array.isArray(activities) || activities.length === 0) {
+        return res.status(400).json({ success: false, error: 'Daftar aktivitas status bot tidak boleh kosong.' });
+      }
+
+      const saved = await CountdownService.savePresenceConfig({
+        enabled: !!enabled,
+        intervalSeconds: parseInt(intervalSeconds, 10) || 60,
+        statusType: statusType || 'online',
+        activities
+      }, client);
+
+      return res.json({
+        success: true,
+        message: 'Status dan perputaran teks bot berhasil diperbarui dan diterapkan.',
+        config: saved
+      });
     } catch (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
