@@ -114,6 +114,30 @@
               <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300 border border-surface-border" x-text="teams.length || 0"></span>
             </button>
 
+            <button @click="switchTab('challenges'); fetchChallenges()"
+                    :class="activeTab === 'challenges' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="award" class="w-4 h-4 flex-shrink-0"></i>
+                <span>Manajemen Challenge</span>
+              </div>
+              <template x-if="challenges.length > 0">
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300 border border-surface-border" x-text="challenges.length"></span>
+              </template>
+            </button>
+
+            <button @click="switchTab('invites'); fetchInvites()"
+                    :class="activeTab === 'invites' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="link-2" class="w-4 h-4 flex-shrink-0"></i>
+                <span>Invite Tracker</span>
+              </div>
+              <template x-if="invites.length > 0">
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300 border border-surface-border" x-text="invites.length"></span>
+              </template>
+            </button>
+
             <button @click="switchTab('tickets')"
                     :class="activeTab === 'tickets' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
@@ -229,6 +253,18 @@
                 <i data-lucide="users" class="w-4 h-4"></i> Manajemen Tim
               </div>
               <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300" x-text="teams.length || 0"></span>
+            </button>
+            <button @click="switchTab('challenges'); fetchChallenges(); mobileMenuOpen = false" :class="activeTab === 'challenges' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+              <div class="flex items-center gap-3">
+                <i data-lucide="award" class="w-4 h-4"></i> Manajemen Challenge
+              </div>
+              <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300" x-text="challenges.length || 0"></span>
+            </button>
+            <button @click="switchTab('invites'); fetchInvites(); mobileMenuOpen = false" :class="activeTab === 'invites' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+              <div class="flex items-center gap-3">
+                <i data-lucide="link-2" class="w-4 h-4"></i> Invite Tracker
+              </div>
+              <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300" x-text="invites.length || 0"></span>
             </button>
             <button @click="switchTab('tickets'); mobileMenuOpen = false" :class="activeTab === 'tickets' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
               <div class="flex items-center gap-3">
@@ -444,6 +480,12 @@
                       class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 <span>Dynamic Live Embed (FAQ & Rules)</span>
+              </button>
+              <button type="button" @click="studioMode = 'purge'"
+                      :class="studioMode === 'purge' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span>Pembersih Pesan (/purge)</span>
               </button>
             </div>
 
@@ -972,6 +1014,33 @@
               <p class="text-xs text-slate-400 mt-0.5">Monitoring data tim terdaftar di Discord dan sinkronisasi snapshot resmi NASA Space Apps Challenge.</p>
             </div>
 
+            <!-- Action Buttons for Staff Commands -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button @click="openForceRegisterModal()"
+                      class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                <span>Force Register Tim</span>
+              </button>
+
+              <button @click="openRegisterMemberModal()"
+                      class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Registrasi Member Manual</span>
+              </button>
+
+              <button @click="purgeDisbandedTeamsAction()" :disabled="purgingDisbandedTeams"
+                      class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                <i data-lucide="trash" class="w-3.5 h-3.5 text-rose-400"></i>
+                <span x-text="purgingDisbandedTeams ? 'Membersihkan...' : 'Bersihkan Tim Bubar'"></span>
+              </button>
+
+              <button @click="deployTeamPanelAction()" :disabled="deployingTeamPanel"
+                      class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50">
+                <i data-lucide="layout" class="w-3.5 h-3.5 text-purple-400"></i>
+                <span x-text="deployingTeamPanel ? 'Mengirim...' : 'Deploy Panel Tim'"></span>
+              </button>
+            </div>
+
             <!-- Segmented Pill Switcher -->
             <div class="flex items-center gap-1 bg-surface-card p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
               <button @click="teamSubTab = 'discord'"
@@ -1208,6 +1277,422 @@
           </div>
         </section>
 
+<!-- ========================================== -->
+        <!-- TAB: MANAJEMEN CHALLENGE (/challenge) -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'challenges'" class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
+            <div>
+              <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Manajemen Topik Challenge Hackathon (/challenge)</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Kelola daftar tantangan resmi Space Apps, pantau distribusi tim, dan umumkan challenge langsung ke channel Discord.</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button @click="openCreateChallengeModal()"
+                      class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Tambah Challenge</span>
+              </button>
+
+              <button @click="showBroadcastChallengeModal = true"
+                      class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5">
+                <i data-lucide="send" class="w-3.5 h-3.5 text-blue-400"></i>
+                <span>Kirim Daftar ke Discord</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Metrics Row -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Total Challenge</div>
+              <div class="text-2xl font-bold font-mono text-white mt-1 tabular-nums" x-text="challenges.length || 0"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5">Tantangan aktif terdaftar</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Tim Terdaftar pada Topik</div>
+              <div class="text-2xl font-bold font-mono text-emerald-400 mt-1 tabular-nums"
+                   x-text="challenges.reduce((acc, c) => acc + parseInt(c.team_count || 0), 0)"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5">Total pilihan challenge oleh tim</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Rata-rata Tim per Challenge</div>
+              <div class="text-2xl font-bold font-mono text-blue-400 mt-1 tabular-nums"
+                   x-text="challenges.length > 0 ? (challenges.reduce((acc, c) => acc + parseInt(c.team_count || 0), 0) / challenges.length).toFixed(1) : '0'"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5">Distribusi pilihan peserta</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Challenge Tanpa Tim</div>
+              <div class="text-2xl font-bold font-mono text-amber-400 mt-1 tabular-nums"
+                   x-text="challenges.filter(c => !c.team_count || c.team_count === '0').length"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5">Belum dipilih peserta</div>
+            </div>
+          </div>
+
+          <!-- Controls & Search -->
+          <div class="flex flex-col sm:flex-row items-center gap-3">
+            <div class="relative flex-1 w-full">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" x-model="challengeSearch" placeholder="Cari judul tantangan atau deskripsi..."
+                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+            </div>
+            <button @click="fetchChallenges()" :disabled="loadingChallenges"
+                    class="px-3 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 flex-shrink-0">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="loadingChallenges ? 'animate-spin' : ''"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <!-- Challenge List Table -->
+          <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-surface-elevated text-slate-400 font-mono text-[11px] border-b border-surface-border">
+                  <tr>
+                    <th class="p-3 w-12 text-center">ID</th>
+                    <th class="p-3">Judul Challenge</th>
+                    <th class="p-3">Deskripsi Singkat</th>
+                    <th class="p-3 text-center">Tim Terdaftar</th>
+                    <th class="p-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                  <template x-for="ch in filteredChallenges" :key="ch.id">
+                    <tr class="hover:bg-surface-hover transition-colors">
+                      <td class="p-3 text-center font-mono text-slate-400 text-[11px]" x-text="ch.id"></td>
+                      <td class="p-3 font-semibold text-white max-w-xs">
+                        <div class="flex items-center gap-2">
+                          <i data-lucide="award" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>
+                          <span x-text="ch.title"></span>
+                        </div>
+                      </td>
+                      <td class="p-3 text-slate-300 max-w-md">
+                        <p class="line-clamp-2 text-[11px]" x-text="ch.description || '-(Tanpa deskripsi rinci)-'"></p>
+                      </td>
+                      <td class="p-3 text-center">
+                        <span :class="ch.team_count > 0 ? 'bg-blue-600/15 text-blue-400 border-blue-500/30' : 'bg-surface-elevated text-slate-400 border-surface-border'"
+                              class="px-2 py-0.5 rounded border text-[11px] font-mono font-medium"
+                              x-text="(ch.team_count || 0) + ' tim'"></span>
+                      </td>
+                      <td class="p-3 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                          <button @click="openEditChallengeModal(ch)"
+                                  class="px-2 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-slate-200 border border-surface-border transition-colors text-[11px] flex items-center gap-1">
+                            <i data-lucide="edit-2" class="w-3 h-3"></i>
+                            <span>Edit</span>
+                          </button>
+                          <button @click="deleteChallengeAction(ch)" :disabled="deletingChallengeId === ch.id"
+                                  class="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors text-[11px] flex items-center gap-1 disabled:opacity-50">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            <span>Hapus</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                  <template x-if="filteredChallenges.length === 0">
+                    <tr>
+                      <td colspan="5" class="p-8 text-center text-slate-400">
+                        <i data-lucide="award" class="w-8 h-8 mx-auto mb-2 text-slate-400"></i>
+                        <p class="text-xs">Tidak ada data challenge yang cocok.</p>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+<!-- ========================================== -->
+        <!-- TAB: INVITE TRACKER --><!-- ========================================== -->
+        <!-- TAB: INVITE TRACKER -->
+        <!-- ========================================== -->
+        <section x-show="activeTab === 'invites'" class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
+            <div>
+              <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Invite Tracker & Auto-Role Manager</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Pantau penggunaan tautan undangan server, audit anggota yang bergabung, dan kelola link dengan auto-role otomatis.</p>
+            </div>
+
+            <button @click="openCreateInviteModal()"
+                    class="px-3.5 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Buat Link Undangan Baru</span>
+            </button>
+          </div>
+
+          <!-- Metrics Row -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Total Link Undangan</div>
+              <div class="text-2xl font-bold font-mono text-white mt-1 tabular-nums" x-text="inviteStats.totalInvites || 0"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5" x-text="(inviteStats.activeInvites || 0) + ' link aktif'"></div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Total Penggunaan Link</div>
+              <div class="text-2xl font-bold font-mono text-emerald-400 mt-1 tabular-nums" x-text="inviteStats.totalUses || 0"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5">Kumulatif seluruh invite</div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Member Bergabung Terlacak</div>
+              <div class="text-2xl font-bold font-mono text-blue-400 mt-1 tabular-nums" x-text="inviteStats.totalJoinsTracked || 0"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5" x-text="(inviteStats.uniqueMembersTracked || 0) + ' user unik terdeteksi'"></div>
+            </div>
+
+            <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
+              <div class="text-[11px] text-slate-400 font-medium">Link Dynamic Auto-Role</div>
+              <div class="text-2xl font-bold font-mono text-purple-400 mt-1 tabular-nums" x-text="inviteStats.dynamicCount || 0"></div>
+              <div class="text-[10px] text-slate-400 mt-0.5">Otomatis memberikan role</div>
+            </div>
+          </div>
+
+          <!-- Sub-Tab Navigation -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-3">
+            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
+              <button @click="inviteSubTab = 'links'"
+                      :class="inviteSubTab === 'links' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="link" class="w-3.5 h-3.5"></i>
+                <span>Daftar Link Undangan</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/25" x-text="invites.length"></span>
+              </button>
+              <button @click="inviteSubTab = 'joins'"
+                      :class="inviteSubTab === 'joins' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                <span>Riwayat Bergabung</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/25" x-text="recentInviteJoins.length"></span>
+              </button>
+              <button @click="inviteSubTab = 'leaderboard'"
+                      :class="inviteSubTab === 'leaderboard' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                <span>Top Pengundang</span>
+              </button>
+            </div>
+
+            <button @click="fetchInvites()" :disabled="loadingInvites"
+                    class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-300 text-xs font-medium transition-colors flex items-center justify-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="loadingInvites ? 'animate-spin' : ''"></i>
+              <span>Refresh Data</span>
+            </button>
+          </div>
+
+          <!-- SUB-VIEW 1: INVITE LINKS TABLE -->
+          <div x-show="inviteSubTab === 'links'" class="space-y-4">
+            <!-- Filter & Search Controls -->
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+              <div class="relative flex-1 w-full">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" x-model="searchInvite" placeholder="Cari kode link, label, pembuat, channel, atau role..."
+                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              </div>
+
+              <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
+                <button @click="inviteFilter = 'ALL'" :class="inviteFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                <button @click="inviteFilter = 'DYNAMIC'" :class="inviteFilter === 'DYNAMIC' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Auto-Role</button>
+                <button @click="inviteFilter = 'STANDARD'" :class="inviteFilter === 'STANDARD' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Standar</button>
+                <button @click="inviteFilter = 'ACTIVE'" :class="inviteFilter === 'ACTIVE' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Aktif</button>
+                <button @click="inviteFilter = 'EXPIRED'" :class="inviteFilter === 'EXPIRED' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Kedaluwarsa</button>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
+                    <tr>
+                      <th class="px-4 py-3">Kode & Tautan</th>
+                      <th class="px-4 py-3">Channel Tujuan</th>
+                      <th class="px-4 py-3">Auto-Role Diberikan</th>
+                      <th class="px-4 py-3">Pembuat</th>
+                      <th class="px-4 py-3">Penggunaan</th>
+                      <th class="px-4 py-3">Masa Aktif</th>
+                      <th class="px-4 py-3 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-surface-border">
+                    <template x-for="inv in filteredInvites" :key="inv.code">
+                      <tr class="hover:bg-surface-hover transition-colors">
+                        <td class="px-4 py-3">
+                          <div class="flex items-center gap-2">
+                            <span class="font-mono font-bold text-white text-xs" x-text="inv.code"></span>
+                            <template x-if="inv.isDynamic">
+                              <span class="px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 text-[9px] font-semibold">AUTO-ROLE</span>
+                            </template>
+                          </div>
+                          <div class="text-[10px] text-slate-400 mt-0.5 truncate max-w-xs" x-text="inv.label || inv.url"></div>
+                        </td>
+                        <td class="px-4 py-3">
+                          <span class="text-slate-300 font-medium" x-text="inv.channel ? '#' + inv.channel.name : '-'"></span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <div class="flex flex-wrap items-center gap-1">
+                            <template x-for="r in (inv.roles || [])" :key="r.id">
+                              <span class="px-1.5 py-0.2 rounded bg-surface-elevated border border-surface-border text-slate-200 text-[10px] font-medium" x-text="'@' + r.name"></span>
+                            </template>
+                            <template x-if="!inv.roles || inv.roles.length === 0">
+                              <span class="text-slate-500 text-[11px]">-(Tanpa role)-</span>
+                            </template>
+                          </div>
+                        </td>
+                        <td class="px-4 py-3">
+                          <div class="text-slate-200 font-medium" x-text="inv.createdBy || (inv.inviter ? '@' + inv.inviter.username : 'Staff')"></div>
+                        </td>
+                        <td class="px-4 py-3">
+                          <div class="flex items-center gap-2">
+                            <span class="font-mono text-white text-xs font-semibold tabular-nums" x-text="inv.uses"></span>
+                            <span class="text-slate-400 text-[11px]" x-text="inv.maxUses > 0 ? '/ ' + inv.maxUses : 'kali'"></span>
+                          </div>
+                          <template x-if="inv.maxUses > 0">
+                            <div class="w-20 bg-surface-input h-1 rounded-full overflow-hidden mt-1">
+                              <div class="bg-blue-500 h-full rounded-full" :style="'width: ' + Math.min(100, Math.round((inv.uses / inv.maxUses) * 100)) + '%'"></div>
+                            </div>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                          <template x-if="inv.isExpired">
+                            <span class="text-rose-400 text-[11px] font-medium">Kedaluwarsa</span>
+                          </template>
+                          <template x-if="!inv.isExpired && inv.expiresAt">
+                            <span class="text-amber-400 text-[11px]" x-text="formatDate(inv.expiresAt)"></span>
+                          </template>
+                          <template x-if="!inv.isExpired && !inv.expiresAt">
+                            <span class="text-emerald-400 text-[11px] font-medium">Permanen</span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                          <div class="flex items-center justify-end gap-1.5">
+                            <button @click="copyToClipboard(inv.url, 'Link invite ' + inv.code)"
+                                    title="Salin Tautan Undangan"
+                                    class="p-1.5 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white transition-colors">
+                              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button @click="deleteInviteAction(inv.code)"
+                                    title="Hapus Link Ini"
+                                    class="p-1.5 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition-colors">
+                              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                    <template x-if="filteredInvites.length === 0">
+                      <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+                          Tidak ada data link undangan yang cocok dengan filter.
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 2: MEMBER JOINS HISTORY -->
+          <div x-show="inviteSubTab === 'joins'" class="space-y-4">
+            <div class="bg-surface-card border border-surface-border rounded-lg overflow-hidden">
+              <div class="p-4 border-b border-surface-border flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-semibold text-white">Log Bergabungnya Member via Undangan</h3>
+                  <p class="text-[11px] text-slate-400 mt-0.5">Catatan realtime saat anggota baru masuk ke server menggunakan link invite.</p>
+                </div>
+                <span class="text-xs text-slate-400 font-mono" x-text="recentInviteJoins.length + ' Join Tercatat'"></span>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-surface-elevated border-b border-surface-border text-slate-400 text-[11px] uppercase font-semibold">
+                    <tr>
+                      <th class="px-4 py-3">Member Bergabung</th>
+                      <th class="px-4 py-3">Kode Invite Digunakan</th>
+                      <th class="px-4 py-3">Pengundang / Pembuat</th>
+                      <th class="px-4 py-3">Auto-Role Diberikan</th>
+                      <th class="px-4 py-3 text-right">Waktu Bergabung</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-surface-border">
+                    <template x-for="j in recentInviteJoins" :key="j.id">
+                      <tr class="hover:bg-surface-hover transition-colors">
+                        <td class="px-4 py-3">
+                          <div class="font-semibold text-white" x-text="j.username"></div>
+                          <div class="text-[10px] text-slate-400 font-mono" x-text="j.discord_id"></div>
+                        </td>
+                        <td class="px-4 py-3">
+                          <span class="font-mono font-bold text-blue-400" x-text="j.invite_code"></span>
+                          <template x-if="j.invite_label">
+                            <span class="text-[10px] text-slate-400 ml-1" x-text="'(' + j.invite_label + ')'"></span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3 text-slate-200" x-text="j.inviter_tag || 'Unknown'"></td>
+                        <td class="px-4 py-3">
+                          <template x-if="j.role_names">
+                            <span class="px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 text-[10px] font-medium" x-text="j.role_names"></span>
+                          </template>
+                          <template x-if="!j.role_names">
+                            <span class="text-slate-500 text-[11px]">-</span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3 text-right text-slate-400 whitespace-nowrap text-[11px]" x-text="formatDate(j.joined_at)"></td>
+                      </tr>
+                    </template>
+                    <template x-if="recentInviteJoins.length === 0">
+                      <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-400">
+                          Belum ada aktivitas member bergabung melalui link undangan yang tercatat.
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 3: TOP INVITERS LEADERBOARD -->
+          <div x-show="inviteSubTab === 'leaderboard'" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <template x-for="(inviter, idx) in topInviters" :key="inviter.inviter_id">
+                <div class="bg-surface-card border border-surface-border rounded-lg p-4 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"
+                         :class="{
+                           'bg-amber-500/20 text-amber-300 border border-amber-500/30': idx === 0,
+                           'bg-slate-300/20 text-slate-200 border border-slate-300/30': idx === 1,
+                           'bg-amber-700/20 text-amber-500 border border-amber-700/30': idx === 2,
+                           'bg-surface-elevated text-slate-400 border border-surface-border': idx > 2
+                         }"
+                         x-text="'#' + (idx + 1)"></div>
+                    <div>
+                      <div class="text-xs font-semibold text-white" x-text="inviter.inviter_tag || 'Staff'"></div>
+                      <div class="text-[10px] text-slate-400 font-mono" x-text="inviter.inviter_id"></div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-base font-bold font-mono text-emerald-400" x-text="inviter.total_joins"></div>
+                    <div class="text-[10px] text-slate-400">Member Diundang</div>
+                  </div>
+                </div>
+              </template>
+              <template x-if="topInviters.length === 0">
+                <div class="col-span-full py-8 text-center text-slate-400 bg-surface-card border border-surface-border rounded-lg text-xs">
+                  Belum ada data peringkat pengundang yang tercatat.
+                </div>
+              </template>
+            </div>
+          </div>
+        </section>
+
+        
+
         <!-- TAB 5: TICKETS INBOX -->
         <!-- ========================================== -->
         <section x-show="activeTab === 'tickets'" class="space-y-4">
@@ -1428,6 +1913,142 @@
                         class="px-2.5 py-1 rounded bg-surface-base hover:bg-surface-hover disabled:opacity-40 text-slate-200 border border-surface-border transition-colors">
                   Selanjutnya
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 3: CHANNEL MESSAGE PURGE TOOL (/purge) -->
+          <div x-show="studioMode === 'purge'" class="space-y-6">
+            <div class="bg-surface-card border border-surface-border rounded-lg p-6 max-w-2xl space-y-5">
+              <div>
+                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="trash-2" class="w-4 h-4 text-rose-400"></i>
+                  <span>Pembersih Pesan Massal Channel (/purge)</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">
+                  Hapus pesan massal di channel Discord tertentu secara instan dan aman. Seluruh riwayat penghapusan dicatat ke log audit bot.
+                </p>
+              </div>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
+                  <select x-model="purgeForm.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <option value="">-- Pilih Text Channel --</option>
+                    <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
+                      <option :value="c.id" x-text="'#' + c.name"></option>
+                    </template>
+                  </select>
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="text-xs font-medium text-slate-300">Jumlah Pesan yang Dihapus (1 - 100) <span class="text-rose-400">*</span></label>
+                    <span class="text-xs font-mono text-blue-400 font-semibold" x-text="purgeForm.amount + ' pesan'"></span>
+                  </div>
+                  <input type="range" min="1" max="100" x-model.number="purgeForm.amount" class="w-full accent-blue-600 bg-surface-input h-1.5 rounded cursor-pointer">
+                  <div class="flex items-center gap-2 mt-2">
+                    <button type="button" @click="purgeForm.amount = 10" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">10 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 25" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">25 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 50" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">50 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 100" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">100 Pesan</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Filter User Tertentu (Opsional)</label>
+                  <select x-model="purgeForm.userId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <option value="">Semua User (Hapus pesan siapa pun)</option>
+                    <template x-for="m in guildMembers" :key="m.id">
+                      <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
+                    </template>
+                  </select>
+                  <p class="text-[11px] text-slate-400 mt-1">Jika dipilih, bot hanya menghapus pesan dari user tersebut dalam rentang 100 pesan terakhir.</p>
+                </div>
+
+                <div class="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2.5">
+                  <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400"></i>
+                  <div>
+                    <span class="font-semibold text-amber-300">Batasan Teknis Discord:</span>
+                    Pesan yang berumur lebih dari 14 hari tidak dapat dihapus massal oleh Discord API.
+                  </div>
+                </div>
+
+                <div class="pt-2">
+                  <button type="button" @click="submitPurgeMessages()" :disabled="purgingMessages || !purgeForm.channelId"
+                          class="px-4 py-2 rounded-md bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-2">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span x-text="purgingMessages ? 'Sedang Menghapus...' : 'Bersihkan Pesan Sekarang'"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 3: CHANNEL MESSAGE PURGE TOOL (/purge) -->
+          <div x-show="studioMode === 'purge'" class="space-y-6">
+            <div class="bg-surface-card border border-surface-border rounded-lg p-6 max-w-2xl space-y-5">
+              <div>
+                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="trash-2" class="w-4 h-4 text-rose-400"></i>
+                  <span>Pembersih Pesan Massal Channel (/purge)</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">
+                  Hapus pesan massal di channel Discord tertentu secara instan dan aman. Seluruh riwayat penghapusan dicatat ke log audit bot.
+                </p>
+              </div>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
+                  <select x-model="purgeForm.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <option value="">-- Pilih Text Channel --</option>
+                    <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
+                      <option :value="c.id" x-text="'#' + c.name"></option>
+                    </template>
+                  </select>
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="text-xs font-medium text-slate-300">Jumlah Pesan yang Dihapus (1 - 100) <span class="text-rose-400">*</span></label>
+                    <span class="text-xs font-mono text-blue-400 font-semibold" x-text="purgeForm.amount + ' pesan'"></span>
+                  </div>
+                  <input type="range" min="1" max="100" x-model.number="purgeForm.amount" class="w-full accent-blue-600 bg-surface-input h-1.5 rounded cursor-pointer">
+                  <div class="flex items-center gap-2 mt-2">
+                    <button type="button" @click="purgeForm.amount = 10" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">10 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 25" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">25 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 50" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">50 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 100" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">100 Pesan</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Filter User Tertentu (Opsional)</label>
+                  <select x-model="purgeForm.userId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <option value="">Semua User (Hapus pesan siapa pun)</option>
+                    <template x-for="m in guildMembers" :key="m.id">
+                      <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
+                    </template>
+                  </select>
+                  <p class="text-[11px] text-slate-400 mt-1">Jika dipilih, bot hanya menghapus pesan dari user tersebut dalam rentang 100 pesan terakhir.</p>
+                </div>
+
+                <div class="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2.5">
+                  <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400"></i>
+                  <div>
+                    <span class="font-semibold text-amber-300">Batasan Teknis Discord:</span>
+                    Pesan yang berumur lebih dari 14 hari tidak dapat dihapus massal oleh Discord API.
+                  </div>
+                </div>
+
+                <div class="pt-2">
+                  <button type="button" @click="submitPurgeMessages()" :disabled="purgingMessages || !purgeForm.channelId"
+                          class="px-4 py-2 rounded-md bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-2">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span x-text="purgingMessages ? 'Sedang Menghapus...' : 'Bersihkan Pesan Sekarang'"></span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1938,6 +2559,44 @@
               </div>
             </dl>
 
+            <!-- Challenge Topic Assignment (/team set-challenge) -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-300">Topik Challenge Hackathon</label>
+              <div class="flex items-center gap-2">
+                <select x-model="selectedTeam.challenge_id"
+                        class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <option :value="null">-- Belum Memilih Challenge --</option>
+                  <template x-for="ch in challenges" :key="ch.id">
+                    <option :value="ch.id" :selected="selectedTeam.challenge_id == ch.id" x-text="ch.title"></option>
+                  </template>
+                </select>
+                <button @click="setTeamChallengeAction(selectedTeam.id, selectedTeam.challenge_id)"
+                        :disabled="savingTeamChallenge"
+                        class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
+                  <span x-text="savingTeamChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Challenge Topic Assignment (/team set-challenge) -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-300">Topik Challenge Hackathon</label>
+              <div class="flex items-center gap-2">
+                <select x-model="selectedTeam.challenge_id"
+                        class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <option :value="null">-- Belum Memilih Challenge --</option>
+                  <template x-for="ch in challenges" :key="ch.id">
+                    <option :value="ch.id" :selected="selectedTeam.challenge_id == ch.id" x-text="ch.title"></option>
+                  </template>
+                </select>
+                <button @click="setTeamChallengeAction(selectedTeam.id, selectedTeam.challenge_id)"
+                        :disabled="savingTeamChallenge"
+                        class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
+                  <span x-text="savingTeamChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
+                </button>
+              </div>
+            </div>
+
             <!-- Web Link -->
             <div class="space-y-1.5">
               <label class="block text-xs font-medium text-slate-300">Tautan Resmi Profil Web NASA Space Apps</label>
@@ -2046,6 +2705,540 @@
           <button @click="sendTicketReply()" :disabled="sendingReply || !ticketReplyMessage.trim()"
                   class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
             <span x-text="sendingReply ? 'Mengirim...' : 'Kirim Balasan'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- MODAL: CREATE DYNAMIC INVITE -->
+    <!-- ========================================== -->
+    <div x-show="showCreateInviteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showCreateInviteModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-6 space-y-4 my-8 shadow-xl">
+        <div class="flex items-start justify-between border-b border-surface-border pb-3">
+          <div>
+            <h3 class="text-base font-bold text-white">Buat Link Undangan Server</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Tautan undangan dengan auto-assign role otomatis bagi anggota baru yang bergabung.</p>
+          </div>
+          <button @click="showCreateInviteModal = false" class="p-1 rounded text-slate-400 hover:text-white">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Generated Result Banner -->
+        <template x-if="createdInviteResult">
+          <div class="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/25 space-y-2">
+            <div class="flex items-center justify-between text-xs font-semibold text-emerald-400">
+              <span>Link Undangan Berhasil Dibuat</span>
+              <span class="font-mono" x-text="'Kode: ' + createdInviteResult.code"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="text" readonly :value="createdInviteResult.url"
+                     class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono selection:bg-blue-600">
+              <button @click="copyToClipboard(createdInviteResult.url, 'Link invite')"
+                      class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors whitespace-nowrap">
+                Salin Tautan
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <form @submit.prevent="createInviteAction()" class="space-y-4">
+          <!-- Target Channel -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-slate-300">Channel Tujuan Mendarat</label>
+            <select x-model="createInviteForm.channelId"
+                    class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">-- Gunakan Welcome/Rules Channel Otomatis --</option>
+              <template x-for="ch in channels" :key="ch.id">
+                <option :value="ch.id" x-text="'#' + ch.name"></option>
+              </template>
+            </select>
+          </div>
+
+          <!-- Auto-Roles Multi Select -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-slate-300">Pilih Role Otomatis (Auto-Assign)</label>
+            <div class="max-h-36 overflow-y-auto space-y-1 bg-surface-input border border-surface-border rounded-md p-2.5">
+              <template x-for="r in roles" :key="r.id">
+                <label class="flex items-center gap-2 text-xs text-slate-300 hover:text-white cursor-pointer py-0.5">
+                  <input type="checkbox" :value="r.id" x-model="createInviteForm.roleIds" class="rounded bg-surface-card border-surface-border text-blue-600 focus:ring-0">
+                  <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="'background-color: ' + (r.color || '#99aab5')"></span>
+                  <span x-text="r.name"></span>
+                </label>
+              </template>
+            </div>
+            <p class="text-[11px] text-slate-400">Pilih role yang otomatis langsung diberikan kepada siapa saja yang masuk melalui tautan ini.</p>
+          </div>
+
+          <!-- Label / Catatan -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-slate-300">Label / Keterangan Tautan (Opsional)</label>
+            <input type="text" x-model="createInviteForm.label" placeholder="Contoh: Peserta Gelombang 2, Link Juri & Mentor"
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+          </div>
+
+          <!-- Limits Grid -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-300">Batas Penggunaan</label>
+              <select x-model.number="createInviteForm.maxUses"
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option :value="0">Tanpa Batas (Unlimited)</option>
+                <option :value="1">1 Kali Pakai</option>
+                <option :value="5">5 Kali</option>
+                <option :value="10">10 Kali</option>
+                <option :value="25">25 Kali</option>
+                <option :value="50">50 Kali</option>
+                <option :value="100">100 Kali</option>
+              </select>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-300">Masa Berlaku (Expired)</label>
+              <select x-model.number="createInviteForm.maxAge"
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option :value="0">Permanen (Tidak Kedaluwarsa)</option>
+                <option :value="1800">30 Menit</option>
+                <option :value="3600">1 Jam</option>
+                <option :value="21600">6 Jam</option>
+                <option :value="43200">12 Jam</option>
+                <option :value="86400">1 Hari (24 Jam)</option>
+                <option :value="604800">7 Hari</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-surface-border flex items-center justify-end gap-2">
+            <button type="button" @click="showCreateInviteModal = false"
+                    class="px-3 py-1.5 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-300 text-xs transition-colors">
+              Tutup
+            </button>
+            <button type="submit" :disabled="creatingInvite"
+                    class="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5">
+              <i data-lucide="check" class="w-3.5 h-3.5" x-show="!creatingInvite"></i>
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin" x-show="creatingInvite"></i>
+              <span x-text="creatingInvite ? 'Membuat Tautan...' : 'Buat Link Sekarang'"></span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: CREATE / EDIT CHALLENGE -->
+    <!-- ========================================== -->
+    <div x-show="showChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="award" class="w-4 h-4 text-blue-400"></i>
+            <span x-text="challengeModalMode === 'edit' ? 'Edit Topik Challenge' : 'Tambah Topik Challenge Baru'"></span>
+          </h3>
+          <button @click="showChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Judul Challenge <span class="text-rose-400">*</span></label>
+            <input type="text" x-model="challengeForm.title" placeholder="Contoh: Earth Observation for Climate..."
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Deskripsi & Rincian Tantangan</label>
+            <textarea rows="5" x-model="challengeForm.description" placeholder="Jelaskan gambaran umum tantangan, tujuan, dan data yang dapat dimanfaatkan peserta..."
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="saveChallenge()" :disabled="savingChallenge"
+                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="savingChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: BROADCAST CHALLENGE TO DISCORD -->
+    <!-- ========================================== -->
+    <div x-show="showBroadcastChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showBroadcastChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-md w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="send" class="w-4 h-4 text-blue-400"></i>
+            <span>Kirim Daftar Challenge ke Discord</span>
+          </h3>
+          <button @click="showBroadcastChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <p class="text-slate-400">Pilih channel Discord target. Bot akan memposting embed resmi berisi seluruh daftar tantangan yang telah diinput.</p>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
+            <select x-model="broadcastChallengeChannelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">-- Pilih Text Channel --</option>
+              <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
+                <option :value="c.id" x-text="'#' + c.name"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showBroadcastChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="broadcastChallengesAction()" :disabled="broadcastingChallenge || !broadcastChallengeChannelId"
+                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="broadcastingChallenge ? 'Mengirim...' : 'Kirim Embed'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: FORCE REGISTER TIM (/team force-register) -->
+    <!-- ========================================== -->
+    <div x-show="showForceRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showForceRegisterModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="user-plus" class="w-4 h-4 text-blue-400"></i>
+            <span>Daftarkan Tim Baru (Force Register)</span>
+          </h3>
+          <button @click="showForceRegisterModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Nama Tim <span class="text-rose-400">*</span></label>
+            <input type="text" x-model="forceRegisterForm.name" placeholder="Contoh: AstroDevs"
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Ketua Tim (Leader Discord) <span class="text-rose-400">*</span></label>
+            <select x-model="forceRegisterForm.leaderId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">-- Pilih Member Discord --</option>
+              <template x-for="m in guildMembers" :key="m.id">
+                <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
+              </template>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 2 (Opsional)</label>
+              <select x-model="forceRegisterForm.member1Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="">-- Kosong --</option>
+                <template x-for="m in guildMembers" :key="m.id">
+                  <option :value="m.id" x-text="'@' + m.tag"></option>
+                </template>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 3 (Opsional)</label>
+              <select x-model="forceRegisterForm.member2Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="">-- Kosong --</option>
+                <template x-for="m in guildMembers" :key="m.id">
+                  <option :value="m.id" x-text="'@' + m.tag"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Topik Challenge (Opsional)</label>
+            <select x-model="forceRegisterForm.challengeId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">-- Belum Memilih --</option>
+              <template x-for="ch in challenges" :key="ch.id">
+                <option :value="ch.id" x-text="ch.title"></option>
+              </template>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Tautan Web NASA Space Apps (Opsional)</label>
+            <input type="url" x-model="forceRegisterForm.nsacLink" placeholder="https://www.spaceappschallenge.org/..."
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showForceRegisterModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="submitForceRegister()" :disabled="submittingForceRegister || !forceRegisterForm.name || !forceRegisterForm.leaderId"
+                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="submittingForceRegister ? 'Memproses...' : 'Daftarkan & Buat Channel'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: MANUAL MEMBER REGISTRATION (/register member) -->
+    <!-- ========================================== -->
+    <div x-show="showRegisterMemberModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showRegisterMemberModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+            <span>Registrasi Peserta Manual (/register member)</span>
+          </h3>
+          <button @click="showRegisterMemberModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <p class="text-slate-400">
+            Daftarkan peserta server secara langsung. Sistem akan memberikan role Participant (+ No-Team) dan mencabut role @Unregistered jika dicentang.
+          </p>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Cari / Pilih Member Discord <span class="text-rose-400">*</span></label>
+            <input type="text" x-model="memberSearchQuery" placeholder="Ketik nama user atau tag untuk memfilter list..."
+                   class="w-full bg-surface-base border border-surface-border rounded-md px-3 py-1.5 text-xs text-white placeholder-slate-400 mb-2 focus:outline-none focus:border-blue-500">
+            <select x-model="registerMemberForm.userId" size="5" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+              <template x-for="m in filteredGuildMembers" :key="m.id">
+                <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')' + (m.isUnregistered ? ' [Unregistered]' : (m.isParticipant ? ' [Peserta]' : ''))"></option>
+              </template>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Target Role Kustom (Opsional)</label>
+            <select x-model="registerMemberForm.roleId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">Default: Role Participant + No-Team</option>
+              <template x-for="r in roles" :key="r.id">
+                <option :value="r.id" x-text="'@' + r.name"></option>
+              </template>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" id="keepUnregisteredCheckbox" x-model="registerMemberForm.keepUnregistered"
+                   class="w-4 h-4 rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
+            <label for="keepUnregisteredCheckbox" class="text-xs text-slate-300 cursor-pointer">
+              Biarkan role @Unregistered tetap ada (jangan dicabut)
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showRegisterMemberModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="submitRegisterMember()" :disabled="registeringMember || !registerMemberForm.userId"
+                  class="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="registeringMember ? 'Mendaftarkan...' : 'Registrasikan Peserta'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: CREATE / EDIT CHALLENGE -->
+    <!-- ========================================== -->
+    <div x-show="showChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="award" class="w-4 h-4 text-blue-400"></i>
+            <span x-text="challengeModalMode === 'edit' ? 'Edit Topik Challenge' : 'Tambah Topik Challenge Baru'"></span>
+          </h3>
+          <button @click="showChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Judul Challenge <span class="text-rose-400">*</span></label>
+            <input type="text" x-model="challengeForm.title" placeholder="Contoh: Earth Observation for Climate..."
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Deskripsi & Rincian Tantangan</label>
+            <textarea rows="5" x-model="challengeForm.description" placeholder="Jelaskan gambaran umum tantangan, tujuan, dan data yang dapat dimanfaatkan peserta..."
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="saveChallenge()" :disabled="savingChallenge"
+                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="savingChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: BROADCAST CHALLENGE TO DISCORD -->
+    <!-- ========================================== -->
+    <div x-show="showBroadcastChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showBroadcastChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-md w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="send" class="w-4 h-4 text-blue-400"></i>
+            <span>Kirim Daftar Challenge ke Discord</span>
+          </h3>
+          <button @click="showBroadcastChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <p class="text-slate-400">Pilih channel Discord target. Bot akan memposting embed resmi berisi seluruh daftar tantangan yang telah diinput.</p>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
+            <select x-model="broadcastChallengeChannelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">-- Pilih Text Channel --</option>
+              <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
+                <option :value="c.id" x-text="'#' + c.name"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showBroadcastChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="broadcastChallengesAction()" :disabled="broadcastingChallenge || !broadcastChallengeChannelId"
+                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="broadcastingChallenge ? 'Mengirim...' : 'Kirim Embed'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: FORCE REGISTER TIM (/team force-register) -->
+    <!-- ========================================== -->
+    <div x-show="showForceRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showForceRegisterModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="user-plus" class="w-4 h-4 text-blue-400"></i>
+            <span>Daftarkan Tim Baru (Force Register)</span>
+          </h3>
+          <button @click="showForceRegisterModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Nama Tim <span class="text-rose-400">*</span></label>
+            <input type="text" x-model="forceRegisterForm.name" placeholder="Contoh: AstroDevs"
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Ketua Tim (Leader Discord) <span class="text-rose-400">*</span></label>
+            <select x-model="forceRegisterForm.leaderId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">-- Pilih Member Discord --</option>
+              <template x-for="m in guildMembers" :key="m.id">
+                <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
+              </template>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 2 (Opsional)</label>
+              <select x-model="forceRegisterForm.member1Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="">-- Kosong --</option>
+                <template x-for="m in guildMembers" :key="m.id">
+                  <option :value="m.id" x-text="'@' + m.tag"></option>
+                </template>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 3 (Opsional)</label>
+              <select x-model="forceRegisterForm.member2Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="">-- Kosong --</option>
+                <template x-for="m in guildMembers" :key="m.id">
+                  <option :value="m.id" x-text="'@' + m.tag"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Topik Challenge (Opsional)</label>
+            <select x-model="forceRegisterForm.challengeId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">-- Belum Memilih --</option>
+              <template x-for="ch in challenges" :key="ch.id">
+                <option :value="ch.id" x-text="ch.title"></option>
+              </template>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Tautan Web NASA Space Apps (Opsional)</label>
+            <input type="url" x-model="forceRegisterForm.nsacLink" placeholder="https://www.spaceappschallenge.org/..."
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showForceRegisterModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="submitForceRegister()" :disabled="submittingForceRegister || !forceRegisterForm.name || !forceRegisterForm.leaderId"
+                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="submittingForceRegister ? 'Memproses...' : 'Daftarkan & Buat Channel'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: MANUAL MEMBER REGISTRATION (/register member) -->
+    <!-- ========================================== -->
+    <div x-show="showRegisterMemberModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showRegisterMemberModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-surface-border pb-3">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+            <span>Registrasi Peserta Manual (/register member)</span>
+          </h3>
+          <button @click="showRegisterMemberModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <p class="text-slate-400">
+            Daftarkan peserta server secara langsung. Sistem akan memberikan role Participant (+ No-Team) dan mencabut role @Unregistered jika dicentang.
+          </p>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Cari / Pilih Member Discord <span class="text-rose-400">*</span></label>
+            <input type="text" x-model="memberSearchQuery" placeholder="Ketik nama user atau tag untuk memfilter list..."
+                   class="w-full bg-surface-base border border-surface-border rounded-md px-3 py-1.5 text-xs text-white placeholder-slate-400 mb-2 focus:outline-none focus:border-blue-500">
+            <select x-model="registerMemberForm.userId" size="5" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+              <template x-for="m in filteredGuildMembers" :key="m.id">
+                <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')' + (m.isUnregistered ? ' [Unregistered]' : (m.isParticipant ? ' [Peserta]' : ''))"></option>
+              </template>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Target Role Kustom (Opsional)</label>
+            <select x-model="registerMemberForm.roleId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+              <option value="">Default: Role Participant + No-Team</option>
+              <template x-for="r in roles" :key="r.id">
+                <option :value="r.id" x-text="'@' + r.name"></option>
+              </template>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" id="keepUnregisteredCheckbox" x-model="registerMemberForm.keepUnregistered"
+                   class="w-4 h-4 rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
+            <label for="keepUnregisteredCheckbox" class="text-xs text-slate-300 cursor-pointer">
+              Biarkan role @Unregistered tetap ada (jangan dicabut)
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
+          <button @click="showRegisterMemberModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
+          <button @click="submitRegisterMember()" :disabled="registeringMember || !registerMemberForm.userId"
+                  class="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            <span x-text="registeringMember ? 'Mendaftarkan...' : 'Registrasikan Peserta'"></span>
           </button>
         </div>
       </div>

@@ -107,3 +107,108 @@ export async function deleteInviteRole(inviteCode) {
     throw error;
   }
 }
+
+
+/**
+ * Record a member join event via invite code.
+ * @param {object} params
+ * @param {string} params.discordId
+ * @param {string} params.username
+ * @param {string} params.inviteCode
+ * @param {string} [params.inviterId]
+ * @param {string} [params.inviterTag]
+ * @param {string} [params.roleNames]
+ * @returns {Promise<object>}
+ */
+export async function recordMemberInviteJoin({ discordId, username, inviteCode, inviterId = null, inviterTag = null, roleNames = null }) {
+  const query = `
+    INSERT INTO member_invites (discord_id, username, invite_code, inviter_id, inviter_tag, role_names, joined_at)
+    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+    RETURNING *;
+  `;
+  try {
+    const { rows } = await pool.query(query, [
+      discordId,
+      username,
+      inviteCode,
+      inviterId,
+      inviterTag,
+      roleNames
+    ]);
+    return rows[0];
+  } catch (error) {
+    logger.error(`[inviteQueries.recordMemberInviteJoin] Failed: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Get recent member joins tracked by invites.
+ * @param {number} [limit=50]
+ * @returns {Promise<Array<object>>}
+ */
+export async function getRecentInviteJoins(limit = 50) {
+  const query = `
+    SELECT mi.*, ir.label as invite_label
+    FROM member_invites mi
+    LEFT JOIN invite_roles ir ON LOWER(mi.invite_code) = LOWER(ir.invite_code)
+    ORDER BY mi.joined_at DESC
+    LIMIT $1;
+  `;
+  try {
+    const { rows } = await pool.query(query, [limit]);
+    return rows;
+  } catch (error) {
+    logger.error(`[inviteQueries.getRecentInviteJoins] Failed: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Get leaderboard of top inviters from tracked joins.
+ * @param {number} [limit=10]
+ * @returns {Promise<Array<object>>}
+ */
+export async function getTopInviters(limit = 10) {
+  const query = `
+    SELECT 
+      COALESCE(inviter_id, 'unknown') as inviter_id,
+      COALESCE(inviter_tag, 'Unknown') as inviter_tag,
+      COUNT(*) as total_joins
+    FROM member_invites
+    WHERE inviter_id IS NOT NULL
+    GROUP BY inviter_id, inviter_tag
+    ORDER BY total_joins DESC
+    LIMIT $1;
+  `;
+  try {
+    const { rows } = await pool.query(query, [limit]);
+    return rows;
+  } catch (error) {
+    logger.error(`[inviteQueries.getTopInviters] Failed: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Get aggregated invite tracker stats.
+ * @returns {Promise<{ totalJoins: number, uniqueMembers: number }>}
+ */
+export async function getInviteTrackerStats() {
+  const query = `
+    SELECT 
+      COUNT(*) as total_joins,
+      COUNT(DISTINCT discord_id) as unique_members
+    FROM member_invites;
+  `;
+  try {
+    const { rows } = await pool.query(query);
+    return {
+      totalJoins: parseInt(rows[0]?.total_joins || 0, 10),
+      uniqueMembers: parseInt(rows[0]?.unique_members || 0, 10)
+    };
+  } catch (error) {
+    logger.error(`[inviteQueries.getInviteTrackerStats] Failed: ${error.message}`);
+    return { totalJoins: 0, uniqueMembers: 0 };
+  }
+}

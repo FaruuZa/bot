@@ -2,7 +2,7 @@ import { Events } from 'discord.js';
 import { GuildConfigService } from '../services/guildConfigService.js';
 import { getUserActiveTeamByDiscordId } from '../database/queries/memberQueries.js';
 import { upsertUser } from '../database/queries/userQueries.js';
-import { getInviteRoleByCode } from '../database/queries/inviteQueries.js';
+import { getInviteRoleByCode, recordMemberInviteJoin } from '../database/queries/inviteQueries.js';
 import { DiscordService } from '../services/discordService.js';
 import { AuditService } from '../services/auditService.js';
 import { AUDIT_ACTIONS } from '../config/constants.js';
@@ -111,6 +111,20 @@ export default {
               details: `User joined using participant invite link (\`${usedInvite.code}\`) and was automatically assigned @Participant + @No-Team.`
             });
             assignedRoleName = 'Participant';
+          }
+
+          // Record join in invite tracker
+          try {
+            await recordMemberInviteJoin({
+              discordId: member.id,
+              username: member.user.tag || member.user.username,
+              inviteCode: usedInvite.code,
+              inviterId: usedInvite.inviter?.id || null,
+              inviterTag: usedInvite.inviter?.tag || usedInvite.inviter?.username || null,
+              roleNames: assignedRoleName || null
+            });
+          } catch (trackErr) {
+            logger.warn(`[InviteTracker] Could not record join for ${member.user.tag}: ${trackErr.message}`);
           }
         }
 

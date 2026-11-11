@@ -229,6 +229,7 @@ export default {
         const rolesSection = [];
         const channelsSection = [];
         const categoriesSection = [];
+        const systemSection = [];
 
         for (const [key, def] of Object.entries(CONFIG_DEFINITIONS)) {
           const value = allConfigs[key];
@@ -238,7 +239,7 @@ export default {
             if (def.type === 'ROLE') {
               const role = guild.roles.cache.get(value);
               displayValue = role ? `<@&${value}> (\`${value}\`) ✅` : `\`${value}\` (Role not found) ⚠️`;
-            } else if (def.type === 'CHANNEL' || def.type === 'CATEGORY') {
+            } else if (def.type === 'CHANNEL' || def.type === 'VOICE_CHANNEL' || def.type === 'CATEGORY') {
               const ch = guild.channels.cache.get(value);
               displayValue = ch ? `<#${value}> (\`${value}\`) ✅` : `\`${value}\` (Channel not found) ⚠️`;
             } else {
@@ -249,8 +250,9 @@ export default {
           const line = `**${def.label}**\n\`${key}\` → ${displayValue}`;
 
           if (def.type === 'ROLE') rolesSection.push(line);
-          else if (def.type === 'CHANNEL') channelsSection.push(line);
-          else categoriesSection.push(line);
+          else if (def.type === 'CHANNEL' || def.type === 'VOICE_CHANNEL') channelsSection.push(line);
+          else if (def.type === 'CATEGORY') categoriesSection.push(line);
+          else systemSection.push(line);
         }
 
         const embed = new EmbedBuilder()
@@ -263,7 +265,8 @@ export default {
           .addFields(
             { name: '🎭 Roles', value: rolesSection.join('\n\n') || 'None', inline: false },
             { name: '💬 Channels', value: channelsSection.join('\n\n') || 'None', inline: false },
-            { name: '📁 Categories', value: categoriesSection.join('\n\n') || 'None', inline: false }
+            { name: '📁 Categories', value: categoriesSection.join('\n\n') || 'None', inline: false },
+            { name: '⚙️ System & Schedule', value: systemSection.join('\n\n') || 'None', inline: false }
           )
           .setFooter({ text: 'NSAC Jember Bot Config' })
           .setTimestamp();
@@ -295,7 +298,7 @@ export default {
           targetId = channelOption.id;
           displayTarget = `<#${targetId}> (\`${targetId}\`)`;
         } else if (rawIdOption) {
-          if (def.type === 'TEXT') {
+          if (def.type === 'TEXT' || def.type === 'DATETIME' || def.type === 'BOOLEAN' || def.type === 'JSON') {
             targetId = rawIdOption.trim();
             displayTarget = `\`${targetId}\``;
           } else {

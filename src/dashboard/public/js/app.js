@@ -99,6 +99,85 @@ function dashboardApp() {
     savingPresence: false,
     loadingPresence: false,
 
+    // Challenges Management (/challenge)
+    challenges: [],
+    loadingChallenges: false,
+    challengeSearch: '',
+    showChallengeModal: false,
+    challengeModalMode: 'create', // 'create' | 'edit'
+    challengeForm: {
+      id: null,
+      title: '',
+      description: ''
+    },
+    savingChallenge: false,
+    deletingChallengeId: null,
+    showBroadcastChallengeModal: false,
+    broadcastChallengeChannelId: '',
+    broadcastingChallenge: false,
+
+    // Manual Member Registration (/register member)
+    showRegisterMemberModal: false,
+    guildMembers: [],
+    loadingGuildMembers: false,
+    memberSearchQuery: '',
+    registerMemberForm: {
+      userId: '',
+      roleId: '',
+      keepUnregistered: false
+    },
+    registeringMember: false,
+
+    // Channel Message Purge Tool (/purge)
+    purgeForm: {
+      channelId: '',
+      amount: 10,
+      userId: ''
+    },
+    purgingMessages: false,
+
+    // Team Advanced Actions (/team purge-disbanded, force-register, panel)
+    purgingDisbandedTeams: false,
+    showForceRegisterModal: false,
+    submittingForceRegister: false,
+    forceRegisterForm: {
+      name: '',
+      leaderId: '',
+      member1Id: '',
+      member2Id: '',
+      challengeId: '',
+      nsacLink: ''
+    },
+    deployingTeamPanel: false,
+    savingTeamChallenge: false,
+
+    // Invite Tracker state
+    invites: [],
+    recentInviteJoins: [],
+    topInviters: [],
+    inviteStats: {
+      totalInvites: 0,
+      activeInvites: 0,
+      totalUses: 0,
+      dynamicCount: 0,
+      totalJoinsTracked: 0,
+      uniqueMembersTracked: 0
+    },
+    inviteSubTab: 'links', // 'links' | 'joins' | 'leaderboard'
+    searchInvite: '',
+    inviteFilter: 'ALL', // 'ALL' | 'DYNAMIC' | 'STANDARD' | 'ACTIVE' | 'EXPIRED'
+    loadingInvites: false,
+    showCreateInviteModal: false,
+    creatingInvite: false,
+    createInviteForm: {
+      roleIds: [],
+      channelId: '',
+      label: '',
+      maxUses: 0,
+      maxAge: 0
+    },
+    createdInviteResult: null,
+
     tickets: [],
     openTicketsCount: 0,
     ticketFilterStatus: 'ALL',
@@ -174,13 +253,16 @@ function dashboardApp() {
       { command: '/team leave', scope: 'Peserta', desc: 'Keluar secara mandiri dari tim saat ini (melepas role & akses channel).' },
       { command: '/team kick <user>', scope: 'Ketua Tim', desc: 'Mengeluarkan anggota dari tim kompetisi.' },
       { command: '/team info [tim]', scope: 'Semua', desc: 'Melihat ringkasan anggota tim, tautan resmi web NASA, dan status rekrutmen.' },
-      { command: '/faq create / edit / sync', scope: 'Panitia', desc: 'Membuat dan mengedit embed FAQ / Peraturan langsung di Discord dengan update in-place.' },
-      { command: '/embed create / edit / sync', scope: 'Panitia', desc: 'Alias resmi /faq untuk mengelola Dynamic Live Embeds langsung dari Discord.' },
-      { command: '/announce', scope: 'Panitia', desc: 'Mengirimkan siaran pengumuman berformat embed kaya ke channel broadcast.' },
-      { command: '/ticket create', scope: 'Peserta', desc: 'Membuka tiket baru untuk registrasi tim manual atau bantuan teknis ke panitia.' },
+      { command: '/team recruit', scope: 'Ketua Tim', desc: 'Membuka lowongan slot anggota tim di channel #recruitment-board.' },
+      { command: '/team set-link <url>', scope: 'Ketua Tim', desc: 'Menautkan URL resmi profil tim dari spaceappschallenge.org.' },
+      { command: '/ticket create <type>', scope: 'Semua', desc: 'Membuka tiket baru untuk bantuan teknis panitia atau pendaftaran tim.' },
       { command: '/ticket close', scope: 'Panitia/Ketua', desc: 'Menutup tiket aktif dan merapikan channel tiket sementara di server.' },
-      { command: '/sync-nasa', scope: 'Admin', desc: 'Memicu sinkronisasi manual profil & lowongan tim dari spaceappschallenge.org.' },
-      { command: '/help', scope: 'Semua', desc: 'Menampilkan panduan command interaktif dan informasi dasar event hackathon.' }
+      { command: '/challenge list / detail', scope: 'Semua', desc: 'Melihat daftar seluruh challenge resmi Space Apps yang tersedia.' },
+      { command: '/invite create / list / delete', scope: 'Panitia', desc: 'Membuat dan mengelola link undangan server dengan auto-role otomatis.' },
+      { command: '/sync-nasa [mode]', scope: 'Panitia', desc: 'Memicu sinkronisasi manual profil, tantangan, dan lowongan tim dari spaceappschallenge.org.' },
+      { command: '/announce', scope: 'Panitia', desc: 'Mengirimkan siaran pengumuman berformat embed kaya ke channel broadcast.' },
+      { command: '/purge <amount> [user]', scope: 'Panitia', desc: 'Menghapus pesan secara massal di channel aktif.' },
+      { command: '/help [kategori]', scope: 'Semua', desc: 'Menampilkan panduan command interaktif dan informasi dasar event hackathon.' }
     ],
     faqItems: [
       {
@@ -256,6 +338,12 @@ function dashboardApp() {
         }
         if (val === 'teams' && this.teamSubTab === 'web') {
           this.fetchWebTeams();
+        }
+        if (val === 'invites') {
+          this.fetchInvites();
+        }
+        if (val === 'challenges') {
+          this.fetchChallenges();
         }
         this.$nextTick(() => {
           if (window.lucide) window.lucide.createIcons();
@@ -350,7 +438,10 @@ function dashboardApp() {
         this.fetchTickets(),
         this.fetchWebTeams(),
         this.fetchDynamicEmbeds(),
-        this.fetchBotPresence()
+        this.fetchBotPresence(),
+        this.fetchInvites(),
+        this.fetchChallenges(),
+        this.fetchGuildMembers()
       ]);
       this.$nextTick(() => {
         if (window.lucide) window.lucide.createIcons();
@@ -1332,6 +1423,531 @@ function dashboardApp() {
       this.saveBotPresence();
     },
 
+    // ==========================================
+    // INVITE TRACKER METHODS
+    // ==========================================
+    async fetchInvites() {
+      try {
+        this.loadingInvites = true;
+        const res = await fetch('/api/invites', {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.invites = data.invites || [];
+          this.recentInviteJoins = data.recentJoins || [];
+          this.topInviters = data.topInviters || [];
+          this.inviteStats = data.stats || this.inviteStats;
+        }
+      } catch (e) {
+        this.showToast('error', 'Gagal Memuat Undangan', e.message);
+      } finally {
+        this.loadingInvites = false;
+        this.$nextTick(() => {
+          if (window.lucide) window.lucide.createIcons();
+        });
+      }
+    },
+
+    get filteredInvites() {
+      let list = this.invites || [];
+      if (this.inviteFilter === 'DYNAMIC') {
+        list = list.filter((i) => i.isDynamic);
+      } else if (this.inviteFilter === 'STANDARD') {
+        list = list.filter((i) => !i.isDynamic);
+      } else if (this.inviteFilter === 'ACTIVE') {
+        list = list.filter((i) => !i.isExpired);
+      } else if (this.inviteFilter === 'EXPIRED') {
+        list = list.filter((i) => i.isExpired);
+      }
+
+      if (this.searchInvite && this.searchInvite.trim()) {
+        const q = this.searchInvite.toLowerCase().trim();
+        list = list.filter((i) =>
+          i.code.toLowerCase().includes(q) ||
+          (i.label && i.label.toLowerCase().includes(q)) ||
+          (i.createdBy && i.createdBy.toLowerCase().includes(q)) ||
+          (i.channel && i.channel.name && i.channel.name.toLowerCase().includes(q)) ||
+          (i.roles && i.roles.some((r) => r.name.toLowerCase().includes(q)))
+        );
+      }
+      return list;
+    },
+
+    openCreateInviteModal() {
+      this.createInviteForm = {
+        roleIds: [],
+        channelId: this.channels.length > 0 ? this.channels[0].id : '',
+        label: '',
+        maxUses: 0,
+        maxAge: 0
+      };
+      this.createdInviteResult = null;
+      this.showCreateInviteModal = true;
+      this.$nextTick(() => {
+        if (window.lucide) window.lucide.createIcons();
+      });
+    },
+
+    async createInviteAction() {
+      if (!this.createInviteForm.roleIds || this.createInviteForm.roleIds.length === 0) {
+        this.showToast('error', 'Pilih Role', 'Pilih minimal satu role untuk link invite otomatis.');
+        return;
+      }
+
+      try {
+        this.creatingInvite = true;
+        const res = await fetch('/api/invites', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(this.createInviteForm)
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.createdInviteResult = data.invite;
+          this.showToast('success', 'Berhasil', data.message || 'Link invite berhasil dibuat.');
+          await this.fetchInvites();
+        } else {
+          this.showToast('error', 'Gagal', data.error);
+        }
+      } catch (e) {
+        this.showToast('error', 'Gagal', e.message);
+      } finally {
+        this.creatingInvite = false;
+      }
+    },
+
+    async deleteInviteAction(code) {
+      if (!confirm(`Hapus link undangan dengan kode "${code}" dari server Discord?`)) return;
+
+      try {
+        const res = await fetch(`/api/invites/${code}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.showToast('success', 'Terhapus', data.message || 'Link invite berhasil dihapus.');
+          await this.fetchInvites();
+        } else {
+          this.showToast('error', 'Gagal', data.error);
+        }
+      } catch (e) {
+        this.showToast('error', 'Gagal', e.message);
+      }
+    },
+
+    copyToClipboard(text, label = 'Tautan') {
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => {
+            this.showToast('success', 'Disalin', `${label} berhasil disalin ke clipboard.`);
+          })
+          .catch(() => {
+            this.fallbackCopyText(text, label);
+          });
+      } else {
+        this.fallbackCopyText(text, label);
+      }
+    },
+
+    // ==========================================
+    // CHALLENGE MANAGEMENT METHODS (/challenge)
+    // ==========================================
+    async fetchChallenges() {
+      this.loadingChallenges = true;
+      try {
+        const res = await fetch('/api/challenges', {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.challenges = data.challenges || [];
+        }
+      } catch (err) {
+        console.error('fetchChallenges error:', err);
+      } finally {
+        this.loadingChallenges = false;
+        this.$nextTick(() => {
+          if (window.lucide) window.lucide.createIcons();
+        });
+      }
+    },
+
+    openCreateChallengeModal() {
+      this.challengeModalMode = 'create';
+      this.challengeForm = { id: null, title: '', description: '' };
+      this.showChallengeModal = true;
+    },
+
+    openEditChallengeModal(ch) {
+      this.challengeModalMode = 'edit';
+      this.challengeForm = {
+        id: ch.id,
+        title: ch.title || '',
+        description: ch.description || ''
+      };
+      this.showChallengeModal = true;
+    },
+
+    async saveChallenge() {
+      if (!this.challengeForm.title || this.challengeForm.title.trim().length < 3) {
+        return this.showToast('error', 'Validasi Gagal', 'Judul challenge minimal 3 karakter.');
+      }
+
+      this.savingChallenge = true;
+      try {
+        const isEdit = this.challengeModalMode === 'edit';
+        const url = isEdit ? `/api/challenges/${this.challengeForm.id}` : '/api/challenges';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify({
+            title: this.challengeForm.title.trim(),
+            description: this.challengeForm.description ? this.challengeForm.description.trim() : ''
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Berhasil', data.message || 'Challenge berhasil disimpan.');
+          this.showChallengeModal = false;
+          await this.fetchChallenges();
+        } else {
+          this.showToast('error', 'Gagal Menyimpan', data.error || 'Terjadi kesalahan sistem.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.savingChallenge = false;
+      }
+    },
+
+    async deleteChallengeAction(ch) {
+      if (!confirm(`Apakah Anda yakin ingin menghapus challenge "${ch.title}"?`)) return;
+
+      this.deletingChallengeId = ch.id;
+      try {
+        const res = await fetch(`/api/challenges/${ch.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Dihapus', data.message || 'Challenge berhasil dihapus.');
+          await this.fetchChallenges();
+        } else {
+          this.showToast('error', 'Gagal Menghapus', data.error || 'Terjadi kesalahan sistem.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.deletingChallengeId = null;
+      }
+    },
+
+    async broadcastChallengesAction() {
+      if (!this.broadcastChallengeChannelId) {
+        return this.showToast('error', 'Pilih Channel', 'Silakan pilih channel Discord target pengumuman.');
+      }
+
+      this.broadcastingChallenge = true;
+      try {
+        const res = await fetch('/api/challenges/broadcast', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify({ channelId: this.broadcastChallengeChannelId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Terkirim', data.message || 'Daftar challenge berhasil diposting ke Discord.');
+          this.showBroadcastChallengeModal = false;
+        } else {
+          this.showToast('error', 'Gagal Mengirim', data.error || 'Terjadi kesalahan sistem.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.broadcastingChallenge = false;
+      }
+    },
+
+    // ==========================================
+    // GUILD MEMBERS & MANUAL REGISTRATION (/register member)
+    // ==========================================
+    async fetchGuildMembers() {
+      this.loadingGuildMembers = true;
+      try {
+        const res = await fetch('/api/guild-members', {
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.guildMembers = data.members || [];
+        }
+      } catch (err) {
+        console.error('fetchGuildMembers error:', err);
+      } finally {
+        this.loadingGuildMembers = false;
+      }
+    },
+
+    openRegisterMemberModal() {
+      this.registerMemberForm = {
+        userId: '',
+        roleId: '',
+        keepUnregistered: false
+      };
+      this.memberSearchQuery = '';
+      this.showRegisterMemberModal = true;
+      if (this.guildMembers.length === 0) {
+        this.fetchGuildMembers();
+      }
+    },
+
+    async submitRegisterMember() {
+      if (!this.registerMemberForm.userId) {
+        return this.showToast('error', 'Pilih Member', 'Silakan pilih member server yang ingin didaftarkan.');
+      }
+
+      this.registeringMember = true;
+      try {
+        const res = await fetch('/api/members/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify(this.registerMemberForm)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Registrasi Berhasil', data.message);
+          this.showRegisterMemberModal = false;
+          this.fetchGuildMembers();
+          if (this.activeTab === 'audit') this.fetchAuditLogs();
+        } else {
+          this.showToast('error', 'Registrasi Gagal', data.error || 'Terjadi kesalahan.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.registeringMember = false;
+      }
+    },
+
+    // ==========================================
+    // CHANNEL MESSAGE PURGE TOOL (/purge)
+    // ==========================================
+    async submitPurgeMessages() {
+      if (!this.purgeForm.channelId) {
+        return this.showToast('error', 'Pilih Channel', 'Silakan tentukan channel Discord yang ingin dibersihkan.');
+      }
+      const amount = parseInt(this.purgeForm.amount, 10);
+      if (isNaN(amount) || amount < 1 || amount > 100) {
+        return this.showToast('error', 'Jumlah Pesan', 'Jumlah pesan harus antara 1 sampai 100.');
+      }
+
+      if (!confirm(`Apakah Anda yakin ingin menghapus ${amount} pesan di channel tersebut?`)) return;
+
+      this.purgingMessages = true;
+      try {
+        const res = await fetch('/api/channels/purge', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify({
+            channelId: this.purgeForm.channelId,
+            amount,
+            userId: this.purgeForm.userId ? this.purgeForm.userId.trim() : null
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Pesan Dibersihkan', data.message || `Berhasil menghapus ${data.deletedCount} pesan.`);
+          this.purgeForm.amount = 10;
+          this.purgeForm.userId = '';
+          if (this.activeTab === 'audit') this.fetchAuditLogs();
+        } else {
+          this.showToast('error', 'Gagal Menghapus', data.error || 'Terjadi kesalahan.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.purgingMessages = false;
+      }
+    },
+
+    // ==========================================
+    // ADVANCED TEAM ACTIONS (/team subcommands)
+    // ==========================================
+    async purgeDisbandedTeamsAction() {
+      if (!confirm('Apakah Anda yakin ingin menghapus permanen semua tim berstatus DISBANDED dari database?')) return;
+
+      this.purgingDisbandedTeams = true;
+      try {
+        const res = await fetch('/api/teams/purge-disbanded', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Selesai', data.message);
+          await this.fetchTeams();
+        } else {
+          this.showToast('error', 'Gagal', data.error || 'Terjadi kesalahan sistem.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.purgingDisbandedTeams = false;
+      }
+    },
+
+    openForceRegisterModal() {
+      this.forceRegisterForm = {
+        name: '',
+        leaderId: '',
+        member1Id: '',
+        member2Id: '',
+        challengeId: '',
+        nsacLink: ''
+      };
+      this.showForceRegisterModal = true;
+      if (this.guildMembers.length === 0) this.fetchGuildMembers();
+      if (this.challenges.length === 0) this.fetchChallenges();
+    },
+
+    async submitForceRegister() {
+      if (!this.forceRegisterForm.name || this.forceRegisterForm.name.trim().length < 3) {
+        return this.showToast('error', 'Validasi', 'Nama tim minimal 3 karakter.');
+      }
+      if (!this.forceRegisterForm.leaderId) {
+        return this.showToast('error', 'Pilih Leader', 'Ketua tim wajib dipilih.');
+      }
+
+      const memberIds = [this.forceRegisterForm.member1Id, this.forceRegisterForm.member2Id].filter(Boolean);
+
+      this.submittingForceRegister = true;
+      try {
+        const res = await fetch('/api/teams/force-register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify({
+            name: this.forceRegisterForm.name.trim(),
+            leaderId: this.forceRegisterForm.leaderId,
+            memberIds,
+            challengeId: this.forceRegisterForm.challengeId || null,
+            nsacLink: this.forceRegisterForm.nsacLink ? this.forceRegisterForm.nsacLink.trim() : null
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Tim Terdaftar', data.message || 'Tim baru berhasil didaftarkan dan diaktifkan.');
+          this.showForceRegisterModal = false;
+          await this.fetchTeams();
+        } else {
+          this.showToast('error', 'Gagal Mendaftar', data.error || 'Terjadi kesalahan sistem.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.submittingForceRegister = false;
+      }
+    },
+
+    async deployTeamPanelAction() {
+      const regChannelId = this.configs.find(c => c.key === 'REGISTRATION_PANEL_CHANNEL_ID')?.value;
+      const targetChannelId = prompt('Masukkan Channel ID untuk deploy Team Panel (biarkan kosong untuk menggunakan REGISTRATION_PANEL_CHANNEL_ID):', regChannelId || '');
+      if (targetChannelId === null) return; // User cancelled
+
+      this.deployingTeamPanel = true;
+      try {
+        const res = await fetch('/api/teams/deploy-panel', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify({ channelId: targetChannelId || regChannelId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Panel Terkirim', data.message);
+        } else {
+          this.showToast('error', 'Gagal Deploy', data.error || 'Terjadi kendala saat mengirim panel.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.deployingTeamPanel = false;
+      }
+    },
+
+    async setTeamChallengeAction(teamId, challengeId) {
+      this.savingTeamChallenge = true;
+      try {
+        const res = await fetch(`/api/teams/${teamId}/challenge`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          },
+          body: JSON.stringify({ challengeId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.showToast('success', 'Topik Challenge Disimpan', data.message);
+          await this.fetchTeams();
+          if (this.selectedTeam && this.selectedTeam.id === teamId) {
+            this.selectedTeam.challenge_id = challengeId ? parseInt(challengeId, 10) : null;
+            const ch = this.challenges.find(c => c.id == challengeId);
+            this.selectedTeam.challenge_title = ch ? ch.title : null;
+          }
+        } else {
+          this.showToast('error', 'Gagal Menyimpan', data.error || 'Terjadi kesalahan sistem.');
+        }
+      } catch (err) {
+        this.showToast('error', 'Gagal', err.message);
+      } finally {
+        this.savingTeamChallenge = false;
+      }
+    },
+
+        fallbackCopyText(text, label) {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.select();
+      try {
+        document.execCommand('copy');
+        this.showToast('success', 'Disalin', `${label} berhasil disalin ke clipboard.`);
+      } catch (e) {
+        this.showToast('error', 'Gagal Menyalin', 'Silakan salin teks secara manual.');
+      }
+      document.body.removeChild(el);
+    },
+
     getResolvedPreview(text) {
       if (!text) return '';
       const v = this.livePresenceVariables || {};
@@ -1355,7 +1971,28 @@ function dashboardApp() {
       );
     },
 
-    get filteredCommands() {
+    get filteredChallenges() {
+      let list = this.challenges || [];
+      if (!this.challengeSearch.trim()) return list;
+      const q = this.challengeSearch.toLowerCase();
+      return list.filter(c =>
+        (c.title && c.title.toLowerCase().includes(q)) ||
+        (c.description && c.description.toLowerCase().includes(q))
+      );
+    },
+
+    get filteredGuildMembers() {
+      let list = this.guildMembers || [];
+      if (!this.memberSearchQuery.trim()) return list;
+      const q = this.memberSearchQuery.toLowerCase();
+      return list.filter(m =>
+        (m.username && m.username.toLowerCase().includes(q)) ||
+        (m.displayName && m.displayName.toLowerCase().includes(q)) ||
+        (m.id && m.id.includes(q))
+      );
+    },
+
+        get filteredCommands() {
       let list = this.commandsList || [];
       if (!this.faqSearch.trim()) return list;
       const q = this.faqSearch.toLowerCase();

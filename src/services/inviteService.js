@@ -186,5 +186,119 @@ export class InviteService {
     const { invite } = await this.createDynamicInvite(guild, participantRoleId, channel, 'Dashboard', options);
     return invite;
   }
+
+  /**
+   * Get all server invites combined with database dynamic role mappings and stats.
+   * @param {import('discord.js').Guild} guild 
+   * @returns {Promise<Array<object>>}
+   */
+  static async getAllGuildInvitesWithStats(guild) {
+    if (!guild) return [];
+
+    let discordInvites = new Map();
+    try {
+      const fetched = await guild.invites.fetch().catch(() => null);
+      if (fetched) discordInvites = fetched;
+    } catch (err) {
+      logger.warn(`[InviteService] Error fetching invites for guild "${guild.name}": ${err.message}`);
+    }
+
+    const dbInvites = await getAllInviteRoles();
+    const dbInviteMap = new Map();
+    for (const d of dbInvites) {
+      dbInviteMap.set(d.invite_code.toLowerCase(), d);
+    }
+
+    const legacyParticipantCode = (GuildConfigService.get('PARTICIPANT_INVITE_CODE') || '').toLowerCase();
+    const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+
+    const result = [];
+    const seenCodes = new Set();
+
+    // 1. Process active Discord invites
+    for (const [code, inv] of discordInvites) {
+      seenCodes.add(code.toLowerCase());
+      const dbMapping = dbInviteMap.get(code.toLowerCase());
+
+      const rawRoleIds = dbMapping?.role_ids && Array.isArray(dbMapping.role_ids) && dbMapping.role_ids.length > 0
+        ? [...dbMapping.role_ids]
+        : (dbMapping?.role_id ? [dbMapping.role_id] : []);
+
+      if (legacyParticipantCode && code.toLowerCase() === legacyParticipantCode && participantRoleId && !rawRoleIds.includes(participantRoleId)) {
+        rawRoleIds.push(participantRoleId);
+      }
+
+      const roles = rawRoleIds.map((rId) => {
+        const role = guild.roles.cache.get(rId);
+        return {
+          id: rId,
+          name: role?.name || rId,
+          color: role?.hexColor || '#99aab5'
+        };
+      });
+
+      result.push({
+        code: inv.code,
+        url: inv.url,
+        channel: inv.channel ? { id: inv.channel.id, name: inv.channel.name } : null,
+        inviter: inv.inviter ? {
+          id: inv.inviter.id,
+          username: inv.inviter.username,
+          tag: inv.inviter.tag || inv.inviter.username,
+          avatar: inv.inviter.displayAvatarURL ? inv.inviter.displayAvatarURL() : null
+        } : null,
+        uses: inv.uses || 0,
+        maxUses: inv.maxUses || 0,
+        maxAge: inv.maxAge || 0,
+        expiresAt: inv.expiresAt ? inv.expiresAt.toISOString() : null,
+        createdAt: inv.createdAt ? inv.createdAt.toISOString() : null,
+        isDynamic: roles.length > 0 || !!dbMapping,
+        roles,
+        label: dbMapping?.label || (roles.length > 0 ? roles.map(r => r.name).join(' + ') : null),
+        createdBy: dbMapping?.created_by || (inv.inviter ? inv.inviter.username : 'Unknown'),
+        isExpired: inv.expiresAt ? inv.expiresAt.getTime() <= Date.now() : false
+      });
+    }
+
+    // 2. Include any DB invites that may have expired or were deleted from Discord
+    for (const d of dbInvites) {
+      if (!seenCodes.has(d.invite_code.toLowerCase())) {
+        const rawRoleIds = d.role_ids && Array.isArray(d.role_ids) && d.role_ids.length > 0
+          ? d.role_ids
+          : (d.role_id ? [d.role_id] : []);
+
+        const roles = rawRoleIds.map((rId) => {
+          const role = guild.roles.cache.get(rId);
+          return {
+            id: rId,
+            name: role?.name || rId,
+            color: role?.hexColor || '#99aab5'
+          };
+        });
+
+        const ch = d.channel_id ? guild.channels.cache.get(d.channel_id) : null;
+
+        result.push({
+          code: d.invite_code,
+          url: `https://discord.gg/${d.invite_code}`,
+          channel: ch ? { id: ch.id, name: ch.name } : (d.channel_id ? { id: d.channel_id, name: 'unknown' } : null),
+          inviter: null,
+          uses: 0,
+          maxUses: 0,
+          maxAge: 0,
+          expiresAt: null,
+          createdAt: d.created_at ? new Date(d.created_at).toISOString() : null,
+          isDynamic: true,
+          roles,
+          label: d.label || (roles.length > 0 ? roles.map(r => r.name).join(' + ') : 'Auto-Role'),
+          createdBy: d.created_by || 'Staff',
+          isExpired: true
+        });
+      }
+    }
+
+    result.sort((a, b) => (b.uses || 0) - (a.uses || 0));
+    return result;
+  }
 }
 

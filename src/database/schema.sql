@@ -212,3 +212,19 @@ CREATE TABLE IF NOT EXISTS web_teams (
 );
 CREATE INDEX IF NOT EXISTS idx_web_teams_is_recruiting ON web_teams(is_recruiting);
 CREATE INDEX IF NOT EXISTS idx_web_teams_present ON web_teams(present_in_latest_sync);
+
+
+-- 13. Member Invites Table (Invite tracker & join audit)
+CREATE TABLE IF NOT EXISTS member_invites (
+    id SERIAL PRIMARY KEY,
+    discord_id VARCHAR(32) NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    invite_code VARCHAR(32) NOT NULL,
+    inviter_id VARCHAR(32),
+    inviter_tag VARCHAR(255),
+    role_names TEXT,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_member_invites_code ON member_invites(invite_code);
+CREATE INDEX IF NOT EXISTS idx_member_invites_discord_id ON member_invites(discord_id);
+CREATE INDEX IF NOT EXISTS idx_member_invites_joined_at ON member_invites(joined_at DESC);

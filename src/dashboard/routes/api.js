@@ -12,8 +12,18 @@ import { AuditService } from '../../services/auditService.js';
 import { AUDIT_ACTIONS } from '../../config/constants.js';
 import { closeRecruitment, getRecruitmentById, getOpenRecruitmentByTeam } from '../../database/queries/recruitmentQueries.js';
 import { TeamService } from '../../services/teamService.js';
-import { getTeamById } from '../../database/queries/teamQueries.js';
+import { getTeamById, updateTeamChallenge, purgeDisbandedTeams } from '../../database/queries/teamQueries.js';
 import { getActiveTeamMembers } from '../../database/queries/memberQueries.js';
+import { upsertUser } from '../../database/queries/userQueries.js';
+import { ChallengeService } from '../../services/challengeService.js';
+import {
+  getAllChallenges,
+  getChallengeById,
+  createChallenge,
+  updateChallenge,
+  deleteChallenge
+} from '../../database/queries/challengeQueries.js';
+import { buildTeamPanelDashboard } from '../../commands/team/team.js';
 import { TicketService } from '../../services/ticketService.js';
 import { getTickets, getTicketById, countOpenTickets } from '../../database/queries/ticketQueries.js';
 import { getAuditLogs } from '../../database/queries/auditQueries.js';
@@ -27,6 +37,8 @@ import {
 } from '../../database/queries/faqQueries.js';
 import { FAQService } from '../../services/faqService.js';
 import { CountdownService } from '../../services/countdownService.js';
+import { InviteService } from '../../services/inviteService.js';
+import { getRecentInviteJoins, getTopInviters, getInviteTrackerStats } from '../../database/queries/inviteQueries.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)
@@ -923,6 +935,170 @@ export function createApiRouter(client) {
     }
   });
 
+  // ==========================================
+  // Team Advanced Staff Endpoints (/team subcommands)
+  // ==========================================
+
+  // Set / Update Team Challenge (/team set-challenge)
+  router.post('/teams/:id/challenge', requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.id, 10);
+      const { challengeId } = req.body || {};
+      const parsedChallengeId = challengeId ? parseInt(challengeId, 10) : null;
+
+      const team = await getTeamById(teamId);
+      if (!team) return res.status(404).json({ success: false, error: 'Tim tidak ditemukan.' });
+
+      await updateTeamChallenge(teamId, parsedChallengeId);
+
+      const guild = getGuild();
+      if (guild && team.text_channel_id) {
+        const teamChannel = guild.channels.cache.get(team.text_channel_id);
+        if (teamChannel) {
+          const chObj = parsedChallengeId ? await getChallengeById(parsedChallengeId) : null;
+          const challengeTitle = chObj ? chObj.title : 'Belum Memilih Challenge';
+          await teamChannel.setTopic(`Tim: ${team.name} | Topik: ${challengeTitle}`).catch(() => {});
+        }
+      }
+
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.TEAM_CHALLENGE_UPDATED || 'TEAM_CHALLENGE_UPDATED',
+        title: 'Topik Challenge Tim Diperbarui',
+        actorTag: req.user?.username ? `@${req.user.username}` : 'Web Dashboard',
+        details: `Topik challenge untuk tim "${team.name}" diperbarui ke ID ${parsedChallengeId || 'None'} oleh Web Dashboard.`
+      });
+
+      return res.json({ success: true, message: 'Challenge tim berhasil diperbarui.' });
+    } catch (err) {
+      logger.error(`[Dashboard API] /teams/:id/challenge error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Purge Disbanded Teams (/team purge-disbanded)
+  router.post('/teams/purge-disbanded', requireAuth, async (req, res) => {
+    try {
+      const purgedTeams = await purgeDisbandedTeams();
+      const count = purgedTeams.length;
+
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.TEAMS_PURGED || 'TEAMS_PURGED',
+        title: 'Pembersihan Tim Bubar via Dashboard',
+        actorTag: req.user?.username ? `@${req.user.username}` : 'Web Dashboard',
+        details: `${count} tim berstatus DISBANDED dihapus permanen dari database oleh Web Dashboard.`
+      });
+
+      return res.json({
+        success: true,
+        message: count > 0 ? `Berhasil menghapus permanen ${count} tim bubar.` : 'Tidak ada data tim berstatus DISBANDED di database.',
+        count,
+        purgedTeams
+      });
+    } catch (err) {
+      logger.error(`[Dashboard API] /teams/purge-disbanded error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Force Register Team (/team force-register)
+  router.post('/teams/force-register', requireAuth, async (req, res) => {
+    try {
+      const { name, leaderId, memberIds = [], challengeId, nsacLink } = req.body || {};
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      if (!name || name.trim().length < 3) {
+        return res.status(400).json({ success: false, error: 'Nama tim minimal 3 karakter.' });
+      }
+      if (!leaderId) {
+        return res.status(400).json({ success: false, error: 'Leader Discord ID wajib diisi.' });
+      }
+
+      const leaderMember = guild.members.cache.get(leaderId) || await guild.members.fetch(leaderId).catch(() => null);
+      if (!leaderMember) {
+        return res.status(400).json({ success: false, error: 'User leader tidak ditemukan di server Discord.' });
+      }
+
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Web Dashboard';
+      const cleanMemberIds = Array.isArray(memberIds) ? memberIds.filter(Boolean) : [];
+
+      const result = await TeamService.startRegistration({
+        teamName: name.trim(),
+        leaderMember,
+        memberIds: cleanMemberIds,
+        guild,
+        client,
+        skipInvitations: true,
+        allowSolo: true
+      });
+
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
+
+      await TeamService.finalizeTeamCreation(result.team.id, guild, client);
+
+      if (challengeId) {
+        const parsedChId = parseInt(challengeId, 10);
+        if (!isNaN(parsedChId)) {
+          await updateTeamChallenge(result.team.id, parsedChId);
+        }
+      }
+
+      if (nsacLink && String(nsacLink).trim().length > 0) {
+        await TeamService.setTeamNsacLink(result.team.id, String(nsacLink).trim(), guild, client, actorTag);
+      }
+
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.TEAM_CREATED || 'TEAM_CREATED',
+        title: 'Force Register Tim via Dashboard',
+        actorTag,
+        details: `Tim "${name.trim()}" (ID: ${result.team.id}) berhasil didaftarkan langsung oleh ${actorTag} dengan ${cleanMemberIds.length + 1} anggota.`
+      });
+
+      return res.json({ success: true, message: `Tim "${name.trim()}" berhasil didaftarkan dan diaktifkan.`, team: result.team });
+    } catch (err) {
+      logger.error(`[Dashboard API] /teams/force-register error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Deploy Team Interactive Panel (/team panel)
+  router.post('/teams/deploy-panel', requireAuth, async (req, res) => {
+    try {
+      const { channelId } = req.body || {};
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      let targetChannel = null;
+      if (channelId) {
+        targetChannel = guild.channels.cache.get(channelId);
+      } else {
+        const regChannelId = GuildConfigService.get('REGISTRATION_PANEL_CHANNEL_ID');
+        if (regChannelId) targetChannel = guild.channels.cache.get(regChannelId);
+      }
+
+      if (!targetChannel || !targetChannel.isTextBased()) {
+        return res.status(400).json({ success: false, error: 'Channel panel tidak valid atau tidak ditemukan.' });
+      }
+
+      const { embed, components } = await buildTeamPanelDashboard(guild);
+      await targetChannel.send({ embeds: [embed], components });
+
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.ANNOUNCEMENT_POSTED || 'ANNOUNCEMENT_POSTED',
+        title: 'Team Panel Deployed',
+        actorTag: req.user?.username ? `@${req.user.username}` : 'Web Dashboard',
+        details: `Interactive team panel deployed to #${targetChannel.name} by Web Dashboard.`
+      });
+
+      return res.json({ success: true, message: `Panel registrasi & tim berhasil diposting ke channel #${targetChannel.name}.` });
+    } catch (err) {
+      logger.error(`[Dashboard API] /teams/deploy-panel error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   router.get('/recruitments', requireAuth, async (req, res) => {
     try {
       const { rows } = await pool.query(`
@@ -1188,6 +1364,112 @@ export function createApiRouter(client) {
   });
 
   // ==========================================
+  // Invite Tracker Endpoints
+  // ==========================================
+  router.get('/invites', requireAuth, async (req, res) => {
+    try {
+      const guild = getGuild();
+      if (!guild) {
+        return res.status(503).json({ success: false, error: 'Guild Discord tidak ditemukan.' });
+      }
+
+      const [invites, recentJoins, topInviters, trackerStats] = await Promise.all([
+        InviteService.getAllGuildInvitesWithStats(guild),
+        getRecentInviteJoins(50),
+        getTopInviters(10),
+        getInviteTrackerStats()
+      ]);
+
+      const totalUses = invites.reduce((acc, inv) => acc + (inv.uses || 0), 0);
+      const dynamicCount = invites.filter((inv) => inv.isDynamic).length;
+      const activeInvites = invites.filter((inv) => !inv.isExpired).length;
+
+      return res.json({
+        success: true,
+        invites,
+        recentJoins,
+        topInviters,
+        stats: {
+          totalInvites: invites.length,
+          activeInvites,
+          totalUses,
+          dynamicCount,
+          totalJoinsTracked: trackerStats.totalJoins,
+          uniqueMembersTracked: trackerStats.uniqueMembers
+        }
+      });
+    } catch (err) {
+      logger.error(`[Dashboard API] /invites error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/invites', requireAuth, async (req, res) => {
+    try {
+      const guild = getGuild();
+      if (!guild) {
+        return res.status(503).json({ success: false, error: 'Guild Discord tidak ditemukan.' });
+      }
+
+      const { roleIds, channelId, label, maxAge = 0, maxUses = 0 } = req.body;
+      if (!roleIds || !Array.isArray(roleIds) || roleIds.length === 0) {
+        return res.status(400).json({ success: false, error: 'Pilih minimal satu role untuk link invite otomatis.' });
+      }
+
+      let targetChannel = null;
+      if (channelId) {
+        targetChannel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
+      }
+
+      const creatorTag = req.user ? (req.user.username || req.user.tag) : 'Staff Dashboard';
+      const created = await InviteService.createDynamicInvite(
+        guild,
+        roleIds,
+        targetChannel,
+        creatorTag,
+        {
+          maxAge: parseInt(maxAge, 10) || 0,
+          maxUses: parseInt(maxUses, 10) || 0
+        }
+      );
+
+      return res.json({
+        success: true,
+        message: `Link invite ${created.invite.code} berhasil dibuat.`,
+        invite: {
+          code: created.invite.code,
+          url: created.invite.url,
+          label: created.label,
+          roleNames: created.roleNames
+        }
+      });
+    } catch (err) {
+      logger.error(`[Dashboard API] POST /invites error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.delete('/invites/:code', requireAuth, async (req, res) => {
+    try {
+      const guild = getGuild();
+      if (!guild) {
+        return res.status(503).json({ success: false, error: 'Guild Discord tidak ditemukan.' });
+      }
+
+      const codeToDelete = (req.params.code || '').trim();
+      if (!codeToDelete) {
+        return res.status(400).json({ success: false, error: 'Kode invite tidak valid.' });
+      }
+
+      await InviteService.deleteDynamicInvite(guild, codeToDelete);
+      return res.json({ success: true, message: `Link invite ${codeToDelete} berhasil dihapus.` });
+    } catch (err) {
+      logger.error(`[Dashboard API] DELETE /invites/:code error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
   // Ticket Management Endpoints
   // ==========================================
   router.get('/tickets', requireAuth, async (req, res) => {
@@ -1283,6 +1565,247 @@ export function createApiRouter(client) {
       return res.json({ success: true, message: 'Balasan berhasil dikirim ke channel Discord.' });
     } catch (err) {
       logger.error(`[Dashboard API] /tickets/:id/reply error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // 6B. Challenges API (/challenge CRUD & Broadcast)
+  // ==========================================
+  router.get('/challenges', requireAuth, async (req, res) => {
+    try {
+      const challenges = await getAllChallenges();
+      return res.json({ success: true, challenges });
+    } catch (err) {
+      logger.error(`[Dashboard API] GET /challenges error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/challenges', requireAuth, async (req, res) => {
+    try {
+      const { title, description } = req.body || {};
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Web Dashboard';
+      const result = await ChallengeService.create({ title, description, actorTag, client });
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json({ success: true, message: 'Challenge berhasil ditambahkan.', challenge: result.challenge });
+    } catch (err) {
+      logger.error(`[Dashboard API] POST /challenges error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.put('/challenges/:id', requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { title, description } = req.body || {};
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Web Dashboard';
+      const result = await ChallengeService.edit({ id, title, description, actorTag, client });
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json({ success: true, message: 'Challenge berhasil diperbarui.', challenge: result.challenge });
+    } catch (err) {
+      logger.error(`[Dashboard API] PUT /challenges/:id error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.delete('/challenges/:id', requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Web Dashboard';
+      const result = await ChallengeService.remove({ id, actorTag, client });
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json({ success: true, message: 'Challenge berhasil dihapus.', challenge: result.challenge });
+    } catch (err) {
+      logger.error(`[Dashboard API] DELETE /challenges/:id error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/challenges/broadcast', requireAuth, async (req, res) => {
+    try {
+      const { channelId } = req.body || {};
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const targetChannel = guild.channels.cache.get(channelId);
+      if (!targetChannel || !targetChannel.isTextBased()) {
+        return res.status(400).json({ success: false, error: 'Channel target tidak valid atau bukan text channel.' });
+      }
+
+      const { challenges, embed } = await ChallengeService.getChallengesEmbed();
+      await targetChannel.send({ embeds: [embed] });
+
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.ANNOUNCEMENT_POSTED || 'ANNOUNCEMENT_POSTED',
+        title: 'Broadcast Daftar Challenge',
+        actorTag: req.user?.username ? `@${req.user.username}` : 'Web Dashboard',
+        details: `Daftar ${challenges.length} challenge diposting ke #${targetChannel.name} oleh Web Dashboard.`
+      });
+
+      return res.json({ success: true, message: `Daftar challenge berhasil diposting ke channel #${targetChannel.name}.` });
+    } catch (err) {
+      logger.error(`[Dashboard API] POST /challenges/broadcast error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // 6C. Guild Members & Member Registration (/register member)
+  // ==========================================
+  router.get('/guild-members', requireAuth, async (req, res) => {
+    try {
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const members = await guild.members.fetch({ limit: 1000 }).catch(() => guild.members.cache);
+      const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+      const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+
+      const mapped = members.filter((m) => !m.user.bot).map((m) => ({
+        id: m.id,
+        username: m.user.username,
+        discriminator: m.user.discriminator,
+        tag: m.user.tag || m.user.username,
+        displayName: m.displayName,
+        avatarUrl: m.user.displayAvatarURL({ dynamic: true, size: 64 }),
+        roles: m.roles.cache.map((r) => ({ id: r.id, name: r.name, color: r.hexColor })),
+        isUnregistered: unregisteredRoleId ? m.roles.cache.has(unregisteredRoleId) : false,
+        isParticipant: participantRoleId ? m.roles.cache.has(participantRoleId) : false
+      }));
+
+      return res.json({ success: true, members: mapped.slice(0, 500) });
+    } catch (err) {
+      logger.error(`[Dashboard API] /guild-members error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post('/members/register', requireAuth, async (req, res) => {
+    try {
+      const { userId, roleId, keepUnregistered = false } = req.body || {};
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      if (!userId) {
+        return res.status(400).json({ success: false, error: 'User ID wajib dipilih.' });
+      }
+
+      const targetMember = guild.members.cache.get(userId) || await guild.members.fetch(userId).catch(() => null);
+      if (!targetMember) {
+        return res.status(404).json({ success: false, error: 'Member tidak ditemukan di server Discord.' });
+      }
+
+      const unregisteredRoleId = GuildConfigService.get('UNREGISTERED_ROLE_ID');
+      const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
+      const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
+
+      const rolesToAdd = [];
+      if (roleId) {
+        rolesToAdd.push(roleId);
+        if (participantRoleId && roleId === participantRoleId && noTeamRoleId) {
+          rolesToAdd.push(noTeamRoleId);
+        }
+      } else {
+        if (!participantRoleId) {
+          return res.status(400).json({ success: false, error: 'Role Participant belum diatur di konfigurasi server!' });
+        }
+        rolesToAdd.push(participantRoleId);
+        if (noTeamRoleId) rolesToAdd.push(noTeamRoleId);
+      }
+
+      const rolesToApply = rolesToAdd.filter((rId) => !targetMember.roles.cache.has(rId));
+      const rolesToRemove = [];
+      if (!keepUnregistered && unregisteredRoleId && targetMember.roles.cache.has(unregisteredRoleId)) {
+        rolesToRemove.push(unregisteredRoleId);
+      }
+
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Web Dashboard';
+
+      if (rolesToRemove.length > 0) {
+        await targetMember.roles.remove(rolesToRemove, `Manual registration by ${actorTag}`);
+      }
+      if (rolesToApply.length > 0) {
+        await targetMember.roles.add(rolesToApply, `Manual registration by ${actorTag}`);
+      }
+
+      const dbUser = await upsertUser(targetMember.id, targetMember.user.tag || targetMember.user.username);
+
+      const addedNames = rolesToAdd.map((id) => {
+        const r = guild.roles.cache.get(id);
+        return r ? `@${r.name}` : id;
+      }).join(' + ');
+
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.ROLE_ASSIGNED,
+        title: 'Manual Member Registration via Dashboard',
+        actorTag,
+        targetUserId: dbUser.id,
+        targetTag: targetMember.user.tag,
+        details: `Member @${targetMember.user.tag} berhasil didaftarkan dengan role: ${addedNames}${rolesToRemove.length > 0 ? ' (role @Unregistered dicabut)' : ''}.`
+      });
+
+      return res.json({
+        success: true,
+        message: `Member @${targetMember.user.tag} berhasil didaftarkan dengan role ${addedNames}.`
+      });
+    } catch (err) {
+      logger.error(`[Dashboard API] /members/register error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // 6D. Channel Message Purge (/purge)
+  // ==========================================
+  router.post('/channels/purge', requireAuth, async (req, res) => {
+    try {
+      const { channelId, amount = 10, userId = null } = req.body || {};
+      const guild = getGuild();
+      if (!guild) return res.status(404).json({ success: false, error: 'Guild tidak ditemukan.' });
+
+      const parsedAmount = Math.min(Math.max(parseInt(amount, 10) || 1, 1), 100);
+      const targetChannel = guild.channels.cache.get(channelId);
+      if (!targetChannel || !targetChannel.isTextBased()) {
+        return res.status(400).json({ success: false, error: 'Channel tidak valid atau bukan text channel.' });
+      }
+
+      const actorTag = req.user?.username ? `@${req.user.username}` : 'Web Dashboard';
+      let deletedCount = 0;
+
+      if (userId) {
+        const messages = await targetChannel.messages.fetch({ limit: 100 });
+        const userMessages = messages.filter((m) => m.author.id === userId).first(parsedAmount);
+        if (userMessages.length === 0) {
+          return res.status(404).json({ success: false, error: 'Tidak ditemukan pesan dari user tersebut dalam 100 pesan terakhir.' });
+        }
+        const deleted = await targetChannel.bulkDelete(userMessages, true);
+        deletedCount = deleted.size;
+      } else {
+        const deleted = await targetChannel.bulkDelete(parsedAmount, true);
+        deletedCount = deleted.size;
+      }
+
+      await AuditService.log(client, {
+        action: AUDIT_ACTIONS.MESSAGES_PURGED || 'MESSAGES_PURGED',
+        title: 'Bulk Message Purge via Dashboard',
+        actorTag,
+        details: `Berhasil menghapus ${deletedCount} pesan di channel #${targetChannel.name}${userId ? ` dari user ${userId}` : ''}.`
+      });
+
+      return res.json({
+        success: true,
+        message: `Berhasil menghapus ${deletedCount} pesan di channel #${targetChannel.name}.`,
+        deletedCount
+      });
+    } catch (err) {
+      logger.error(`[Dashboard API] /channels/purge error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
     }
   });
