@@ -2,45 +2,15 @@
 <html lang="id" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>NSAC Jember — Staff Command Center</title>
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="/css/style.css">
-  <style>
-    /* Focus & Selection Ergonomics */
-    ::selection {
-      background: rgba(37, 99, 235, 0.4);
-      color: #ffffff;
-    }
-    :focus-visible {
-      outline: 2px solid #3b82f6 !important;
-      outline-offset: 2px !important;
-    }
-    /* Subtle custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #070a12;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #1a2234;
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #2563eb;
-    }
-    /* Motion Sensitivity Support (A11y) */
-    @media (prefers-reduced-motion: reduce) {
-      *, ::before, ::after {
-        animation-duration: 0.001s !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0s !important;
-        scroll-behavior: auto !important;
-      }
-    }
-  </style>
+
+  <!-- Network Preconnect & DNS Prefetch -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.discordapp.com">
 
   <!-- Application Logic & Tailwind Theme Configuration -->
   <script src="/js/app.js"></script>
@@ -48,13 +18,13 @@
   <!-- Tailwind CSS Engine -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Lucide Icons (Pinned release, minified) -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
-  <!-- Alpine.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Alpine.js (Pinned production release) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
-<body class="bg-surface-base text-slate-200 min-h-screen font-sans antialiased selection:bg-blue-600 selection:text-white"
+<body class="bg-surface-base text-slate-200 min-h-screen font-sans antialiased selection:bg-indigo-600 selection:text-white"
       x-data="dashboardApp()" x-init="initApp()" x-cloak>
 
   <!-- ========================================== -->
@@ -62,14 +32,14 @@
   <!-- ========================================== -->
   <div x-show="!authenticated" class="fixed inset-0 z-50 flex items-center justify-center bg-surface-base p-4">
     <div class="bg-surface-card border border-surface-border rounded-lg max-w-sm w-full p-8 text-center shadow-lg">
-      <div class="w-10 h-10 mx-auto flex items-center justify-center mb-4 text-blue-400">
+      <div class="w-10 h-10 mx-auto flex items-center justify-center mb-4 text-indigo-400">
         <i data-lucide="radio" class="w-6 h-6 flex-shrink-0"></i>
       </div>
       <h1 class="text-lg font-semibold text-white tracking-tight">NSAC Jember 2026</h1>
       <p class="text-xs text-slate-400 mt-1 mb-6">Staff Command Center & Dashboard</p>
 
       <a href="/api/auth/discord/login"
-         class="w-full bg-[#5865F2] hover:bg-[#4752C4] active:scale-[0.99] text-white py-2.5 px-4 rounded-md font-medium flex items-center justify-center gap-2.5 transition-colors text-xs">
+         class="w-full bg-discord-blurple hover:bg-discord-blurpleHover active:scale-[0.99] text-white py-2.5 px-4 rounded-md font-medium flex items-center justify-center gap-2.5 transition-colors text-xs">
         <svg class="w-4 h-4 fill-current flex-shrink-0" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
         <span>Masuk dengan Discord</span>
       </a>
@@ -96,13 +66,13 @@
       <!-- Brand & Bot Status -->
       <div class="h-16 border-b border-surface-border px-5 flex items-center justify-between">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-8 h-8 rounded-md bg-blue-600/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+          <div class="w-8 h-8 rounded-md bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
             <template x-if="stats.bot.avatar">
               <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                    :src="stats.bot.avatar" class="w-8 h-8 rounded-md object-cover" alt="Bot Avatar">
             </template>
             <template x-if="!stats.bot.avatar">
-              <i data-lucide="radio" class="w-4 h-4 text-blue-400"></i>
+              <i data-lucide="radio" class="w-4 h-4 text-indigo-400"></i>
             </template>
           </div>
           <div class="min-w-0">
@@ -126,21 +96,21 @@
           <div class="px-2 mb-2 text-[11px] font-semibold tracking-wider uppercase text-slate-400">Operasional</div>
           <div class="space-y-0.5 text-xs">
             <button @click="switchTab('overview')"
-                    :class="activeTab === 'overview' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'overview' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
               <i data-lucide="layout-dashboard" class="w-4 h-4 flex-shrink-0"></i>
               <span>Ringkasan</span>
             </button>
 
             <button @click="switchTab('announce')"
-                    :class="activeTab === 'announce' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'announce' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
               <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i>
               <span>Studio Siaran & FAQ</span>
             </button>
 
             <button @click="switchTab('teams')"
-                    :class="activeTab === 'teams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'teams' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
               <div class="flex items-center gap-2.5">
                 <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i>
@@ -150,7 +120,7 @@
             </button>
 
             <button @click="switchTab('challenges'); fetchChallenges()"
-                    :class="activeTab === 'challenges' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'challenges' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
               <div class="flex items-center gap-2.5">
                 <i data-lucide="award" class="w-4 h-4 flex-shrink-0"></i>
@@ -162,7 +132,7 @@
             </button>
 
             <button @click="switchTab('invites'); fetchInvites()"
-                    :class="activeTab === 'invites' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'invites' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
               <div class="flex items-center gap-2.5">
                 <i data-lucide="link-2" class="w-4 h-4 flex-shrink-0"></i>
@@ -174,7 +144,7 @@
             </button>
 
             <button @click="switchTab('tickets')"
-                    :class="activeTab === 'tickets' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'tickets' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-left">
               <div class="flex items-center gap-2.5">
                 <i data-lucide="inbox" class="w-4 h-4 flex-shrink-0"></i>
@@ -192,28 +162,28 @@
           <div class="px-2 mb-2 text-[11px] font-semibold tracking-wider uppercase text-slate-400">Sistem & Panduan</div>
           <div class="space-y-0.5 text-xs">
             <button @click="switchTab('audit'); fetchAuditLogs()"
-                    :class="activeTab === 'audit' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'audit' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
               <i data-lucide="scroll-text" class="w-4 h-4 flex-shrink-0"></i>
               <span>Log Aktivitas</span>
             </button>
 
             <button @click="switchTab('faq')"
-                    :class="activeTab === 'faq' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'faq' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
               <i data-lucide="help-circle" class="w-4 h-4 flex-shrink-0"></i>
               <span>Panduan & FAQ Staf</span>
             </button>
 
             <button @click="switchTab('presence'); fetchBotPresence()"
-                    :class="activeTab === 'presence' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'presence' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
               <i data-lucide="bot" class="w-4 h-4 flex-shrink-0"></i>
               <span>Teks & Status Bot</span>
             </button>
 
             <button @click="switchTab('config')"
-                    :class="activeTab === 'config' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
+                    :class="activeTab === 'config' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
                     class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left">
               <i data-lucide="sliders" class="w-4 h-4 flex-shrink-0"></i>
               <span>Konfigurasi Bot</span>
@@ -235,7 +205,7 @@
               <div class="text-[10px] text-slate-400 truncate">Staff Terverifikasi</div>
             </div>
           </div>
-          <button @click="logout()" title="Keluar dari sesi" class="p-1.5 text-slate-400 hover:text-rose-400 rounded transition-colors flex-shrink-0">
+          <button @click="logout()" aria-label="Keluar dari sesi" title="Keluar dari sesi" class="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center text-slate-400 hover:text-rose-400 rounded transition-colors flex-shrink-0">
             <i data-lucide="log-out" class="w-4 h-4"></i>
           </button>
         </div>
@@ -244,8 +214,9 @@
 
     <!-- MOBILE DRAWER OVERLAY -->
     <div x-show="mobileMenuOpen"
+         @keydown.escape.window="mobileMenuOpen = false"
          class="fixed inset-0 z-50 md:hidden flex"
-         role="dialog" aria-modal="true">
+         role="dialog" aria-modal="true" aria-label="Menu navigasi mobile">
       <div @click="mobileMenuOpen = false"
            x-show="mobileMenuOpen"
            x-transition:enter="transition-opacity ease-linear duration-200"
@@ -269,7 +240,7 @@
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-white">NSAC Jember 2026</span>
           </div>
-          <button @click="mobileMenuOpen = false" class="p-1.5 text-slate-400 hover:text-white rounded">
+          <button @click="mobileMenuOpen = false" aria-label="Tutup menu navigasi" class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white rounded">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
@@ -277,31 +248,31 @@
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-xs">
           <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400 px-2">Menu Navigasi</div>
           <div class="space-y-1">
-            <button @click="switchTab('overview'); mobileMenuOpen = false" :class="activeTab === 'overview' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('overview'); mobileMenuOpen = false" :class="activeTab === 'overview' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Ringkasan
             </button>
-            <button @click="switchTab('announce'); mobileMenuOpen = false" :class="activeTab === 'announce' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('announce'); mobileMenuOpen = false" :class="activeTab === 'announce' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <i data-lucide="megaphone" class="w-4 h-4"></i> Studio Siaran & FAQ
             </button>
-            <button @click="switchTab('teams'); mobileMenuOpen = false" :class="activeTab === 'teams' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('teams'); mobileMenuOpen = false" :class="activeTab === 'teams' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <div class="flex items-center gap-3">
                 <i data-lucide="users" class="w-4 h-4"></i> Manajemen Tim
               </div>
               <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300" x-text="teams.length || 0"></span>
             </button>
-            <button @click="switchTab('challenges'); fetchChallenges(); mobileMenuOpen = false" :class="activeTab === 'challenges' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('challenges'); fetchChallenges(); mobileMenuOpen = false" :class="activeTab === 'challenges' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <div class="flex items-center gap-3">
                 <i data-lucide="award" class="w-4 h-4"></i> Manajemen Challenge
               </div>
               <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300" x-text="challenges.length || 0"></span>
             </button>
-            <button @click="switchTab('invites'); fetchInvites(); mobileMenuOpen = false" :class="activeTab === 'invites' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('invites'); fetchInvites(); mobileMenuOpen = false" :class="activeTab === 'invites' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <div class="flex items-center gap-3">
                 <i data-lucide="link-2" class="w-4 h-4"></i> Invite Tracker
               </div>
               <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-300" x-text="invites.length || 0"></span>
             </button>
-            <button @click="switchTab('tickets'); mobileMenuOpen = false" :class="activeTab === 'tickets' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('tickets'); mobileMenuOpen = false" :class="activeTab === 'tickets' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <div class="flex items-center gap-3">
                 <i data-lucide="inbox" class="w-4 h-4"></i> Tiket Dukungan
               </div>
@@ -309,16 +280,16 @@
                 <span class="text-[10px] font-mono px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded" x-text="openTicketsCount"></span>
               </template>
             </button>
-            <button @click="switchTab('audit'); fetchAuditLogs(); mobileMenuOpen = false" :class="activeTab === 'audit' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('audit'); fetchAuditLogs(); mobileMenuOpen = false" :class="activeTab === 'audit' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <i data-lucide="scroll-text" class="w-4 h-4"></i> Log Aktivitas
             </button>
-            <button @click="switchTab('faq'); mobileMenuOpen = false" :class="activeTab === 'faq' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('faq'); mobileMenuOpen = false" :class="activeTab === 'faq' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <i data-lucide="help-circle" class="w-4 h-4"></i> Panduan & FAQ
             </button>
-            <button @click="switchTab('presence'); fetchBotPresence(); mobileMenuOpen = false" :class="activeTab === 'presence' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('presence'); fetchBotPresence(); mobileMenuOpen = false" :class="activeTab === 'presence' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <i data-lucide="bot" class="w-4 h-4"></i> Teks & Status Bot
             </button>
-            <button @click="switchTab('config'); mobileMenuOpen = false" :class="activeTab === 'config' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
+            <button @click="switchTab('config'); mobileMenuOpen = false" :class="activeTab === 'config' ? 'bg-indigo-600/15 text-indigo-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-md text-left">
               <i data-lucide="sliders" class="w-4 h-4"></i> Konfigurasi Bot
             </button>
           </div>
@@ -335,8 +306,8 @@
     <div class="flex-1 min-w-0 min-h-screen flex flex-col bg-surface-base">
       
       <!-- MOBILE HEADER -->
-      <header class="md:hidden h-14 bg-surface-card border-b border-surface-border px-4 flex items-center justify-between sticky top-0 z-20">
-        <button @click="mobileMenuOpen = true" class="p-1.5 text-slate-300 hover:text-white rounded">
+      <header class="md:hidden h-14 bg-surface-card border-b border-surface-border px-3 flex items-center justify-between sticky top-0 z-20">
+        <button @click="mobileMenuOpen = true" aria-label="Buka menu navigasi" :aria-expanded="mobileMenuOpen.toString()" class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-300 hover:text-white rounded">
           <i data-lucide="menu" class="w-5 h-5"></i>
         </button>
         <div class="text-xs font-semibold text-white tracking-wide" x-text="getTabTitle(activeTab)"></div>
@@ -357,7 +328,7 @@
         <div class="flex items-center gap-3">
           <button @click="triggerNasaSync()" :disabled="syncingNasa"
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-surface-base hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white transition-colors disabled:opacity-50">
-            <i data-lucide="refresh-cw" :class="syncingNasa ? 'animate-spin' : ''" class="w-3.5 h-3.5 text-blue-400"></i>
+            <i data-lucide="refresh-cw" :class="syncingNasa ? 'animate-spin' : ''" class="w-3.5 h-3.5 text-indigo-400"></i>
             <span x-text="syncingNasa ? 'Syncing...' : 'Sync NASA Web'"></span>
           </button>
           <span class="text-[11px] font-mono text-slate-400 px-2 py-1 rounded bg-surface-input border border-surface-border inline-block">
@@ -381,7 +352,7 @@
             <div class="bg-surface-card border border-surface-border rounded-lg p-4">
               <div class="flex items-center justify-between text-slate-400 mb-2">
                 <span class="text-xs font-medium">Total Tim Terdaftar</span>
-                <i data-lucide="users" class="w-4 h-4 text-blue-400"></i>
+                <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
               </div>
               <div class="text-2xl font-bold text-white tabular-nums tracking-tight" x-text="stats.stats.totalTeams || 0"></div>
               <div class="text-[11px] text-slate-400 mt-1">Tim aktif di server Discord</div>
@@ -455,7 +426,7 @@
             <div class="bg-surface-card border border-surface-border rounded-lg p-5 flex flex-col justify-between">
               <div>
                 <div class="flex items-center gap-2 mb-2">
-                  <i data-lucide="globe" class="w-4 h-4 text-blue-400"></i>
+                  <i data-lucide="globe" class="w-4 h-4 text-indigo-400"></i>
                   <h3 class="text-sm font-semibold text-white">Sinkronisasi Portal NASA</h3>
                 </div>
                 <p class="text-xs text-slate-400 leading-relaxed">
@@ -465,7 +436,7 @@
               <div class="mt-4 pt-4 border-t border-surface-border flex items-center justify-between">
                 <span class="text-[11px] text-slate-400">Status: <span class="text-slate-300">Siap sinkronisasi</span></span>
                 <button @click="triggerNasaSync()" :disabled="syncingNasa"
-                        class="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                        class="px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors disabled:opacity-50 flex items-center gap-1.5">
                   <i data-lucide="refresh-cw" :class="syncingNasa ? 'animate-spin' : ''" class="w-3.5 h-3.5"></i>
                   <span x-text="syncingNasa ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'"></span>
                 </button>
@@ -505,19 +476,19 @@
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-surface-border">
             <div class="flex items-center gap-1 bg-surface-base p-1 rounded-md border border-surface-border">
               <button type="button" @click="studioMode = 'announce'"
-                      :class="studioMode === 'announce' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="studioMode === 'announce' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors">
                 <i data-lucide="send" class="w-3.5 h-3.5"></i>
                 <span>Siaran Baru (One-off)</span>
               </button>
               <button type="button" @click="studioMode = 'dynamic'; fetchDynamicEmbeds()"
-                      :class="studioMode === 'dynamic' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="studioMode === 'dynamic' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                 <span>Dynamic Live Embed (FAQ & Rules)</span>
               </button>
               <button type="button" @click="studioMode = 'purge'"
-                      :class="studioMode === 'purge' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="studioMode === 'purge' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 <span>Pembersih Pesan (/purge)</span>
@@ -525,7 +496,7 @@
             </div>
 
             <div class="text-[11px] text-slate-400 flex items-center gap-2 px-1">
-              <span class="w-2 h-2 rounded-full" :class="studioMode === 'announce' ? 'bg-emerald-400 animate-pulse' : 'bg-blue-400 animate-pulse'"></span>
+              <span class="w-2 h-2 rounded-full" :class="studioMode === 'announce' ? 'bg-emerald-400 animate-pulse' : 'bg-indigo-400 animate-pulse'"></span>
               <span x-text="studioMode === 'announce' ? 'Mode Kirim Pesan Siaran' : 'Mode Sinkronisasi In-place'"></span>
             </div>
           </div>
@@ -546,8 +517,8 @@
 
                 <!-- Channel Selection -->
                 <div>
-                  <label class="block text-xs font-medium text-slate-300 mb-1">Channel Tujuan <span class="text-rose-400">*</span></label>
-                  <select x-model="form.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <label for="announce-channel" class="block text-xs font-medium text-slate-300 mb-1">Channel Tujuan <span class="text-rose-400">*</span></label>
+                  <select id="announce-channel" x-model="form.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                     <option value="">-- Pilih Channel Discord --</option>
                     <template x-for="ch in channels" :key="ch.id">
                       <option :value="ch.id" x-text="'#' + ch.name + ' (' + ch.categoryName + ')'"></option>
@@ -560,17 +531,17 @@
                   <label class="block text-xs font-medium text-slate-300">Mention / Ping Notifikasi</label>
                   <div class="grid grid-cols-3 gap-2">
                     <button type="button" @click="form.mentionType = 'none'"
-                            :class="form.mentionType === 'none' ? 'bg-blue-600 text-white font-medium' : 'bg-surface-input text-slate-300 border-surface-border hover:text-white'"
+                            :class="form.mentionType === 'none' ? 'bg-indigo-600 text-white font-medium' : 'bg-surface-input text-slate-300 border-surface-border hover:text-white'"
                             class="px-2.5 py-1.5 rounded-md border text-xs transition-colors text-center">
                       Tanpa Mention
                     </button>
                     <button type="button" @click="form.mentionType = 'everyone'"
-                            :class="form.mentionType === 'everyone' ? 'bg-blue-600 text-white font-medium' : 'bg-surface-input text-slate-300 border-surface-border hover:text-white'"
+                            :class="form.mentionType === 'everyone' ? 'bg-indigo-600 text-white font-medium' : 'bg-surface-input text-slate-300 border-surface-border hover:text-white'"
                             class="px-2.5 py-1.5 rounded-md border text-xs transition-colors text-center">
                       @everyone
                     </button>
                     <button type="button" @click="form.mentionType = 'roles'"
-                            :class="form.mentionType === 'roles' ? 'bg-blue-600 text-white font-medium' : 'bg-surface-input text-slate-300 border-surface-border hover:text-white'"
+                            :class="form.mentionType === 'roles' ? 'bg-indigo-600 text-white font-medium' : 'bg-surface-input text-slate-300 border-surface-border hover:text-white'"
                             class="px-2.5 py-1.5 rounded-md border text-xs transition-colors text-center">
                       Role Tertentu
                     </button>
@@ -580,12 +551,12 @@
                   <div x-show="form.mentionType === 'roles'" class="pt-2 space-y-1.5">
                     <div class="text-[11px] text-slate-400 flex items-center justify-between">
                       <span>Pilih role yang akan menerima ping (bisa lebih dari satu):</span>
-                      <span class="font-mono text-[10px] text-blue-400 tabular-nums" x-text="selectedRoleIds.length + ' role dipilih'"></span>
+                      <span class="font-mono text-[10px] text-indigo-400 tabular-nums" x-text="selectedRoleIds.length + ' role dipilih'"></span>
                     </div>
                     <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-surface-input">
                       <template x-for="r in roles" :key="r.id">
                         <button type="button" @click="toggleRoleSelection(r.id)"
-                                :class="selectedRoleIds.includes(r.id) ? 'bg-blue-600 text-white font-medium border-blue-500' : 'bg-surface-base text-slate-300 hover:text-white border-surface-border'"
+                                :class="selectedRoleIds.includes(r.id) ? 'bg-indigo-600 text-white font-medium border-indigo-500' : 'bg-surface-base text-slate-300 hover:text-white border-surface-border'"
                                 class="px-2 py-0.5 rounded text-[11px] border transition-colors flex items-center gap-1">
                           <span x-text="'@' + r.name"></span>
                           <span x-show="selectedRoleIds.includes(r.id)" class="text-[10px] font-bold">&check;</span>
@@ -601,13 +572,13 @@
                 <!-- Embed Title & Color -->
                 <div class="grid grid-cols-3 gap-3">
                   <div class="col-span-2">
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Judul Embed <span class="text-rose-400">*</span></label>
-                    <input type="text" x-model="form.title" placeholder="Contoh: Jadwal Mentoring Hackathon"
-                           class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <label for="announce-title" class="block text-xs font-medium text-slate-300 mb-1">Judul Embed <span class="text-rose-400">*</span></label>
+                    <input id="announce-title" type="text" x-model="form.title" placeholder="Contoh: Jadwal Mentoring Hackathon"
+                           class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Warna Embed</label>
-                    <select x-model="form.color" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <label for="announce-color" class="block text-xs font-medium text-slate-300 mb-1">Warna Embed</label>
+                    <select id="announce-color" x-model="form.color" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                       <option value="PRIMARY">Blurple (Standar)</option>
                       <option value="SUCCESS">Green (Sukses)</option>
                       <option value="DANGER">Red (Penting/Urgent)</option>
@@ -624,7 +595,7 @@
                     <span class="text-[10px] text-slate-400">Gunakan toolbar untuk format teks Discord</span>
                   </div>
 
-                  <div class="border border-surface-border rounded-md overflow-hidden focus-within:border-blue-500">
+                  <div class="border border-surface-border rounded-md overflow-hidden focus-within:border-indigo-500">
                     <!-- Formatting Toolbar -->
                     <div class="flex items-center gap-1 flex-wrap p-1.5 bg-surface-base border-b border-surface-border text-slate-300">
                       <!-- Basic Styles -->
@@ -657,12 +628,12 @@
                         <button type="button" @click.prevent="insertFormat('```diff\n+ ', '\n```', 'teks hijau')" title="Warna Hijau (diff +)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-emerald-400 transition-colors">Hijau</button>
                         <button type="button" @click.prevent="insertFormat('```diff\n- ', '\n```', 'teks merah')" title="Warna Merah (diff -)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-rose-400 transition-colors">Merah</button>
                         <button type="button" @click.prevent="insertFormat('```fix\n', '\n```', 'teks kuning')" title="Warna Kuning (fix)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-amber-300 transition-colors">Kuning</button>
-                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-blue-400 transition-colors">Biru</button>
+                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-sky-400 transition-colors">Biru</button>
                       </div>
 
                       <!-- Links -->
                       <div class="flex items-center gap-0.5">
-                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-blue-400 font-mono transition-colors">Link</button>
+                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-sky-400 font-mono transition-colors">Link</button>
                         <button type="button" @click.prevent="insertFormat('<', '>', 'https://')" title="Sembunyikan Preview Embed (&lt;url&gt;)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-slate-400 font-mono transition-colors">&lt;URL&gt;</button>
                       </div>
                     </div>
@@ -675,19 +646,19 @@
 
                 <!-- Poster / Banner Image Attachment -->
                 <div class="space-y-2 pt-2 border-t border-surface-border">
-                  <label class="block text-xs font-medium text-slate-300">Poster / Banner Embed Utama (Opsional)</label>
+                  <label for="announce-poster-file" class="block text-xs font-medium text-slate-300">Poster / Banner Embed Utama (Opsional)</label>
                   <div class="p-3 text-center bg-surface-input rounded-md relative hover:bg-surface-hover transition-colors cursor-pointer border border-dashed border-surface-border">
-                    <input type="file" @change="handleFileUpload($event)" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                    <input id="announce-poster-file" aria-label="Unggah file poster atau gambar banner pengumuman" type="file" @change="handleFileUpload($event)" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
                     <div class="flex items-center justify-center gap-2 text-xs text-slate-400">
-                      <i data-lucide="image-plus" class="w-4 h-4 text-blue-400"></i>
+                      <i data-lucide="image-plus" class="w-4 h-4 text-indigo-400"></i>
                       <span x-text="uploadedFileName ? uploadedFileName : 'Klik atau seret file gambar poster (Maks 8MB)'"></span>
                     </div>
                   </div>
 
                   <div class="flex items-center gap-2">
                     <input type="url" aria-label="URL Gambar Eksternal" x-model="form.imageUrl" placeholder="Atau tempel URL gambar eksternal (https://...)..."
-                           class="flex-1 bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
-                    <button type="button" x-show="form.imageUrl || form.imageFile" @click="clearImage()" class="text-xs text-rose-400 hover:underline px-1.5">Hapus</button>
+                           class="flex-1 bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <button type="button" x-show="form.imageUrl || form.imageFile" @click="clearImage()" class="text-xs text-rose-400 hover:underline px-1.5">Hapus Gambar</button>
                   </div>
                 </div>
 
@@ -709,19 +680,19 @@
                     <template x-for="(blk, bIdx) in form.blocks" :key="blk.id || bIdx">
                       <div class="pt-3 border-t border-surface-border space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-[11px] font-mono text-blue-400 font-semibold" x-text="'Blok Embed #' + (bIdx + 2)"></span>
-                          <button type="button" @click="removeBlock(bIdx)" class="text-xs text-rose-400 hover:text-rose-300 px-1">Hapus</button>
+                          <span class="text-[11px] font-mono text-indigo-400 font-semibold" x-text="'Blok Embed #' + (bIdx + 2)"></span>
+                          <button type="button" @click="removeBlock(bIdx)" class="text-xs text-rose-400 hover:text-rose-300 px-1">Hapus Blok</button>
                         </div>
 
                         <input type="text" aria-label="Subjudul blok embed" x-model="blk.title" placeholder="Subjudul blok embed (opsional)..."
-                               class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                               class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
 
                         <textarea :id="'block-text-' + bIdx" aria-label="Teks konten blok embed" x-model="blk.text" rows="3" placeholder="Teks lanjutan / penjelasan blok ini..."
                                   @focus="setActiveInput('block-text-' + bIdx)"
-                                  class="w-full bg-surface-input border border-surface-border rounded-md p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-sans"></textarea>
+                                  class="w-full bg-surface-input border border-surface-border rounded-md p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-sans"></textarea>
 
                         <input type="url" aria-label="URL gambar blok embed" x-model="blk.imageUrl" placeholder="URL gambar untuk blok ini (https://...)..."
-                               class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                               class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                       </div>
                     </template>
                   </div>
@@ -729,7 +700,7 @@
 
                 <!-- Submit Button -->
                 <button type="button" @click="confirmPostAnnouncement()" :disabled="postingAnnouncement"
-                        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-md text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-md text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                   <i data-lucide="send" class="w-3.5 h-3.5"></i>
                   <span x-text="postingAnnouncement ? 'Mengirim ke Discord...' : 'Kirim Pengumuman ke Discord'"></span>
                 </button>
@@ -752,9 +723,9 @@
 
                 <!-- Embed Selector -->
                 <div>
-                  <label class="block text-xs font-medium text-slate-300 mb-1">Pilih Embed yang Hendak Diedit</label>
-                  <select x-model="selectedDynamicEmbedId" @change="selectDynamicEmbed(selectedDynamicEmbedId)"
-                          class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <label for="dynamic-embed-select" class="block text-xs font-medium text-slate-300 mb-1">Pilih Embed yang Hendak Diedit</label>
+                  <select id="dynamic-embed-select" x-model="selectedDynamicEmbedId" @change="selectDynamicEmbed(selectedDynamicEmbedId)"
+                          class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                     <option value="">-- Buat Embed Baru --</option>
                     <template x-for="e in dynamicEmbeds" :key="e.id">
                       <option :value="e.id" x-text="e.id + ' — ' + e.title + ' (#' + (channels.find(c => c.id === e.channel_id)?.name || e.channel_id) + ')'"></option>
@@ -765,14 +736,14 @@
                 <!-- Embed Key & Channel -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">ID Embed (Kunci Unik) <span class="text-rose-400">*</span></label>
-                    <input type="text" x-model="dynamicForm.id" :disabled="selectedDynamicEmbedId !== ''" placeholder="misal: rules, faq-peserta, timeline"
-                           class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white font-mono disabled:opacity-50 focus:outline-none focus:border-blue-500">
+                    <label for="dynamic-embed-key" class="block text-xs font-medium text-slate-300 mb-1">ID Embed (Kunci Unik) <span class="text-rose-400">*</span></label>
+                    <input id="dynamic-embed-key" type="text" x-model="dynamicForm.id" :disabled="selectedDynamicEmbedId !== ''" placeholder="misal: rules, faq-peserta, timeline"
+                           class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white font-mono disabled:opacity-50 focus:outline-none focus:border-indigo-500">
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord <span class="text-rose-400">*</span></label>
-                    <select x-model="dynamicForm.channelId" :disabled="selectedDynamicEmbedId !== ''"
-                            class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white disabled:opacity-50 focus:outline-none focus:border-blue-500">
+                    <label for="dynamic-embed-channel" class="block text-xs font-medium text-slate-300 mb-1">Channel Discord <span class="text-rose-400">*</span></label>
+                    <select id="dynamic-embed-channel" x-model="dynamicForm.channelId" :disabled="selectedDynamicEmbedId !== ''"
+                            class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white disabled:opacity-50 focus:outline-none focus:border-indigo-500">
                       <option value="">-- Pilih Channel --</option>
                       <template x-for="ch in channels" :key="ch.id">
                         <option :value="ch.id" x-text="'#' + ch.name + ' (' + ch.categoryName + ')'"></option>
@@ -784,13 +755,13 @@
                 <!-- Title & Color -->
                 <div class="grid grid-cols-3 gap-3">
                   <div class="col-span-2">
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Judul Embed <span class="text-rose-400">*</span></label>
-                    <input type="text" x-model="dynamicForm.title" placeholder="Contoh: 📜 Peraturan Resmi Hackathon"
-                           class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <label for="dynamic-embed-title" class="block text-xs font-medium text-slate-300 mb-1">Judul Embed <span class="text-rose-400">*</span></label>
+                    <input id="dynamic-embed-title" type="text" x-model="dynamicForm.title" placeholder="Contoh: Peraturan Resmi Hackathon"
+                           class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                   </div>
                   <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Warna Embed</label>
-                    <select x-model="dynamicForm.color" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                    <label for="dynamic-embed-color" class="block text-xs font-medium text-slate-300 mb-1">Warna Embed</label>
+                    <select id="dynamic-embed-color" x-model="dynamicForm.color" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                       <option value="PRIMARY">Blurple (Standar)</option>
                       <option value="SUCCESS">Green (Sukses)</option>
                       <option value="DANGER">Red (Penting/Urgent)</option>
@@ -807,7 +778,7 @@
                     <span class="text-[10px] text-slate-400">Gunakan toolbar untuk format teks</span>
                   </div>
 
-                  <div class="border border-surface-border rounded-md overflow-hidden focus-within:border-blue-500">
+                  <div class="border border-surface-border rounded-md overflow-hidden focus-within:border-indigo-500">
                     <!-- Formatting Toolbar -->
                     <div class="flex items-center gap-1 flex-wrap p-1.5 bg-surface-base border-b border-surface-border text-slate-300">
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
@@ -836,11 +807,11 @@
                         <button type="button" @click.prevent="insertFormat('```diff\n+ ', '\n```', 'teks hijau')" title="Warna Hijau (diff +)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-emerald-400 transition-colors">Hijau</button>
                         <button type="button" @click.prevent="insertFormat('```diff\n- ', '\n```', 'teks merah')" title="Warna Merah (diff -)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-rose-400 transition-colors">Merah</button>
                         <button type="button" @click.prevent="insertFormat('```fix\n', '\n```', 'teks kuning')" title="Warna Kuning (fix)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-amber-300 transition-colors">Kuning</button>
-                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-blue-400 transition-colors">Biru</button>
+                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-sky-400 transition-colors">Biru</button>
                       </div>
 
                       <div class="flex items-center gap-0.5">
-                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-blue-400 font-mono transition-colors">Link</button>
+                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-sky-400 font-mono transition-colors">Link</button>
                         <button type="button" @click.prevent="insertFormat('<', '>', 'https://')" title="Sembunyikan Preview Embed (&lt;url&gt;)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-slate-400 font-mono transition-colors">&lt;URL&gt;</button>
                       </div>
                     </div>
@@ -869,23 +840,23 @@
                     <template x-for="(f, fIdx) in dynamicForm.fields" :key="fIdx">
                       <div class="pt-3 border-t border-surface-border space-y-2">
                         <div class="flex items-center justify-between gap-2">
-                          <span class="text-[11px] font-mono text-blue-400 font-semibold" x-text="'Bagian #' + (fIdx + 1)"></span>
+                          <span class="text-[11px] font-mono text-indigo-400 font-semibold" x-text="'Bagian #' + (fIdx + 1)"></span>
                           <div class="flex items-center gap-1">
                             <button type="button" @click="moveDynamicField(fIdx, -1)" :disabled="fIdx === 0" title="Geser ke Atas"
                                     class="p-1 rounded text-slate-400 hover:text-white disabled:opacity-20 text-xs">&uarr;</button>
                             <button type="button" @click="moveDynamicField(fIdx, 1)" :disabled="fIdx === dynamicForm.fields.length - 1" title="Geser ke Bawah"
                                     class="p-1 rounded text-slate-400 hover:text-white disabled:opacity-20 text-xs">&darr;</button>
                             <button type="button" @click="removeDynamicField(fIdx)" title="Hapus Bagian"
-                                    class="text-xs text-rose-400 hover:text-rose-300 px-1.5 py-0.5">Hapus</button>
+                                    class="text-xs text-rose-400 hover:text-rose-300 px-1.5 py-0.5">Hapus Bagian</button>
                           </div>
                         </div>
 
                         <input type="text" aria-label="Judul bagian dynamic embed" x-model="f.name" placeholder="Judul Bagian (misal: 1. Syarat Peserta)..."
-                               class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-medium">
+                               class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium">
 
                         <textarea :id="'field-val-' + fIdx" aria-label="Isi bagian dynamic embed" x-model="f.value" rows="3" placeholder="Isi penjelasan / jawaban (mendukung bullet, bold, kode)..."
                                   @focus="setActiveInput('field-val-' + fIdx)"
-                                  class="w-full bg-surface-input border border-surface-border rounded-md p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-sans"></textarea>
+                                  class="w-full bg-surface-input border border-surface-border rounded-md p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-sans"></textarea>
                       </div>
                     </template>
                     <template x-if="dynamicForm.fields.length === 0">
@@ -899,7 +870,7 @@
                 <!-- Submit & Delete Buttons -->
                 <div class="flex items-center gap-3 pt-3 border-t border-surface-border">
                   <button type="button" @click="saveDynamicEmbed()" :disabled="savingDynamicEmbed"
-                          class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-md text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                          class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-md text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                     <i data-lucide="refresh-cw" :class="savingDynamicEmbed ? 'animate-spin' : ''" class="w-3.5 h-3.5"></i>
                     <span x-text="savingDynamicEmbed ? 'Menyinkronkan ke Discord...' : (selectedDynamicEmbedId ? 'Simpan & Sinkronkan ke Discord' : 'Buat Embed di Discord')"></span>
                   </button>
@@ -943,11 +914,11 @@
                       <div class="space-y-2">
                         <!-- Mentions Line -->
                         <div class="text-xs" x-show="form.mentionType !== 'none'">
-                          <span x-show="form.mentionType === 'everyone'" class="bg-discord-blurple/20 text-[#c9cdfb] px-1 rounded">@everyone</span>
-                          <span x-show="form.mentionType === 'here'" class="bg-discord-blurple/20 text-[#c9cdfb] px-1 rounded">@here</span>
+                          <span x-show="form.mentionType === 'everyone'" class="bg-discord-blurple/20 text-discord-mention px-1 rounded">@everyone</span>
+                          <span x-show="form.mentionType === 'here'" class="bg-discord-blurple/20 text-discord-mention px-1 rounded">@here</span>
                           <div x-show="form.mentionType === 'roles' && selectedRoleIds.length > 0" class="flex flex-wrap gap-1">
                             <template x-for="rId in selectedRoleIds" :key="rId">
-                              <span class="bg-discord-blurple/20 text-[#c9cdfb] px-1 rounded" x-text="'@' + getRoleName(rId)"></span>
+                              <span class="bg-discord-blurple/20 text-discord-mention px-1 rounded" x-text="'@' + getRoleName(rId)"></span>
                             </template>
                           </div>
                         </div>
@@ -965,7 +936,7 @@
                                    :src="previewImageUrl || form.imageUrl" class="w-full max-h-72 object-cover" alt="Banner Preview">
                             </div>
 
-                            <div class="pt-2 flex items-center gap-1.5 text-[10px] text-discord-muted border-t border-[#35373c]/50">
+                            <div class="pt-2 flex items-center gap-1.5 text-[10px] text-discord-muted border-t border-discord-border/50">
                               <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                                    :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'" class="w-3.5 h-3.5 rounded-full" alt="Icon">
                               <span x-text="'NSAC Jember 2026 • Hari ini pukul ' + currentClock"></span>
@@ -1009,7 +980,7 @@
                             <!-- Dynamic Sections -->
                             <div class="space-y-2.5 pt-1">
                               <template x-for="(f, fIdx) in dynamicForm.fields" :key="fIdx">
-                                <div class="border-t border-[#35373c]/50 pt-2 space-y-1">
+                                <div class="border-t border-discord-border/50 pt-2 space-y-1">
                                   <div class="font-semibold text-white text-xs" x-text="f.name || ('Bagian #' + (fIdx + 1))"></div>
                                   <div class="text-xs text-discord-text whitespace-pre-wrap leading-relaxed discord-markdown"
                                        x-html="renderDiscordMarkdown(f.value || '*(Isi teks bagian)*')"></div>
@@ -1017,7 +988,7 @@
                               </template>
                             </div>
 
-                            <div class="pt-2 flex items-center justify-between text-[10px] text-discord-muted border-t border-[#35373c]/50">
+                            <div class="pt-2 flex items-center justify-between text-[10px] text-discord-muted border-t border-discord-border/50">
                               <div class="flex items-center gap-1.5">
                                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                                      :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'" class="w-3.5 h-3.5 rounded-full" alt="Icon">
@@ -1052,7 +1023,7 @@
             <!-- Action Buttons for Staff Commands -->
             <div class="flex flex-wrap items-center gap-2">
               <button @click="openForceRegisterModal()"
-                      class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm">
+                      class="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm">
                 <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
                 <span>Force Register Tim</span>
               </button>
@@ -1071,7 +1042,7 @@
 
               <button @click="deployTeamPanelAction()" :disabled="deployingTeamPanel"
                       class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50">
-                <i data-lucide="layout" class="w-3.5 h-3.5 text-blue-400"></i>
+                <i data-lucide="layout" class="w-3.5 h-3.5 text-indigo-400"></i>
                 <span x-text="deployingTeamPanel ? 'Mengirim...' : 'Deploy Panel Tim'"></span>
               </button>
             </div>
@@ -1079,14 +1050,14 @@
             <!-- Segmented Pill Switcher -->
             <div class="flex items-center gap-1 bg-surface-elevated p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
               <button @click="teamSubTab = 'discord'"
-                      :class="teamSubTab === 'discord' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="teamSubTab === 'discord' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
                 <i data-lucide="users" class="w-3.5 h-3.5"></i>
                 <span>Tim Discord</span>
                 <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/25" x-text="teams.length"></span>
               </button>
               <button @click="teamSubTab = 'web'; fetchWebTeams()"
-                      :class="teamSubTab === 'web' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="teamSubTab === 'web' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
                 <i data-lucide="globe" class="w-3.5 h-3.5"></i>
                 <span>Tim Web NASA</span>
@@ -1103,12 +1074,12 @@
             <div class="flex flex-col sm:flex-row items-center gap-3">
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-                <input type="text" aria-label="Cari tim Discord" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
-                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                <input type="text" aria-label="Cari tim Discord" x-model.debounce.200ms="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500">
               </div>
 
               <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs w-full sm:w-auto">
-                <button @click="teamStatusFilter = 'ALL'" :class="teamStatusFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Semua</button>
+                <button @click="teamStatusFilter = 'ALL'" :class="teamStatusFilter === 'ALL' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Semua</button>
                 <button @click="teamStatusFilter = 'ACTIVE'" :class="teamStatusFilter === 'ACTIVE' ? 'bg-emerald-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Aktif</button>
                 <button @click="teamStatusFilter = 'PENDING'" :class="teamStatusFilter === 'PENDING' ? 'bg-amber-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Pending</button>
                 <button @click="teamStatusFilter = 'ARCHIVED'" :class="teamStatusFilter === 'ARCHIVED' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-white'" class="flex-1 sm:flex-initial px-3 py-1 rounded transition-colors">Arsip</button>
@@ -1169,7 +1140,11 @@
                     <template x-if="filteredTeams.length === 0">
                       <tr>
                         <td colspan="7" class="px-4 py-8 text-center text-slate-400">
-                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="users" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada data tim yang sesuai filter.</span></div>
+                          <div class="flex flex-col items-center justify-center py-2">
+                            <i data-lucide="users" class="w-8 h-8 text-slate-400 mb-2"></i>
+                            <span class="text-slate-300 font-medium">Tidak ada tim yang cocok.</span>
+                            <p class="text-xs text-slate-400 mt-1">Sesuaikan kata kunci pencarian atau filter status untuk menemukan tim.</p>
+                          </div>
                         </td>
                       </tr>
                     </template>
@@ -1213,7 +1188,7 @@
                         </a>
                       </template>
                       <button @click="closeRecruitment(r.id)" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs py-1.5 rounded transition-colors">
-                        Tutup
+                        Tutup Lowongan
                       </button>
                     </div>
                   </div>
@@ -1229,20 +1204,20 @@
             <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-                <input type="text" aria-label="Cari tim di web NASA" x-model="searchWebTeam" placeholder="Cari nama tim di web NASA, tantangan, atau slug..."
-                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                <input type="text" aria-label="Cari tim di web NASA" x-model.debounce.200ms="searchWebTeam" placeholder="Cari nama tim di web NASA, tantangan, atau slug..."
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500">
               </div>
 
               <div class="flex items-center gap-2 w-full sm:w-auto">
                 <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
-                  <button @click="webTeamFilter = 'ALL'" :class="webTeamFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
-                  <button @click="webTeamFilter = 'DISCORD'" :class="webTeamFilter === 'DISCORD' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Di Discord</button>
-                  <button @click="webTeamFilter = 'WEB_ONLY'" :class="webTeamFilter === 'WEB_ONLY' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web Only</button>
-                  <button @click="webTeamFilter = 'RECRUITING'" :class="webTeamFilter === 'RECRUITING' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Mencari Anggota</button>
+                  <button @click="webTeamFilter = 'ALL'" :class="webTeamFilter === 'ALL' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                  <button @click="webTeamFilter = 'DISCORD'" :class="webTeamFilter === 'DISCORD' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Di Discord</button>
+                  <button @click="webTeamFilter = 'WEB_ONLY'" :class="webTeamFilter === 'WEB_ONLY' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web Only</button>
+                  <button @click="webTeamFilter = 'RECRUITING'" :class="webTeamFilter === 'RECRUITING' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Mencari Anggota</button>
                 </div>
 
                 <button @click="syncNasaTeams()" :disabled="syncingNasa"
-                        class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                        class="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
                   <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="syncingNasa ? 'animate-spin' : ''"></i>
                   <span x-text="syncingNasa ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'"></span>
                 </button>
@@ -1282,13 +1257,13 @@
                         </td>
                         <td class="px-4 py-3">
                           <template x-if="wt.matched_team_name">
-                            <span class="text-blue-400 text-[11px] font-medium" x-text="'Discord: ' + wt.matched_team_name"></span>
+                            <span class="text-indigo-400 text-[11px] font-medium" x-text="'Discord: ' + wt.matched_team_name"></span>
                           </template>
                           <template x-if="!wt.matched_team_name">
                             <span class="text-slate-400 text-[11px]">Hanya di Web</span>
                           </template>
                         </td>
-                        <td class="px-4 py-3 text-slate-400 whitespace-nowrap text-[11px]" x-text="formatDate(wt.last_synced_at)"></td>
+                        <td class="px-4 py-3 text-slate-400 whitespace-nowrap text-[11px] tabular-nums" x-text="formatDate(wt.last_synced_at)"></td>
                         <td class="px-4 py-3 text-right">
                           <a :href="wt.url" target="_blank"
                              class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-xs text-slate-200 transition-colors">
@@ -1301,7 +1276,11 @@
                     <template x-if="filteredWebTeams.length === 0">
                       <tr>
                         <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="globe" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada data tim web NASA yang cocok.</span></div>
+                          <div class="flex flex-col items-center justify-center py-2">
+                            <i data-lucide="globe" class="w-8 h-8 text-slate-400 mb-2"></i>
+                            <span class="text-slate-300 font-medium">Tidak ada tim web NASA yang cocok.</span>
+                            <p class="text-xs text-slate-400 mt-1">Gunakan tombol "Sync NASA Web" di bar atas untuk menyinkronkan data pendaftaran terbaru.</p>
+                          </div>
                         </td>
                       </tr>
                     </template>
@@ -1324,14 +1303,14 @@
 
             <div class="flex items-center gap-2">
               <button @click="openCreateChallengeModal()"
-                      class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5">
+                      class="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5">
                 <i data-lucide="plus" class="w-4 h-4"></i>
                 <span>Tambah Challenge</span>
               </button>
 
               <button @click="showBroadcastChallengeModal = true"
                       class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5">
-                <i data-lucide="send" class="w-3.5 h-3.5 text-blue-400"></i>
+                <i data-lucide="send" class="w-3.5 h-3.5 text-indigo-400"></i>
                 <span>Kirim Daftar ke Discord</span>
               </button>
             </div>
@@ -1354,7 +1333,7 @@
 
             <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
               <div class="text-[11px] text-slate-400 font-medium">Rata-rata Tim per Challenge</div>
-              <div class="text-2xl font-bold font-mono text-blue-400 mt-1 tabular-nums"
+              <div class="text-2xl font-bold font-mono text-white mt-1 tabular-nums"
                    x-text="challenges.length > 0 ? (challenges.reduce((acc, c) => acc + parseInt(c.team_count || 0), 0) / challenges.length).toFixed(1) : '0'"></div>
               <div class="text-[10px] text-slate-400 mt-0.5">Distribusi pilihan peserta</div>
             </div>
@@ -1372,7 +1351,7 @@
             <div class="relative flex-1 w-full">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
               <input type="text" aria-label="Cari tantangan hackathon" x-model="challengeSearch" placeholder="Cari judul tantangan atau deskripsi..."
-                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500">
             </div>
             <button @click="fetchChallenges()" :disabled="loadingChallenges"
                     class="px-3 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 flex-shrink-0">
@@ -1408,7 +1387,7 @@
                         <p class="line-clamp-2 text-[11px]" x-text="ch.description || '-(Tanpa deskripsi rinci)-'"></p>
                       </td>
                       <td class="p-3 text-center">
-                        <span :class="ch.team_count > 0 ? 'bg-blue-600/15 text-blue-400 border-blue-500/30' : 'bg-surface-elevated text-slate-400 border-surface-border'"
+                        <span :class="ch.team_count > 0 ? 'bg-indigo-600/15 text-indigo-400 border-indigo-500/30' : 'bg-surface-elevated text-slate-400 border-surface-border'"
                               class="px-2 py-0.5 rounded border text-[11px] font-mono font-medium"
                               x-text="(ch.team_count || 0) + ' tim'"></span>
                       </td>
@@ -1432,7 +1411,8 @@
                     <tr>
                       <td colspan="5" class="p-8 text-center text-slate-400">
                         <i data-lucide="award" class="w-8 h-8 mx-auto mb-2 text-slate-400"></i>
-                        <p class="text-xs">Tidak ada data challenge yang cocok.</p>
+                        <span class="text-slate-300 font-medium block">Tidak ada topik challenge yang cocok.</span>
+                        <p class="text-xs text-slate-400 mt-1">Sesuaikan kata kunci pencarian atau klik "+ Tambah Challenge" untuk membuat topik baru.</p>
                       </td>
                     </tr>
                   </template>
@@ -1454,7 +1434,7 @@
             </div>
 
             <button @click="openCreateInviteModal()"
-                    class="px-3.5 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+                    class="px-3.5 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
               <i data-lucide="plus" class="w-4 h-4"></i>
               <span>Buat Link Undangan Baru</span>
             </button>
@@ -1476,13 +1456,13 @@
 
             <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
               <div class="text-[11px] text-slate-400 font-medium">Member Bergabung Terlacak</div>
-              <div class="text-2xl font-bold font-mono text-blue-400 mt-1 tabular-nums" x-text="inviteStats.totalJoinsTracked || 0"></div>
+              <div class="text-2xl font-bold font-mono text-white mt-1 tabular-nums" x-text="inviteStats.totalJoinsTracked || 0"></div>
               <div class="text-[10px] text-slate-400 mt-0.5" x-text="(inviteStats.uniqueMembersTracked || 0) + ' user unik terdeteksi'"></div>
             </div>
 
             <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
               <div class="text-[11px] text-slate-400 font-medium">Link Dynamic Auto-Role</div>
-              <div class="text-2xl font-bold font-mono text-blue-400 mt-1 tabular-nums" x-text="inviteStats.dynamicCount || 0"></div>
+              <div class="text-2xl font-bold font-mono text-white mt-1 tabular-nums" x-text="inviteStats.dynamicCount || 0"></div>
               <div class="text-[10px] text-slate-400 mt-0.5">Otomatis memberikan role</div>
             </div>
           </div>
@@ -1491,21 +1471,21 @@
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-3">
             <div class="flex items-center gap-1 bg-surface-elevated p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
               <button @click="inviteSubTab = 'links'"
-                      :class="inviteSubTab === 'links' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="inviteSubTab === 'links' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
                 <i data-lucide="link" class="w-3.5 h-3.5"></i>
                 <span>Daftar Link Undangan</span>
                 <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/25" x-text="invites.length"></span>
               </button>
               <button @click="inviteSubTab = 'joins'"
-                      :class="inviteSubTab === 'joins' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="inviteSubTab === 'joins' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
                 <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
                 <span>Riwayat Bergabung</span>
                 <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/25" x-text="recentInviteJoins.length"></span>
               </button>
               <button @click="inviteSubTab = 'leaderboard'"
-                      :class="inviteSubTab === 'leaderboard' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
+                      :class="inviteSubTab === 'leaderboard' ? 'bg-indigo-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
                 <i data-lucide="award" class="w-3.5 h-3.5"></i>
                 <span>Top Pengundang</span>
@@ -1525,16 +1505,16 @@
             <div class="flex flex-col sm:flex-row items-center gap-3">
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-                <input type="text" aria-label="Cari link undangan" x-model="searchInvite" placeholder="Cari kode link, label, pembuat, channel, atau role..."
-                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                <input type="text" aria-label="Cari link undangan" x-model.debounce.200ms="searchInvite" placeholder="Cari kode link, label, pembuat, channel, atau role..."
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500">
               </div>
 
               <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
-                <button @click="inviteFilter = 'ALL'" :class="inviteFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
-                <button @click="inviteFilter = 'DYNAMIC'" :class="inviteFilter === 'DYNAMIC' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Auto-Role</button>
-                <button @click="inviteFilter = 'STANDARD'" :class="inviteFilter === 'STANDARD' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Standar</button>
-                <button @click="inviteFilter = 'ACTIVE'" :class="inviteFilter === 'ACTIVE' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Aktif</button>
-                <button @click="inviteFilter = 'EXPIRED'" :class="inviteFilter === 'EXPIRED' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Kedaluwarsa</button>
+                <button @click="inviteFilter = 'ALL'" :class="inviteFilter === 'ALL' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                <button @click="inviteFilter = 'DYNAMIC'" :class="inviteFilter === 'DYNAMIC' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Auto-Role</button>
+                <button @click="inviteFilter = 'STANDARD'" :class="inviteFilter === 'STANDARD' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Standar</button>
+                <button @click="inviteFilter = 'ACTIVE'" :class="inviteFilter === 'ACTIVE' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Aktif</button>
+                <button @click="inviteFilter = 'EXPIRED'" :class="inviteFilter === 'EXPIRED' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Kedaluwarsa</button>
               </div>
             </div>
 
@@ -1574,7 +1554,7 @@
                               <span class="px-1.5 py-0.2 rounded bg-surface-elevated border border-surface-border text-slate-200 text-[10px] font-medium" x-text="'@' + r.name"></span>
                             </template>
                             <template x-if="!inv.roles || inv.roles.length === 0">
-                              <span class="text-slate-500 text-[11px]">-(Tanpa role)-</span>
+                              <span class="text-slate-400 text-[11px]">-(Tanpa role)-</span>
                             </template>
                           </div>
                         </td>
@@ -1588,7 +1568,7 @@
                           </div>
                           <template x-if="inv.maxUses > 0">
                             <div class="w-20 bg-surface-input h-1 rounded-full overflow-hidden mt-1">
-                              <div class="bg-blue-500 h-full rounded-full" :style="'width: ' + Math.min(100, Math.round((inv.uses / inv.maxUses) * 100)) + '%'"></div>
+                              <div class="bg-indigo-500 h-full rounded-full" :style="'width: ' + Math.min(100, Math.round((inv.uses / inv.maxUses) * 100)) + '%'"></div>
                             </div>
                           </template>
                         </td>
@@ -1597,7 +1577,7 @@
                             <span class="text-rose-400 text-[11px] font-medium">Kedaluwarsa</span>
                           </template>
                           <template x-if="!inv.isExpired && inv.expiresAt">
-                            <span class="text-amber-400 text-[11px]" x-text="formatDate(inv.expiresAt)"></span>
+                            <span class="text-amber-400 text-[11px] tabular-nums" x-text="formatDate(inv.expiresAt)"></span>
                           </template>
                           <template x-if="!inv.isExpired && !inv.expiresAt">
                             <span class="text-emerald-400 text-[11px] font-medium">Permanen</span>
@@ -1606,13 +1586,15 @@
                         <td class="px-4 py-3 text-right">
                           <div class="flex items-center justify-end gap-1.5">
                             <button @click="copyToClipboard(inv.url, 'Link invite ' + inv.code)"
+                                    aria-label="Salin tautan undangan"
                                     title="Salin Tautan Undangan"
-                                    class="p-1.5 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white transition-colors">
+                                    class="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-300 hover:text-white transition-colors">
                               <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                             </button>
                             <button @click="deleteInviteAction(inv.code)"
+                                    aria-label="Hapus tautan undangan"
                                     title="Hapus Link Ini"
-                                    class="p-1.5 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition-colors">
+                                    class="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 transition-colors">
                               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
                           </div>
@@ -1622,7 +1604,11 @@
                     <template x-if="filteredInvites.length === 0">
                       <tr>
                         <td colspan="7" class="px-4 py-8 text-center text-slate-400">
-                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="link" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada data link undangan yang cocok dengan filter.</span></div>
+                          <div class="flex flex-col items-center justify-center py-2">
+                            <i data-lucide="link" class="w-8 h-8 text-slate-400 mb-2"></i>
+                            <span class="text-slate-300 font-medium">Tidak ada link undangan yang cocok.</span>
+                            <p class="text-xs text-slate-400 mt-1">Sesuaikan filter atau klik "+ Buat Link Undangan Baru" untuk membuat link server baru.</p>
+                          </div>
                         </td>
                       </tr>
                     </template>
@@ -1662,7 +1648,7 @@
                           <div class="text-[10px] text-slate-400 font-mono" x-text="j.discord_id"></div>
                         </td>
                         <td class="px-4 py-3">
-                          <span class="font-mono font-bold text-blue-400" x-text="j.invite_code"></span>
+                          <span class="font-mono font-bold text-indigo-400" x-text="j.invite_code"></span>
                           <template x-if="j.invite_label">
                             <span class="text-[10px] text-slate-400 ml-1" x-text="'(' + j.invite_label + ')'"></span>
                           </template>
@@ -1673,16 +1659,16 @@
                             <span class="px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 text-[10px] font-medium" x-text="j.role_names"></span>
                           </template>
                           <template x-if="!j.role_names">
-                            <span class="text-slate-500 text-[11px]">-</span>
+                            <span class="text-slate-400 text-[11px]">-</span>
                           </template>
                         </td>
-                        <td class="px-4 py-3 text-right text-slate-400 whitespace-nowrap text-[11px]" x-text="formatDate(j.joined_at)"></td>
+                        <td class="px-4 py-3 text-right text-slate-400 whitespace-nowrap text-[11px] tabular-nums" x-text="formatDate(j.joined_at)"></td>
                       </tr>
                     </template>
                     <template x-if="recentInviteJoins.length === 0">
                       <tr>
                         <td colspan="5" class="px-4 py-8 text-center text-slate-400">
-                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="user-plus" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Belum ada aktivitas member bergabung melalui link undangan yang tercatat.</span></div>
+                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="user-plus" class="w-8 h-8 text-slate-400 mb-2"></i><span class="text-slate-300">Belum ada aktivitas member bergabung melalui link undangan yang tercatat.</span></div>
                         </td>
                       </tr>
                     </template>
@@ -1738,14 +1724,14 @@
             <div class="relative flex-1 w-full">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
               <input type="text" aria-label="Cari tiket bantuan" x-model="searchTicket" placeholder="Cari pembuat tiket, Discord ID, atau channel ID..."
-                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500">
             </div>
 
             <div class="flex items-center gap-2">
               <div class="flex items-center gap-1 bg-surface-elevated p-1 rounded-md border border-surface-border text-xs">
-                <button @click="ticketFilterStatus = 'ALL'" :class="ticketFilterStatus === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">Semua</button>
-                <button @click="ticketFilterStatus = 'OPEN'" :class="ticketFilterStatus === 'OPEN' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">OPEN</button>
-                <button @click="ticketFilterStatus = 'CLOSED'" :class="ticketFilterStatus === 'CLOSED' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">CLOSED</button>
+                <button @click="ticketFilterStatus = 'ALL'" :class="ticketFilterStatus === 'ALL' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">Semua</button>
+                <button @click="ticketFilterStatus = 'OPEN'" :class="ticketFilterStatus === 'OPEN' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">OPEN</button>
+                <button @click="ticketFilterStatus = 'CLOSED'" :class="ticketFilterStatus === 'CLOSED' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">CLOSED</button>
               </div>
               <button @click="fetchTickets()" :disabled="loadingTickets" class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-xs text-slate-300 flex items-center gap-1.5 transition-colors disabled:opacity-50" title="Muat ulang tiket">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="loadingTickets ? 'animate-spin' : ''"></i>
@@ -1786,7 +1772,7 @@
                       <td class="px-4 py-3">
                         <template x-if="tk.discord_channel_id">
                           <a :href="tk.discord_jump_url || ('https://discord.com/channels/' + (stats.guild ? stats.guild.id : '') + '/' + tk.discord_channel_id)" target="_blank"
-                             class="text-blue-400 hover:underline font-mono text-xs inline-flex items-center gap-1">
+                             class="text-indigo-400 hover:underline font-mono text-xs inline-flex items-center gap-1">
                             <span x-text="tk.discord_channel_id"></span>
                             <i data-lucide="external-link" class="w-3 h-3"></i>
                           </a>
@@ -1795,15 +1781,15 @@
                           <span class="text-slate-400">-</span>
                         </template>
                       </td>
-                      <td class="px-4 py-3 text-slate-400 text-[11px]" x-text="formatDate(tk.created_at)"></td>
+                      <td class="px-4 py-3 text-slate-400 text-[11px] tabular-nums" x-text="formatDate(tk.created_at)"></td>
                       <td class="px-4 py-3 text-right">
                         <template x-if="tk.status === 'OPEN'">
                           <div class="inline-flex items-center gap-1.5">
-                            <button @click="openReplyModal(tk)" class="px-2.5 py-1 rounded bg-blue-600/10 hover:bg-blue-600/20 text-blue-300 border border-blue-500/20 text-xs transition-colors">
-                              Balas
+                            <button @click="openReplyModal(tk)" class="px-2.5 py-1 rounded bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 text-xs transition-colors">
+                              Balas Tiket
                             </button>
                             <button @click="closeTicketAction(tk.id)" class="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs transition-colors">
-                              Tutup
+                              Tutup Tiket
                             </button>
                           </div>
                         </template>
@@ -1816,7 +1802,11 @@
                   <template x-if="filteredTickets.length === 0">
                     <tr>
                       <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-                        <div class="flex flex-col items-center justify-center py-2"><i data-lucide="inbox" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada tiket yang cocok dengan filter.</span></div>
+                        <div class="flex flex-col items-center justify-center py-2">
+                          <i data-lucide="inbox" class="w-8 h-8 text-slate-400 mb-2"></i>
+                          <span class="text-slate-300 font-medium">Tidak ada tiket dukungan yang cocok.</span>
+                          <p class="text-xs text-slate-400 mt-1">Seluruh pertanyaan dan kendala peserta telah tertangani atau sesuaikan filter status.</p>
+                        </div>
                       </td>
                     </tr>
                   </template>
@@ -1836,9 +1826,9 @@
           <!-- Filter Controls -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Aksi</label>
-              <select x-model="auditFilterAction" @change="auditOffset = 0; fetchAuditLogs()"
-                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+              <label for="audit-filter-action" class="block text-[11px] font-medium text-slate-400 mb-1">Filter Aksi</label>
+              <select id="audit-filter-action" aria-label="Filter aksi log audit" x-model="auditFilterAction" @change="auditOffset = 0; fetchAuditLogs()"
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option value="">Semua Aksi</option>
                 <option value="TEAM_CREATED">TEAM_CREATED</option>
                 <option value="TEAM_ARCHIVED">TEAM_ARCHIVED</option>
@@ -1856,9 +1846,9 @@
             </div>
 
             <div>
-              <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Tim</label>
-              <select x-model="auditFilterTeamId" @change="auditOffset = 0; fetchAuditLogs()"
-                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+              <label for="audit-filter-team" class="block text-[11px] font-medium text-slate-400 mb-1">Filter Tim</label>
+              <select id="audit-filter-team" aria-label="Filter tim log audit" x-model="auditFilterTeamId" @change="auditOffset = 0; fetchAuditLogs()"
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option value="">Semua Tim</option>
                 <template x-for="t in teams" :key="t.id">
                   <option :value="t.id" x-text="t.name"></option>
@@ -1867,11 +1857,11 @@
             </div>
 
             <div>
-              <label class="block text-[11px] font-medium text-slate-400 mb-1">Cari Kata Kunci</label>
+              <label for="audit-search-input" class="block text-[11px] font-medium text-slate-400 mb-1">Cari Kata Kunci</label>
               <div class="flex gap-2">
-                <input type="text" aria-label="Cari kata kunci log audit" x-model="auditSearchText" @keydown.enter="auditOffset = 0; fetchAuditLogs()" placeholder="Username, ID, JSON..."
-                       class="flex-1 bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
-                <button @click="auditOffset = 0; fetchAuditLogs()" :disabled="loadingAuditLogs" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1.5" title="Cari audit log">
+                <input id="audit-search-input" type="text" aria-label="Cari kata kunci log audit" x-model="auditSearchText" @keydown.enter="auditOffset = 0; fetchAuditLogs()" placeholder="Username, ID, JSON..."
+                       class="flex-1 bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <button @click="auditOffset = 0; fetchAuditLogs()" :disabled="loadingAuditLogs" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1.5" title="Cari audit log">
                   <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="loadingAuditLogs ? 'animate-spin' : ''" x-show="loadingAuditLogs"></i>
                   <span>Cari</span>
                 </button>
@@ -1895,9 +1885,9 @@
                 <tbody class="divide-y divide-surface-border">
                   <template x-for="log in auditLogs" :key="log.id">
                     <tr class="hover:bg-surface-hover transition-colors align-top">
-                      <td class="px-4 py-3 whitespace-nowrap text-slate-400 font-mono text-[11px]" x-text="formatDate(log.created_at)"></td>
+                      <td class="px-4 py-3 whitespace-nowrap text-slate-400 font-mono text-[11px] tabular-nums" x-text="formatDate(log.created_at)"></td>
                       <td class="px-4 py-3">
-                        <span class="px-2 py-0.5 rounded font-mono font-semibold text-[10px] bg-surface-elevated border border-surface-border text-blue-300 whitespace-nowrap" x-text="log.action"></span>
+                        <span class="px-2 py-0.5 rounded font-mono font-semibold text-[10px] bg-surface-elevated border border-surface-border text-indigo-300 whitespace-nowrap" x-text="log.action"></span>
                       </td>
                       <td class="px-4 py-3">
                         <div class="font-medium text-white" x-text="log.actor_username || 'System'"></div>
@@ -1907,7 +1897,7 @@
                       </td>
                       <td class="px-4 py-3">
                         <template x-if="log.team_name">
-                          <div class="font-medium text-blue-300" x-text="'Tim: ' + log.team_name"></div>
+                          <div class="font-medium text-indigo-300" x-text="'Tim: ' + log.team_name"></div>
                         </template>
                         <template x-if="log.target_username">
                           <div class="text-slate-300" x-text="'Target: @' + log.target_username"></div>
@@ -1919,7 +1909,7 @@
                       <td class="px-4 py-3 min-w-[200px]">
                         <template x-if="log.metadata && Object.keys(log.metadata).length > 0">
                           <details class="cursor-pointer">
-                            <summary class="text-blue-400 hover:text-blue-300 text-[11px] font-mono">Detail JSON</summary>
+                            <summary class="text-indigo-400 hover:text-indigo-300 text-[11px] font-mono">Detail JSON</summary>
                             <pre class="mt-1 p-2 bg-surface-base rounded text-[10px] text-slate-300 font-mono overflow-x-auto whitespace-pre-wrap max-h-32 border border-surface-border" x-text="JSON.stringify(log.metadata, null, 2)"></pre>
                           </details>
                         </template>
@@ -1932,7 +1922,11 @@
                   <template x-if="auditLogs.length === 0">
                     <tr>
                       <td colspan="5" class="px-4 py-8 text-center text-slate-400">
-                        <div class="flex flex-col items-center justify-center py-2"><i data-lucide="history" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada catatan log audit yang cocok.</span></div>
+                        <div class="flex flex-col items-center justify-center py-2">
+                          <i data-lucide="history" class="w-8 h-8 text-slate-400 mb-2"></i>
+                          <span class="text-slate-300 font-medium">Tidak ada catatan log audit yang cocok.</span>
+                          <p class="text-xs text-slate-400 mt-1">Gunakan kata kunci lain atau kosongkan kolom pencarian untuk melihat seluruh rekaman.</p>
+                        </div>
                       </td>
                     </tr>
                   </template>
@@ -1974,8 +1968,8 @@
 
               <div class="space-y-4">
                 <div>
-                  <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
-                  <select x-model="purgeForm.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <label for="purge-channel-target" class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
+                  <select id="purge-channel-target" x-model="purgeForm.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                     <option value="">-- Pilih Text Channel --</option>
                     <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
                       <option :value="c.id" x-text="'#' + c.name"></option>
@@ -1985,10 +1979,10 @@
 
                 <div>
                   <div class="flex items-center justify-between mb-1">
-                    <label class="text-xs font-medium text-slate-300">Jumlah Pesan yang Dihapus (1 - 100) <span class="text-rose-400">*</span></label>
-                    <span class="text-xs font-mono text-blue-400 font-semibold" x-text="purgeForm.amount + ' pesan'"></span>
+                    <label for="purge-amount-input" class="text-xs font-medium text-slate-300">Jumlah Pesan yang Dihapus (1 - 100) <span class="text-rose-400">*</span></label>
+                    <span class="text-xs font-mono text-indigo-400 font-semibold" x-text="purgeForm.amount + ' pesan'"></span>
                   </div>
-                  <input type="range" min="1" max="100" x-model.number="purgeForm.amount" class="w-full accent-blue-600 bg-surface-input h-1.5 rounded cursor-pointer">
+                  <input id="purge-amount-input" aria-label="Jumlah pesan yang dihapus" type="range" min="1" max="100" x-model.number="purgeForm.amount" class="w-full accent-indigo-600 bg-surface-input h-1.5 rounded cursor-pointer">
                   <div class="flex items-center gap-2 mt-2">
                     <button type="button" @click="purgeForm.amount = 10" class="px-2.5 py-1 rounded text-xs bg-surface-elevated border border-surface-border text-slate-300 hover:bg-surface-hover transition-colors">10 Pesan</button>
                     <button type="button" @click="purgeForm.amount = 25" class="px-2.5 py-1 rounded text-xs bg-surface-elevated border border-surface-border text-slate-300 hover:bg-surface-hover transition-colors">25 Pesan</button>
@@ -1998,8 +1992,8 @@
                 </div>
 
                 <div>
-                  <label class="block text-xs font-medium text-slate-300 mb-1">Filter User Tertentu (Opsional)</label>
-                  <select x-model="purgeForm.userId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                  <label for="purge-user-filter" class="block text-xs font-medium text-slate-300 mb-1">Filter User Tertentu (Opsional)</label>
+                  <select id="purge-user-filter" x-model="purgeForm.userId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                     <option value="">Semua User (Hapus pesan siapa pun)</option>
                     <template x-for="m in guildMembers" :key="m.id">
                       <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
@@ -2042,7 +2036,7 @@
               </p>
             </div>
             <button type="button" @click="switchTab('announce'); studioMode = 'dynamic'; fetchDynamicEmbeds()"
-                    class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap self-start sm:self-auto">
+                    class="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap self-start sm:self-auto">
               <i data-lucide="layers" class="w-3.5 h-3.5"></i>
               <span>Buka Editor Live FAQ & Rules &rarr;</span>
             </button>
@@ -2053,16 +2047,16 @@
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
                 <input type="text" aria-label="Cari FAQ dan aturan" x-model="faqSearch" placeholder="Cari pertanyaan, aturan, atau nama command..."
-                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500">
               </div>
 
               <!-- Categories Filter -->
               <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
-                <button @click="faqCategory = 'ALL'" :class="faqCategory === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
-                <button @click="faqCategory = 'TEAMS'" :class="faqCategory === 'TEAMS' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Tim</button>
-                <button @click="faqCategory = 'NASA'" :class="faqCategory === 'NASA' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web NASA</button>
-                <button @click="faqCategory = 'ANNOUNCE'" :class="faqCategory === 'ANNOUNCE' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Pengumuman</button>
-                <button @click="faqCategory = 'COMMANDS'" :class="faqCategory === 'COMMANDS' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Commands</button>
+                <button @click="faqCategory = 'ALL'" :class="faqCategory === 'ALL' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                <button @click="faqCategory = 'TEAMS'" :class="faqCategory === 'TEAMS' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Tim</button>
+                <button @click="faqCategory = 'NASA'" :class="faqCategory === 'NASA' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Web NASA</button>
+                <button @click="faqCategory = 'ANNOUNCE'" :class="faqCategory === 'ANNOUNCE' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Pengumuman</button>
+                <button @click="faqCategory = 'COMMANDS'" :class="faqCategory === 'COMMANDS' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Commands</button>
               </div>
             </div>
           </div>
@@ -2086,7 +2080,7 @@
                 <tbody class="divide-y divide-surface-border font-mono text-[11px]">
                   <template x-for="cmd in filteredCommands" :key="cmd.command">
                     <tr class="hover:bg-surface-hover">
-                      <td class="px-3 py-2.5 text-blue-400 font-bold whitespace-nowrap" x-text="cmd.command"></td>
+                      <td class="px-3 py-2.5 text-indigo-400 font-bold whitespace-nowrap" x-text="cmd.command"></td>
                       <td class="px-3 py-2.5 whitespace-nowrap">
                         <span class="px-1.5 py-0.2 rounded text-[10px] bg-surface-elevated border border-surface-border"
                               :class="cmd.scope === 'Admin' ? 'text-amber-400' : 'text-slate-300'" x-text="cmd.scope"></span>
@@ -2104,7 +2098,7 @@
             <template x-for="(item, idx) in filteredFaqs" :key="idx">
               <div class="bg-surface-card border border-surface-border rounded-lg p-4">
                 <h3 class="text-xs font-semibold text-white flex items-start gap-2 mb-1.5">
-                  <span class="text-blue-400 font-mono">Q:</span>
+                  <span class="text-slate-400 font-mono font-semibold">Q:</span>
                   <span x-text="item.question"></span>
                 </h3>
                 <div class="text-xs text-slate-300 pl-5 leading-relaxed" x-html="item.answer"></div>
@@ -2144,7 +2138,7 @@
                 <div>
                   <div class="flex items-center gap-2">
                     <span class="text-base font-bold text-white" x-text="stats.bot.tag ? stats.bot.tag.split('#')[0] : 'NSAC Jember'"></span>
-                    <span class="bg-[#5865F2] text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">BOT</span>
+                    <span class="bg-discord-blurple text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">BOT</span>
                     <span class="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-semibold"
                           :class="{
                             'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30': botPresence.statusType === 'online',
@@ -2156,7 +2150,7 @@
                   </div>
                   <div class="text-xs text-slate-300 mt-1 flex items-center gap-1.5">
                     <span class="text-slate-400 text-[11px]">Aktivitas Live:</span>
-                    <span class="font-medium text-blue-400" x-text="currentActivityDisplay || 'Memuat status bot...'"></span>
+                    <span class="font-medium text-indigo-400" x-text="currentActivityDisplay || 'Memuat status bot...'"></span>
                   </div>
                 </div>
               </div>
@@ -2187,9 +2181,9 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <!-- Status Type Selector -->
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-300">Status Indikator Online</label>
-                <select x-model="botPresence.statusType"
-                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <label for="presence-status-type" class="block text-xs font-medium text-slate-300">Status Indikator Online</label>
+                <select id="presence-status-type" x-model="botPresence.statusType"
+                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                   <option value="online">Online (Hijau)</option>
                   <option value="idle">Singgah / Idle (Kuning)</option>
                   <option value="dnd">Jangan Ganggu / DND (Merah)</option>
@@ -2200,9 +2194,9 @@
 
               <!-- Cycle Toggle -->
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-300">Mode Perputaran (Cycle)</label>
-                <select x-model="botPresence.enabled"
-                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <label for="presence-cycle-toggle" class="block text-xs font-medium text-slate-300">Mode Perputaran (Cycle)</label>
+                <select id="presence-cycle-toggle" x-model="botPresence.enabled"
+                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                   <option :value="true">Aktif (Putar Teks Bergantian)</option>
                   <option :value="false">Nonaktif (Gunakan Teks Pertama Saja)</option>
                 </select>
@@ -2211,9 +2205,9 @@
 
               <!-- Interval Duration -->
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-300">Interval Pergantian</label>
-                <select x-model.number="botPresence.intervalSeconds"
-                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <label for="presence-cycle-interval" class="block text-xs font-medium text-slate-300">Interval Pergantian</label>
+                <select id="presence-cycle-interval" x-model.number="botPresence.intervalSeconds"
+                        class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
                   <option :value="15">15 Detik (Cepat)</option>
                   <option :value="30">30 Detik</option>
                   <option :value="60">60 Detik (1 Menit - Standar)</option>
@@ -2236,7 +2230,7 @@
               </div>
 
               <button @click="addPresenceActivity()"
-                      class="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5">
+                      class="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 <span>Tambah Pesan Status</span>
               </button>
@@ -2256,28 +2250,31 @@
                     <div class="flex items-center gap-2">
                       <!-- Enabled checkbox -->
                       <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer mr-2">
-                        <input type="checkbox" x-model="act.enabled" class="rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
+                        <input :aria-label="'Aktifkan pesan aktivitas #' + (idx + 1)" type="checkbox" x-model="act.enabled" class="rounded bg-surface-input border-surface-border text-indigo-600 focus:ring-0">
                         <span class="text-[11px]">Aktif</span>
                       </label>
 
                       <!-- Reorder Buttons -->
                       <div class="flex items-center gap-1">
                         <button @click="movePresenceActivity(idx, -1)" :disabled="idx === 0"
+                                aria-label="Pindah pesan aktivitas ke atas"
                                 title="Pindah ke Atas"
-                                class="p-1 rounded bg-surface-elevated hover:bg-surface-hover disabled:opacity-30 border border-surface-border text-slate-300 transition-colors">
+                                class="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded bg-surface-elevated hover:bg-surface-hover disabled:opacity-30 border border-surface-border text-slate-300 transition-colors">
                           <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
                         </button>
                         <button @click="movePresenceActivity(idx, 1)" :disabled="idx === (botPresence.activities.length - 1)"
+                                aria-label="Pindah pesan aktivitas ke bawah"
                                 title="Pindah ke Bawah"
-                                class="p-1 rounded bg-surface-elevated hover:bg-surface-hover disabled:opacity-30 border border-surface-border text-slate-300 transition-colors">
+                                class="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded bg-surface-elevated hover:bg-surface-hover disabled:opacity-30 border border-surface-border text-slate-300 transition-colors">
                           <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i>
                         </button>
                       </div>
 
                       <!-- Delete Button -->
                       <button @click="removePresenceActivity(idx)" :disabled="botPresence.activities.length <= 1"
+                              aria-label="Hapus pesan aktivitas bot"
                               title="Hapus Pesan Ini"
-                              class="p-1 rounded bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-30 border border-rose-500/20 text-rose-300 transition-colors">
+                              class="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-30 border border-rose-500/20 text-rose-300 transition-colors">
                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                       </button>
                     </div>
@@ -2287,8 +2284,8 @@
                     <!-- Activity Type -->
                     <div class="md:col-span-1 space-y-1">
                       <label class="block text-[11px] font-medium text-slate-400">Tipe Aktivitas</label>
-                      <select x-model="act.type"
-                              class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                      <select :aria-label="'Tipe aktivitas #' + (idx + 1)" x-model="act.type"
+                              class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                         <option value="WATCHING">Menonton (Watching)</option>
                         <option value="PLAYING">Bermain (Playing)</option>
                         <option value="LISTENING">Mendengarkan (Listening)</option>
@@ -2303,7 +2300,7 @@
                         <label class="block text-[11px] font-medium text-slate-400">Teks Status / Template</label>
                         <div class="flex items-center gap-1">
                           <span class="text-[10px] text-slate-400">Sisipkan:</span>
-                          <button type="button" @click="insertPresenceTag(idx, '{countdown}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-blue-400 border border-surface-border font-mono text-[10px]">+ {countdown}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{countdown}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-indigo-400 border border-surface-border font-mono text-[10px]">+ {countdown}</button>
                           <button type="button" @click="insertPresenceTag(idx, '{teams}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-emerald-400 border border-surface-border font-mono text-[10px]">+ {teams}</button>
                           <button type="button" @click="insertPresenceTag(idx, '{participants}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-purple-400 border border-surface-border font-mono text-[10px]">+ {participants}</button>
                           <button type="button" @click="insertPresenceTag(idx, '{members}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-amber-400 border border-surface-border font-mono text-[10px]">+ {members}</button>
@@ -2311,7 +2308,7 @@
                       </div>
 
                       <input type="text" aria-label="Teks status bot" x-model="act.text" placeholder="Masukkan teks status bot..."
-                             class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-sans">
+                             class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-sans">
 
                       <!-- Live Result Preview for this item -->
                       <div class="bg-surface-base/60 rounded px-3 py-1.5 text-[11px] flex items-center justify-between">
@@ -2335,7 +2332,7 @@
             </button>
 
             <button @click="saveBotPresence()" :disabled="savingPresence"
-                    class="w-full sm:w-auto px-6 py-2 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+                    class="w-full sm:w-auto px-6 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
               <i data-lucide="check" class="w-4 h-4" x-show="!savingPresence"></i>
               <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin" x-show="savingPresence"></i>
               <span x-text="savingPresence ? 'Menerapkan ke Bot...' : 'Simpan & Terapkan ke Bot'"></span>
@@ -2356,19 +2353,19 @@
 
               <!-- Category filter pills -->
               <div class="flex items-center gap-1 pb-2 border-b border-surface-border text-xs overflow-x-auto">
-                <button @click="configCategoryFilter = 'ALL'" :class="configCategoryFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
-                <button @click="configCategoryFilter = 'ROLES'" :class="configCategoryFilter === 'ROLES' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Role</button>
-                <button @click="configCategoryFilter = 'CHANNELS'" :class="configCategoryFilter === 'CHANNELS' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Channel</button>
-                <button @click="configCategoryFilter = 'SCHEDULE'" :class="configCategoryFilter === 'SCHEDULE' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Jadwal</button>
-                <button @click="configCategoryFilter = 'SYSTEM'" :class="configCategoryFilter === 'SYSTEM' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Sistem</button>
+                <button @click="configCategoryFilter = 'ALL'" :class="configCategoryFilter === 'ALL' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
+                <button @click="configCategoryFilter = 'ROLES'" :class="configCategoryFilter === 'ROLES' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Role</button>
+                <button @click="configCategoryFilter = 'CHANNELS'" :class="configCategoryFilter === 'CHANNELS' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Channel</button>
+                <button @click="configCategoryFilter = 'SCHEDULE'" :class="configCategoryFilter === 'SCHEDULE' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Jadwal</button>
+                <button @click="configCategoryFilter = 'SYSTEM'" :class="configCategoryFilter === 'SYSTEM' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Sistem</button>
               </div>
             </div>
 
             <!-- Search box for configs -->
             <div class="relative w-full">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" aria-label="Cari konfigurasi server" x-model="searchConfig" placeholder="Cari nama konfigurasi, key, atau deskripsi..."
-                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              <input type="text" aria-label="Cari konfigurasi server" x-model.debounce.200ms="searchConfig" placeholder="Cari nama konfigurasi, key, atau deskripsi..."
+                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500">
             </div>
 
             <div class="divide-y divide-surface-border">
@@ -2380,7 +2377,7 @@
                       <span class="text-[9px] font-mono px-1.5 py-0.2 rounded uppercase"
                             :class="{
                               'bg-purple-500/15 text-purple-400 border border-purple-500/20': c.category === 'ROLES',
-                              'bg-blue-500/15 text-blue-400 border border-blue-500/20': c.category === 'CHANNELS',
+                              'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20': c.category === 'CHANNELS',
                               'bg-amber-500/15 text-amber-400 border border-amber-500/20': c.category === 'SCHEDULE',
                               'bg-slate-700 text-slate-300 border border-slate-600': c.category === 'SYSTEM'
                             }"
@@ -2389,7 +2386,7 @@
                     <div class="text-[10px] text-slate-400 font-mono mt-0.5" x-text="c.key"></div>
                     <p class="text-[11px] text-slate-400 mt-0.5" x-text="c.description"></p>
                     <template x-if="c.value">
-                      <div class="text-[10px] text-slate-500 font-mono mt-0.5">Nilai saat ini: <span class="text-slate-400" x-text="c.value"></span></div>
+                      <div class="text-[10px] text-slate-400 font-mono mt-0.5">Nilai saat ini: <span class="text-slate-300" x-text="c.value"></span></div>
                     </template>
                   </div>
 
@@ -2397,8 +2394,8 @@
                   <div class="flex items-center gap-2 w-full md:w-auto">
                     <!-- 1. ROLE Type Dropdown -->
                     <template x-if="c.type === 'ROLE' && !manualConfigMode[c.key]">
-                      <select x-model="c.value"
-                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                      <select :aria-label="'Nilai ' + (c.label || c.key)" x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-full md:w-72">
                         <option value="">-- Pilih Role (Belum Diatur) --</option>
                         <template x-for="r in (configOptions.roles || [])" :key="r.id">
                           <option :value="r.id" x-text="'@' + r.name + ' (' + r.id + ')'"></option>
@@ -2408,8 +2405,8 @@
 
                     <!-- 2. CHANNEL Type Dropdown -->
                     <template x-if="c.type === 'CHANNEL' && !manualConfigMode[c.key]">
-                      <select x-model="c.value"
-                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                      <select :aria-label="'Nilai ' + (c.label || c.key)" x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-full md:w-72">
                         <option value="">-- Pilih Channel Text --</option>
                         <template x-for="ch in (configOptions.textChannels || [])" :key="ch.id">
                           <option :value="ch.id" x-text="'#' + ch.name + ' (' + ch.id + ')'"></option>
@@ -2419,8 +2416,8 @@
 
                     <!-- 3. VOICE_CHANNEL Type Dropdown -->
                     <template x-if="c.type === 'VOICE_CHANNEL' && !manualConfigMode[c.key]">
-                      <select x-model="c.value"
-                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                      <select :aria-label="'Nilai ' + (c.label || c.key)" x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-full md:w-72">
                         <option value="">-- Pilih Voice Channel --</option>
                         <template x-for="vc in (configOptions.voiceChannels || [])" :key="vc.id">
                           <option :value="vc.id" x-text="'🔊 ' + vc.name + ' (' + vc.id + ')'"></option>
@@ -2430,8 +2427,8 @@
 
                     <!-- 4. CATEGORY Type Dropdown -->
                     <template x-if="c.type === 'CATEGORY' && !manualConfigMode[c.key]">
-                      <select x-model="c.value"
-                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                      <select :aria-label="'Nilai ' + (c.label || c.key)" x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-full md:w-72">
                         <option value="">-- Pilih Kategori --</option>
                         <template x-for="cat in (configOptions.categories || [])" :key="cat.id">
                           <option :value="cat.id" x-text="'📁 ' + cat.name + ' (' + cat.id + ')'"></option>
@@ -2441,8 +2438,8 @@
 
                     <!-- 5. BOOLEAN Dropdown -->
                     <template x-if="c.type === 'BOOLEAN'">
-                      <select x-model="c.value"
-                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72">
+                      <select :aria-label="'Nilai ' + (c.label || c.key)" x-model="c.value"
+                              class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-full md:w-72">
                         <option value="true">Buka Pendaftaran (true)</option>
                         <option value="false">Tutup Pendaftaran (false)</option>
                       </select>
@@ -2450,13 +2447,14 @@
 
                     <!-- 6. DATETIME or TEXT or MANUAL MODE Input -->
                     <template x-if="c.type === 'TEXT' || c.type === 'DATETIME' || manualConfigMode[c.key]">
-                      <input type="text" x-model="c.value" :placeholder="c.type === 'DATETIME' ? '2026-10-03T09:00:00+07:00' : 'Masukkan ID / Nilai...'"
-                             class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 w-full md:w-72 font-mono">
+                      <input :aria-label="'Nilai ' + (c.label || c.key)" type="text" x-model="c.value" :placeholder="c.type === 'DATETIME' ? '2026-10-03T09:00:00+07:00' : 'Masukkan ID / Nilai...'"
+                             class="bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-full md:w-72 font-mono">
                     </template>
 
                     <!-- Toggle manual ID button for Discord objects -->
                     <template x-if="['ROLE', 'CHANNEL', 'VOICE_CHANNEL', 'CATEGORY'].includes(c.type)">
                       <button @click="toggleManualConfig(c.key)"
+                              :aria-label="manualConfigMode[c.key] ? 'Beralih ke mode dropdown pilihan' : 'Beralih ke input manual ID Snowflake'"
                               :title="manualConfigMode[c.key] ? 'Beralih ke mode Dropdown Pilihan' : 'Beralih ke input manual ID Snowflake'"
                               class="p-1.5 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-400 hover:text-white transition-colors flex-shrink-0">
                         <i data-lucide="edit-3" class="w-3.5 h-3.5" x-show="!manualConfigMode[c.key]"></i>
@@ -2466,7 +2464,7 @@
 
                     <!-- Save Button -->
                     <button @click="saveConfig(c.key, c.value)" :disabled="savingConfigKey === c.key"
-                            class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5">
+                            class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5">
                       <span x-text="savingConfigKey === c.key ? 'Menyimpan...' : 'Simpan'"></span>
                     </button>
                   </div>
@@ -2475,7 +2473,8 @@
 
               <template x-if="filteredConfigs.length === 0">
                 <div class="py-8 text-center text-slate-400 text-xs">
-                  Tidak ada pengaturan yang cocok dengan filter.
+                  <span class="text-slate-300 font-medium block">Tidak ada konfigurasi yang cocok.</span>
+                  <p class="text-xs text-slate-400 mt-1">Periksa kembali kata kunci pencarian nama konfigurasi atau kategori.</p>
                 </div>
               </template>
             </div>
@@ -2509,7 +2508,7 @@
                 </div>
                 <p class="text-[11px] text-slate-400 mt-0.5" x-text="'ID: ' + selectedTeam.id + ' • Dibuat: ' + formatDate(selectedTeam.created_at)"></p>
               </div>
-              <button @click="showTeamModal = false" aria-label="Tutup dialog tim" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
+              <button @click="showTeamModal = false" aria-label="Tutup dialog tim" class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
                 <i data-lucide="x" class="w-4 h-4"></i>
               </button>
             </div>
@@ -2536,10 +2535,10 @@
 
             <!-- Challenge Topic Assignment (/team set-challenge) -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-300">Topik Challenge Hackathon</label>
+              <label for="modal-team-challenge-select" class="block text-xs font-medium text-slate-300">Topik Challenge Hackathon</label>
               <div class="flex items-center gap-2">
-                <select x-model="selectedTeam.challenge_id"
-                        class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <select id="modal-team-challenge-select" x-model="selectedTeam.challenge_id"
+                        class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                   <option :value="null">-- Belum Memilih Challenge --</option>
                   <template x-for="ch in challenges" :key="ch.id">
                     <option :value="ch.id" :selected="selectedTeam.challenge_id == ch.id" x-text="ch.title"></option>
@@ -2547,26 +2546,7 @@
                 </select>
                 <button @click="setTeamChallengeAction(selectedTeam.id, selectedTeam.challenge_id)"
                         :disabled="savingTeamChallenge"
-                        class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
-                  <span x-text="savingTeamChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Challenge Topic Assignment (/team set-challenge) -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-300">Topik Challenge Hackathon</label>
-              <div class="flex items-center gap-2">
-                <select x-model="selectedTeam.challenge_id"
-                        class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
-                  <option :value="null">-- Belum Memilih Challenge --</option>
-                  <template x-for="ch in challenges" :key="ch.id">
-                    <option :value="ch.id" :selected="selectedTeam.challenge_id == ch.id" x-text="ch.title"></option>
-                  </template>
-                </select>
-                <button @click="setTeamChallengeAction(selectedTeam.id, selectedTeam.challenge_id)"
-                        :disabled="savingTeamChallenge"
-                        class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
                   <span x-text="savingTeamChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
                 </button>
               </div>
@@ -2574,12 +2554,12 @@
 
             <!-- Web Link -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-300">Tautan Resmi Profil Web NASA Space Apps</label>
+              <label for="modal-team-nsac-link" class="block text-xs font-medium text-slate-300">Tautan Resmi Profil Web NASA Space Apps</label>
               <div class="flex items-center gap-2">
-                <input type="url" x-model="selectedTeam.nsac_link" placeholder="https://www.spaceappschallenge.org/2026/find-a-team/..."
-                       class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
-                <button @click="updateTeamNsacLink()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
-                  Simpan
+                <input id="modal-team-nsac-link" type="url" x-model="selectedTeam.nsac_link" placeholder="https://www.spaceappschallenge.org/2026/find-a-team/..."
+                       class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono">
+                <button @click="updateTeamNsacLink()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
+                  Simpan Tautan
                 </button>
               </div>
             </div>
@@ -2621,9 +2601,9 @@
               <!-- Add member -->
               <div class="flex items-center gap-2 pt-1">
                 <input type="text" aria-label="Discord ID anggota baru" x-model="newMemberDiscordId" placeholder="Discord ID anggota baru..."
-                       class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+                       class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono">
                 <button @click="addMemberAction()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
-                  Tambah
+                  Tambah Anggota
                 </button>
               </div>
             </div>
@@ -2632,7 +2612,7 @@
             <div class="pt-3 border-t border-surface-border flex items-center justify-between gap-3">
               <div class="flex items-center gap-2">
                 <button @click="renameTeamAction()" class="px-3 py-1.5 rounded bg-surface-base hover:bg-surface-hover text-slate-200 text-xs border border-surface-border">
-                  Ganti Nama
+                  Ubah Nama Tim
                 </button>
                 <template x-if="selectedTeam.status === 'ACTIVE'">
                   <button @click="archiveTeamAction()" class="px-3 py-1.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs border border-amber-500/20">
@@ -2661,15 +2641,15 @@
             <h3 id="modal-ticket-title" class="text-sm font-semibold text-white">Balas Tiket Dukungan</h3>
             <p class="text-xs text-slate-400 mt-0.5" x-text="replyingTicket ? 'Tiket #' + replyingTicket.id + ' oleh @' + (replyingTicket.creator_username || 'User') : ''"></p>
           </div>
-          <button @click="showTicketReplyModal = false" aria-label="Tutup dialog tiket" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
+          <button @click="showTicketReplyModal = false" aria-label="Tutup dialog tiket" class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1.5">Pesan Balasan ke Channel Discord</label>
-          <textarea x-model="ticketReplyMessage" rows="5" placeholder="Tulis instruksi atau jawaban untuk peserta..."
-                    class="w-full bg-surface-input border border-surface-border rounded-md p-3 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+          <label for="modal-ticket-reply-text" class="block text-xs font-medium text-slate-300 mb-1.5">Pesan Balasan ke Channel Discord</label>
+          <textarea id="modal-ticket-reply-text" x-model="ticketReplyMessage" rows="5" placeholder="Tulis instruksi atau jawaban untuk peserta..."
+                    class="w-full bg-surface-input border border-surface-border rounded-md p-3 text-xs text-white focus:outline-none focus:border-indigo-500"></textarea>
           <p class="text-[11px] text-slate-400 mt-1">Pesan ini akan langsung diposting oleh bot ke channel tiket peserta di server Discord.</p>
         </div>
 
@@ -2678,7 +2658,7 @@
             Batal
           </button>
           <button @click="sendTicketReply()" :disabled="sendingReply || !ticketReplyMessage.trim()"
-                  class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
+                  class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50">
             <span x-text="sendingReply ? 'Mengirim...' : 'Kirim Balasan'"></span>
           </button>
         </div>
@@ -2696,7 +2676,7 @@
             <h3 id="modal-invite-title" class="text-base font-bold text-white">Buat Link Undangan Server</h3>
             <p class="text-xs text-slate-400 mt-0.5">Tautan undangan dengan auto-assign role otomatis bagi anggota baru yang bergabung.</p>
           </div>
-          <button @click="showCreateInviteModal = false" aria-label="Tutup dialog invite" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
+          <button @click="showCreateInviteModal = false" aria-label="Tutup dialog invite" class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
@@ -2710,7 +2690,7 @@
             </div>
             <div class="flex items-center gap-2">
               <input type="text" readonly aria-label="URL link undangan Discord yang dibuat" :value="createdInviteResult.url"
-                     class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono selection:bg-blue-600">
+                     class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono selection:bg-indigo-600">
               <button @click="copyToClipboard(createdInviteResult.url, 'Link invite')"
                       class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors whitespace-nowrap">
                 Salin Tautan
@@ -2722,9 +2702,9 @@
         <form @submit.prevent="createInviteAction()" class="space-y-4">
           <!-- Target Channel -->
           <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-slate-300">Channel Tujuan Mendarat</label>
-            <select x-model="createInviteForm.channelId"
-                    class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="create-invite-channel" class="block text-xs font-medium text-slate-300">Channel Tujuan Mendarat</label>
+            <select id="create-invite-channel" x-model="createInviteForm.channelId"
+                    class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
               <option value="">-- Gunakan Welcome/Rules Channel Otomatis --</option>
               <template x-for="ch in channels" :key="ch.id">
                 <option :value="ch.id" x-text="'#' + ch.name"></option>
@@ -2738,7 +2718,7 @@
             <div class="max-h-36 overflow-y-auto space-y-1 bg-surface-input border border-surface-border rounded-md p-2.5">
               <template x-for="r in roles" :key="r.id">
                 <label class="flex items-center gap-2 text-xs text-slate-300 hover:text-white cursor-pointer py-0.5">
-                  <input type="checkbox" :value="r.id" x-model="createInviteForm.roleIds" class="rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
+                  <input :aria-label="'Pilih role ' + r.name" type="checkbox" :value="r.id" x-model="createInviteForm.roleIds" class="rounded bg-surface-input border-surface-border text-indigo-600 focus:ring-0">
                   <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="'background-color: ' + (r.color || '#99aab5')"></span>
                   <span x-text="r.name"></span>
                 </label>
@@ -2749,17 +2729,17 @@
 
           <!-- Label / Catatan -->
           <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-slate-300">Label / Keterangan Tautan (Opsional)</label>
-            <input type="text" x-model="createInviteForm.label" placeholder="Contoh: Peserta Gelombang 2, Link Juri & Mentor"
-                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="create-invite-label" class="block text-xs font-medium text-slate-300">Label / Keterangan Tautan (Opsional)</label>
+            <input id="create-invite-label" type="text" x-model="createInviteForm.label" placeholder="Contoh: Peserta Gelombang 2, Link Juri & Mentor"
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
           </div>
 
           <!-- Limits Grid -->
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-300">Batas Penggunaan</label>
-              <select x-model.number="createInviteForm.maxUses"
-                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+              <label for="create-invite-max-uses" class="block text-xs font-medium text-slate-300">Batas Penggunaan</label>
+              <select id="create-invite-max-uses" x-model.number="createInviteForm.maxUses"
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option :value="0">Tanpa Batas (Unlimited)</option>
                 <option :value="1">1 Kali Pakai</option>
                 <option :value="5">5 Kali</option>
@@ -2771,9 +2751,9 @@
             </div>
 
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-300">Masa Berlaku (Expired)</label>
-              <select x-model.number="createInviteForm.maxAge"
-                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+              <label for="create-invite-max-age" class="block text-xs font-medium text-slate-300">Masa Berlaku (Expired)</label>
+              <select id="create-invite-max-age" x-model.number="createInviteForm.maxAge"
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option :value="0">Permanen (Tidak Kedaluwarsa)</option>
                 <option :value="1800">30 Menit</option>
                 <option :value="3600">1 Jam</option>
@@ -2788,10 +2768,10 @@
           <div class="pt-3 border-t border-surface-border flex items-center justify-end gap-2">
             <button type="button" @click="showCreateInviteModal = false"
                     class="px-3 py-1.5 rounded bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-300 text-xs transition-colors">
-              Tutup
+              Batal
             </button>
             <button type="submit" :disabled="creatingInvite"
-                    class="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5">
+                    class="px-4 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5">
               <i data-lucide="check" class="w-3.5 h-3.5" x-show="!creatingInvite"></i>
               <i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin" x-show="creatingInvite"></i>
               <span x-text="creatingInvite ? 'Membuat Tautan...' : 'Buat Link Sekarang'"></span>
@@ -2808,30 +2788,30 @@
       <div @click.away="showChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-surface-border pb-3">
           <h3 id="modal-challenge-title" class="text-sm font-semibold text-white flex items-center gap-2">
-            <i data-lucide="award" class="w-4 h-4 text-blue-400"></i>
+            <i data-lucide="award" class="w-4 h-4 text-slate-400"></i>
             <span x-text="challengeModalMode === 'edit' ? 'Edit Topik Challenge' : 'Tambah Topik Challenge Baru'"></span>
           </h3>
-          <button @click="showChallengeModal = false" aria-label="Tutup dialog challenge" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showChallengeModal = false" aria-label="Tutup dialog challenge" class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover text-lg transition-colors">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Judul Challenge <span class="text-rose-400">*</span></label>
-            <input type="text" x-model="challengeForm.title" placeholder="Contoh: Earth Observation for Climate..."
-                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="challenge-form-title" class="block text-xs font-medium text-slate-300 mb-1">Judul Challenge <span class="text-rose-400">*</span></label>
+            <input id="challenge-form-title" type="text" x-model="challengeForm.title" placeholder="Contoh: Earth Observation for Climate..."
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Deskripsi & Rincian Tantangan</label>
-            <textarea rows="5" x-model="challengeForm.description" placeholder="Jelaskan gambaran umum tantangan, tujuan, dan data yang dapat dimanfaatkan peserta..."
-                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+            <label for="challenge-form-desc" class="block text-xs font-medium text-slate-300 mb-1">Deskripsi & Rincian Tantangan</label>
+            <textarea id="challenge-form-desc" rows="5" x-model="challengeForm.description" placeholder="Jelaskan gambaran umum tantangan, tujuan, dan data yang dapat dimanfaatkan peserta..."
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"></textarea>
           </div>
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
           <button @click="showChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
           <button @click="saveChallenge()" :disabled="savingChallenge"
-                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+                  class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
             <span x-text="savingChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
           </button>
         </div>
@@ -2845,17 +2825,17 @@
       <div @click.away="showBroadcastChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-md w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-surface-border pb-3">
           <h3 id="modal-broadcast-title" class="text-sm font-semibold text-white flex items-center gap-2">
-            <i data-lucide="send" class="w-4 h-4 text-blue-400"></i>
+            <i data-lucide="send" class="w-4 h-4 text-slate-400"></i>
             <span>Kirim Daftar Challenge ke Discord</span>
           </h3>
-          <button @click="showBroadcastChallengeModal = false" aria-label="Tutup dialog broadcast" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showBroadcastChallengeModal = false" aria-label="Tutup dialog broadcast" class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover text-lg transition-colors">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
           <p class="text-slate-400">Pilih channel Discord target. Bot akan memposting embed resmi berisi seluruh daftar tantangan yang telah diinput.</p>
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
-            <select x-model="broadcastChallengeChannelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="broadcast-challenge-channel-select" class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
+            <select id="broadcast-challenge-channel-select" x-model="broadcastChallengeChannelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
               <option value="">-- Pilih Text Channel --</option>
               <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
                 <option :value="c.id" x-text="'#' + c.name"></option>
@@ -2867,7 +2847,7 @@
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
           <button @click="showBroadcastChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
           <button @click="broadcastChallengesAction()" :disabled="broadcastingChallenge || !broadcastChallengeChannelId"
-                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+                  class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
             <span x-text="broadcastingChallenge ? 'Mengirim...' : 'Kirim Embed'"></span>
           </button>
         </div>
@@ -2881,22 +2861,22 @@
       <div @click.away="showForceRegisterModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-surface-border pb-3">
           <h3 id="modal-force-reg-title" class="text-sm font-semibold text-white flex items-center gap-2">
-            <i data-lucide="user-plus" class="w-4 h-4 text-blue-400"></i>
+            <i data-lucide="user-plus" class="w-4 h-4 text-slate-400"></i>
             <span>Daftarkan Tim Baru (Force Register)</span>
           </h3>
-          <button @click="showForceRegisterModal = false" aria-label="Tutup dialog pendaftaran" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showForceRegisterModal = false" aria-label="Tutup dialog pendaftaran" class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover text-lg transition-colors">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Nama Tim <span class="text-rose-400">*</span></label>
-            <input type="text" x-model="forceRegisterForm.name" placeholder="Contoh: AstroDevs"
-                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="force-reg-team-name" class="block text-xs font-medium text-slate-300 mb-1">Nama Tim <span class="text-rose-400">*</span></label>
+            <input id="force-reg-team-name" type="text" x-model="forceRegisterForm.name" placeholder="Contoh: AstroDevs"
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Ketua Tim (Leader Discord) <span class="text-rose-400">*</span></label>
-            <select x-model="forceRegisterForm.leaderId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="force-reg-leader-select" class="block text-xs font-medium text-slate-300 mb-1">Ketua Tim (Leader Discord) <span class="text-rose-400">*</span></label>
+            <select id="force-reg-leader-select" x-model="forceRegisterForm.leaderId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
               <option value="">-- Pilih Member Discord --</option>
               <template x-for="m in guildMembers" :key="m.id">
                 <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
@@ -2906,8 +2886,8 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 2 (Opsional)</label>
-              <select x-model="forceRegisterForm.member1Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+              <label for="force-reg-member1-select" class="block text-xs font-medium text-slate-300 mb-1">Anggota 2 (Opsional)</label>
+              <select id="force-reg-member1-select" x-model="forceRegisterForm.member1Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option value="">-- Kosong --</option>
                 <template x-for="m in guildMembers" :key="m.id">
                   <option :value="m.id" x-text="'@' + m.tag"></option>
@@ -2915,8 +2895,8 @@
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 3 (Opsional)</label>
-              <select x-model="forceRegisterForm.member2Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+              <label for="force-reg-member2-select" class="block text-xs font-medium text-slate-300 mb-1">Anggota 3 (Opsional)</label>
+              <select id="force-reg-member2-select" x-model="forceRegisterForm.member2Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                 <option value="">-- Kosong --</option>
                 <template x-for="m in guildMembers" :key="m.id">
                   <option :value="m.id" x-text="'@' + m.tag"></option>
@@ -2926,8 +2906,8 @@
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Topik Challenge (Opsional)</label>
-            <select x-model="forceRegisterForm.challengeId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="force-reg-challenge-select" class="block text-xs font-medium text-slate-300 mb-1">Topik Challenge (Opsional)</label>
+            <select id="force-reg-challenge-select" x-model="forceRegisterForm.challengeId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
               <option value="">-- Belum Memilih --</option>
               <template x-for="ch in challenges" :key="ch.id">
                 <option :value="ch.id" x-text="ch.title"></option>
@@ -2936,16 +2916,16 @@
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Tautan Web NASA Space Apps (Opsional)</label>
-            <input type="url" x-model="forceRegisterForm.nsacLink" placeholder="https://www.spaceappschallenge.org/..."
-                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+            <label for="force-reg-nsac-link" class="block text-xs font-medium text-slate-300 mb-1">Tautan Web NASA Space Apps (Opsional)</label>
+            <input id="force-reg-nsac-link" type="url" x-model="forceRegisterForm.nsacLink" placeholder="https://www.spaceappschallenge.org/..."
+                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono">
           </div>
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
           <button @click="showForceRegisterModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
           <button @click="submitForceRegister()" :disabled="submittingForceRegister || !forceRegisterForm.name || !forceRegisterForm.leaderId"
-                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+                  class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
             <span x-text="submittingForceRegister ? 'Memproses...' : 'Daftarkan & Buat Channel'"></span>
           </button>
         </div>
@@ -2962,7 +2942,7 @@
             <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
             <span>Registrasi Peserta Manual (/register member)</span>
           </h3>
-          <button @click="showRegisterMemberModal = false" aria-label="Tutup dialog registrasi" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showRegisterMemberModal = false" aria-label="Tutup dialog registrasi" class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover text-lg transition-colors">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -2971,10 +2951,10 @@
           </p>
 
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Cari / Pilih Member Discord <span class="text-rose-400">*</span></label>
-            <input type="text" x-model="memberSearchQuery" placeholder="Ketik nama user atau tag untuk memfilter list..."
-                   class="w-full bg-surface-base border border-surface-border rounded-md px-3 py-1.5 text-xs text-white placeholder-slate-400 mb-2 focus:outline-none focus:border-blue-500">
-            <select x-model="registerMemberForm.userId" size="5" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="reg-member-search-input" class="block text-xs font-medium text-slate-300 mb-1">Cari / Pilih Member Discord <span class="text-rose-400">*</span></label>
+            <input id="reg-member-search-input" type="text" x-model.debounce.200ms="memberSearchQuery" placeholder="Ketik nama user atau tag untuk memfilter list..."
+                   class="w-full bg-surface-base border border-surface-border rounded-md px-3 py-1.5 text-xs text-white placeholder-slate-400 mb-2 focus:outline-none focus:border-indigo-500">
+            <select id="reg-member-user-select" aria-label="Pilih akun Discord anggota" x-model="registerMemberForm.userId" size="5" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500">
               <template x-for="m in filteredGuildMembers" :key="m.id">
                 <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')' + (m.isUnregistered ? ' [Unregistered]' : (m.isParticipant ? ' [Peserta]' : ''))"></option>
               </template>
@@ -2982,8 +2962,8 @@
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Target Role Kustom (Opsional)</label>
-            <select x-model="registerMemberForm.roleId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            <label for="reg-member-role-select" class="block text-xs font-medium text-slate-300 mb-1">Target Role Kustom (Opsional)</label>
+            <select id="reg-member-role-select" x-model="registerMemberForm.roleId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
               <option value="">Default: Role Participant + No-Team</option>
               <template x-for="r in roles" :key="r.id">
                 <option :value="r.id" x-text="'@' + r.name"></option>
@@ -2993,7 +2973,7 @@
 
           <div class="flex items-center gap-2 pt-1">
             <input type="checkbox" id="keepUnregisteredCheckbox" x-model="registerMemberForm.keepUnregistered"
-                   class="w-4 h-4 rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
+                   class="w-4 h-4 rounded bg-surface-input border-surface-border text-indigo-600 focus:ring-0">
             <label for="keepUnregisteredCheckbox" class="text-xs text-slate-300 cursor-pointer">
               Biarkan role @Unregistered tetap ada (jangan dicabut)
             </label>
@@ -3021,7 +3001,7 @@
           <p class="font-semibold text-xs text-white" x-text="toast.title"></p>
           <p x-text="toast.message" class="mt-0.5 opacity-90 text-[11px]"></p>
         </div>
-        <button @click="toast.show = false" aria-label="Tutup notifikasi" class="opacity-60 hover:opacity-100 text-sm">&times;</button>
+        <button @click="toast.show = false" aria-label="Tutup notifikasi" class="p-1 -mr-1 text-slate-400 hover:text-white transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center text-base">&times;</button>
       </div>
     </div>
 

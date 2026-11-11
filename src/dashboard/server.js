@@ -36,9 +36,19 @@ export class DashboardServer {
     // Mount API routes
     app.use('/api', createApiRouter(client));
 
-    // Serve static files from dashboard/public
+    // Serve static files from dashboard/public with optimized cache headers
     const publicPath = path.join(__dirname, 'public');
-    app.use(express.static(publicPath));
+    app.use(express.static(publicPath, {
+      maxAge: '1h',
+      etag: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        } else if (filePath.match(/\.(css|js|woff2|png|svg|jpg)$/)) {
+          res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+        }
+      }
+    }));
 
     // Fallback to index.html for SPA (compatible with Express 4 and Express 5)
     app.use((req, res) => {

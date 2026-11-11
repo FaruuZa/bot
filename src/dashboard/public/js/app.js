@@ -11,28 +11,32 @@ window.tailwind.config = {
     extend: {
       colors: {
         surface: {
-          base: '#070a12',
-          card: '#0c111d',
-          elevated: '#111726',
-          input: '#0a0e18',
-          border: '#1a2234',
-          hover: '#151d2f'
+          base: '#030712',
+          card: '#0b0f19',
+          elevated: '#111827',
+          input: '#070b14',
+          border: '#1e293b',
+          hover: '#161f33'
         },
         accent: {
-          DEFAULT: '#2563eb',
-          hover: '#1d4ed8',
-          subtle: '#1e3a8a20'
+          DEFAULT: '#4f46e5',
+          hover: '#4338ca',
+          subtle: '#4f46e520',
+          cosmic: '#7c3aed'
         },
         discord: {
           bg: '#313338',
           card: '#2b2d31',
           darker: '#1e1f22',
           blurple: '#5865f2',
+          blurpleHover: '#4752c4',
           green: '#57f287',
           red: '#ed4245',
           yellow: '#fee75c',
           text: '#dbdee1',
-          muted: '#949ba4'
+          muted: '#949ba4',
+          border: '#35373c',
+          mention: '#c9cdfb'
         }
       }
     }
@@ -101,6 +105,7 @@ function dashboardApp() {
     loadingTeams: false,
     loadingTickets: false,
     loadingAuditLogs: false,
+    _iconRaf: null,
 
     // Challenges Management (/challenge)
     challenges: [],
@@ -305,7 +310,12 @@ function dashboardApp() {
     // ==========================================
     init() {
       this.updateClock();
-      setInterval(() => this.updateClock(), 1000);
+      setInterval(() => {
+        if (!document.hidden) this.updateClock();
+      }, 1000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) this.updateClock();
+      });
 
       // Check URL query parameters for token or error from OAuth callback
       const urlParams = new URLSearchParams(window.location.search);
@@ -348,9 +358,15 @@ function dashboardApp() {
         if (val === 'challenges') {
           this.fetchChallenges();
         }
-        this.$nextTick(() => {
-          if (window.lucide) window.lucide.createIcons();
-        });
+        this.renderIcons();
+      });
+    },
+
+    renderIcons() {
+      if (!window.lucide) return;
+      if (this._iconRaf) cancelAnimationFrame(this._iconRaf);
+      this._iconRaf = requestAnimationFrame(() => {
+        window.lucide.createIcons();
       });
     },
 
@@ -446,9 +462,7 @@ function dashboardApp() {
         this.fetchChallenges(),
         this.fetchGuildMembers()
       ]);
-      this.$nextTick(() => {
-        if (window.lucide) window.lucide.createIcons();
-      });
+      this.renderIcons();
     },
 
     async fetchStats() {
@@ -488,7 +502,7 @@ function dashboardApp() {
         const data = await res.json();
         if (data.success) {
           this.teams = data.teams;
-          this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+          this.renderIcons();
         }
       } catch (e) {
       } finally {
@@ -541,7 +555,7 @@ function dashboardApp() {
         if (data.success) {
           this.tickets = data.tickets;
           this.openTicketsCount = data.openCount || 0;
-          this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+          this.renderIcons();
         }
       } catch (e) {
       } finally {
@@ -587,7 +601,7 @@ function dashboardApp() {
         if (data.success) {
           this.auditLogs = data.logs || [];
           this.auditTotal = data.total || 0;
-          this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+          this.renderIcons();
         }
       } catch (e) {
       } finally {
@@ -635,14 +649,12 @@ function dashboardApp() {
           this.selectedTeam = data.team;
           this.newMemberDiscordId = '';
           this.showTeamModal = true;
-          this.$nextTick(() => {
-            if (window.lucide) window.lucide.createIcons();
-          });
+          this.renderIcons();
         } else {
           this.showToast('error', 'Gagal Membuka Detail', data.error || 'Data tim tidak ditemukan.');
         }
       } catch (e) {
-        this.showToast('error', 'Kesalahan', e.message);
+        this.showToast('error', 'Gagal Memuat Detail Tim', e.message);
       }
     },
 
@@ -665,7 +677,7 @@ function dashboardApp() {
           this.showToast('error', 'Gagal Menyimpan', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Kesalahan', e.message);
+        this.showToast('error', 'Gagal Menyimpan Tautan', e.message);
       }
     },
 
@@ -692,13 +704,13 @@ function dashboardApp() {
           this.showToast('error', 'Gagal Mengubah Nama', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Kesalahan', e.message);
+        this.showToast('error', 'Gagal Mengubah Nama Tim', e.message);
       }
     },
 
     async transferLeaderAction(discordId) {
       if (!this.selectedTeam || !discordId) return;
-      if (!confirm('Pindahkan peran ketua tim ke anggota ini?')) return;
+      if (!confirm('Pindahkan kepemimpinan tim ke anggota ini? Hak akses ketua tim dan role Discord akan dialihkan.')) return;
 
       try {
         const res = await fetch(`/api/teams/${this.selectedTeam.id}/transfer-leader`, {
@@ -718,13 +730,13 @@ function dashboardApp() {
           this.showToast('error', 'Gagal Memindahkan', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Kesalahan', e.message);
+        this.showToast('error', 'Gagal Mengalihkan Ketua Tim', e.message);
       }
     },
 
     async addMemberAction() {
       if (!this.selectedTeam || !this.newMemberDiscordId.trim()) {
-        this.showToast('error', 'Input Kosong', 'Masukkan Discord ID anggota.');
+        this.showToast('error', 'Input Kosong', 'Masukkan Discord ID anggota baru.');
         return;
       }
 
@@ -747,13 +759,13 @@ function dashboardApp() {
           this.showToast('error', 'Gagal Menambah Anggota', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Kesalahan', e.message);
+        this.showToast('error', 'Gagal Menambahkan Anggota', e.message);
       }
     },
 
     async kickMemberAction(discordId) {
       if (!this.selectedTeam || !discordId) return;
-      if (!confirm('Keluarkan anggota ini dari tim?')) return;
+      if (!confirm('Keluarkan anggota ini dari tim? Role channel Discord tim juga akan dicabut.')) return;
 
       try {
         const res = await fetch(`/api/teams/${this.selectedTeam.id}/kick-member`, {
@@ -773,13 +785,13 @@ function dashboardApp() {
           this.showToast('error', 'Gagal Mengeluarkan', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Kesalahan', e.message);
+        this.showToast('error', 'Gagal Mengeluarkan Anggota', e.message);
       }
     },
 
     async deleteTeamAction() {
       if (!this.selectedTeam) return;
-      if (!confirm(`PERINGATAN: Apakah Anda yakin ingin MENGHAPUS PERMANEN tim "${this.selectedTeam.name}"?`)) return;
+      if (!confirm(`Hapus permanen tim "${this.selectedTeam.name}"? Channel Discord dan seluruh data tim akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`)) return;
 
       const confirmation = prompt(`Ketik nama tim persis ("${this.selectedTeam.name}") untuk konfirmasi:`);
       if (confirmation !== this.selectedTeam.name) {
@@ -849,7 +861,7 @@ function dashboardApp() {
     },
 
     async closeTicketAction(id) {
-      if (!confirm('Tutup tiket ini dan bersihkan channel tiket di server?')) return;
+      if (!confirm('Tutup tiket ini dan hapus channel Discord terkait? Riwayat percakapan akan diarsipkan ke log audit.')) return;
       try {
         const res = await fetch(`/api/tickets/${id}/close`, {
           method: 'POST',
@@ -857,13 +869,13 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (data.success) {
-          this.showToast('success', 'Tiket Ditutup', 'Channel tiket berhasil ditutup.');
+          this.showToast('success', 'Tiket Ditutup', 'Channel tiket berhasil ditutup dan diarsipkan.');
           await this.fetchTickets();
         } else {
-          this.showToast('error', 'Gagal Menutup', data.error);
+          this.showToast('error', 'Gagal Menutup Tiket', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Gagal', e.message);
+        this.showToast('error', 'Gagal Menutup Tiket', e.message);
       }
     },
 
@@ -912,14 +924,14 @@ function dashboardApp() {
         let highlighted = code;
         if (lang === 'diff') {
           highlighted = highlighted.split('\n').map(line => {
-            if (line.startsWith('+')) return `<span class="text-[#57f287]">${line}</span>`;
-            if (line.startsWith('-')) return `<span class="text-[#ed4245]">${line}</span>`;
+            if (line.startsWith('+')) return `<span class="text-discord-green">${line}</span>`;
+            if (line.startsWith('-')) return `<span class="text-discord-red">${line}</span>`;
             return line;
           }).join('\n');
         } else if (lang === 'fix') {
-          highlighted = `<span class="text-[#fee75c]">${highlighted}</span>`;
+          highlighted = `<span class="text-discord-yellow">${highlighted}</span>`;
         } else if (lang === 'ini') {
-          highlighted = highlighted.replace(/(\[[^\]]+\])/g, '<span class="text-[#5865f2]">$1</span>');
+          highlighted = highlighted.replace(/(\[[^\]]+\])/g, '<span class="text-discord-blurple">$1</span>');
         }
         return `<pre><code>${highlighted}</code></pre>`;
       });
@@ -1007,9 +1019,7 @@ function dashboardApp() {
         text: '',
         imageUrl: ''
       });
-      this.$nextTick(() => {
-        if (window.lucide) window.lucide.createIcons();
-      });
+      this.renderIcons();
     },
 
     removeBlock(index) {
@@ -1050,7 +1060,7 @@ function dashboardApp() {
         return;
       }
 
-      if (!confirm(`Kirim pengumuman "${this.form.title}" ke channel pilihan sekarang?`)) {
+      if (!confirm(`Siarkan pengumuman "${this.form.title}" ke channel target sekarang?`)) {
         return;
       }
 
@@ -1158,9 +1168,7 @@ function dashboardApp() {
         value: '',
         inline: false
       });
-      this.$nextTick(() => {
-        if (window.lucide) window.lucide.createIcons();
-      });
+      this.renderIcons();
     },
 
     removeDynamicField(idx) {
@@ -1228,7 +1236,7 @@ function dashboardApp() {
 
     async deleteDynamicEmbedAction(id) {
       if (!id) return;
-      if (!confirm(`Hapus embed dinamis "${id}"? Pesan di channel Discord juga akan dibersihkan.`)) return;
+      if (!confirm(`Hapus embed dinamis "${id}"? Pesan live di Discord akan dihapus dan sinkronisasi dihentikan.`)) return;
 
       this.deletingDynamicEmbed = true;
       try {
@@ -1238,11 +1246,11 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (data.success) {
-          this.showToast('success', 'Embed Dihapus', `Embed "${id}" berhasil dihapus.`);
+          this.showToast('success', 'Embed Dihapus', `Embed "${id}" berhasil dihapus dari Discord.`);
           await this.fetchDynamicEmbeds();
           this.newDynamicEmbed();
         } else {
-          this.showToast('error', 'Gagal Menghapus', data.error || 'Terjadi kesalahan.');
+          this.showToast('error', 'Gagal Menghapus Embed', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
         this.showToast('error', 'Kesalahan Jaringan', err.message);
@@ -1271,14 +1279,14 @@ function dashboardApp() {
           this.showToast('error', 'Sinkronisasi Gagal', data.error || 'Gagal menyinkronkan data.');
         }
       } catch (e) {
-        this.showToast('error', 'Gagal', e.message);
+        this.showToast('error', 'Gagal Sinkronisasi NASA', e.message);
       } finally {
         this.syncingNasa = false;
       }
     },
 
     async closeRecruitment(id) {
-      if (!confirm('Tutup lowongan ini dari board rekrutmen?')) return;
+      if (!confirm('Tutup lowongan rekrutmen ini? Status di Discord akan ditandai CLOSED.')) return;
       try {
         const res = await fetch(`/api/recruitments/${id}/close`, {
           method: 'POST',
@@ -1286,13 +1294,13 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (data.success) {
-          this.showToast('success', 'Berhasil', 'Lowongan telah ditutup.');
+          this.showToast('success', 'Lowongan Ditutup', 'Lowongan tim berhasil ditandai tertutup.');
           this.loadAllData();
         } else {
-          this.showToast('error', 'Gagal', data.error);
+          this.showToast('error', 'Gagal Menutup Lowongan', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Gagal', e.message);
+        this.showToast('error', 'Gagal Menutup Lowongan', e.message);
       }
     },
 
@@ -1314,7 +1322,7 @@ function dashboardApp() {
           this.showToast('error', 'Gagal Menyimpan', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Gagal', e.message);
+        this.showToast('error', 'Gagal Menyimpan Konfigurasi', e.message);
       } finally {
         this.savingConfigKey = '';
       }
@@ -1362,9 +1370,7 @@ function dashboardApp() {
         this.showToast('error', 'Gagal Memuat Status', e.message);
       } finally {
         this.loadingPresence = false;
-        this.$nextTick(() => {
-          if (window.lucide) window.lucide.createIcons();
-        });
+        this.renderIcons();
       }
     },
 
@@ -1401,9 +1407,7 @@ function dashboardApp() {
         text: 'NSAC Jember 2026',
         enabled: true
       });
-      this.$nextTick(() => {
-        if (window.lucide) window.lucide.createIcons();
-      });
+      this.renderIcons();
     },
 
     removePresenceActivity(index) {
@@ -1429,7 +1433,7 @@ function dashboardApp() {
     },
 
     resetPresenceConfig() {
-      if (!confirm('Kembalikan konfigurasi teks status bot ke pengaturan bawaan?')) return;
+      if (!confirm('Kembalikan status bot ke pesan rotasi default NASA Space Apps 2026?')) return;
       this.botPresence = {
         enabled: true,
         intervalSeconds: 60,
@@ -1463,9 +1467,7 @@ function dashboardApp() {
         this.showToast('error', 'Gagal Memuat Undangan', e.message);
       } finally {
         this.loadingInvites = false;
-        this.$nextTick(() => {
-          if (window.lucide) window.lucide.createIcons();
-        });
+        this.renderIcons();
       }
     },
 
@@ -1504,9 +1506,7 @@ function dashboardApp() {
       };
       this.createdInviteResult = null;
       this.showCreateInviteModal = true;
-      this.$nextTick(() => {
-        if (window.lucide) window.lucide.createIcons();
-      });
+      this.renderIcons();
     },
 
     async createInviteAction() {
@@ -1528,20 +1528,20 @@ function dashboardApp() {
         const data = await res.json();
         if (data.success) {
           this.createdInviteResult = data.invite;
-          this.showToast('success', 'Berhasil', data.message || 'Link invite berhasil dibuat.');
+          this.showToast('success', 'Link Undangan Dibuat', data.message || 'Link undangan server Discord berhasil dibuat.');
           await this.fetchInvites();
         } else {
-          this.showToast('error', 'Gagal', data.error);
+          this.showToast('error', 'Gagal Membuat Link Undangan', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Gagal', e.message);
+        this.showToast('error', 'Gagal Membuat Link Undangan', e.message);
       } finally {
         this.creatingInvite = false;
       }
     },
 
     async deleteInviteAction(code) {
-      if (!confirm(`Hapus link undangan dengan kode "${code}" dari server Discord?`)) return;
+      if (!confirm(`Cabut link undangan "${code}"? Link ini tidak akan dapat digunakan lagi untuk bergabung ke server Discord.`)) return;
 
       try {
         const res = await fetch(`/api/invites/${code}`, {
@@ -1550,13 +1550,13 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (data.success) {
-          this.showToast('success', 'Terhapus', data.message || 'Link invite berhasil dihapus.');
+          this.showToast('success', 'Link Undangan Dicabut', data.message || 'Link invite berhasil dihapus dari server Discord.');
           await this.fetchInvites();
         } else {
-          this.showToast('error', 'Gagal', data.error);
+          this.showToast('error', 'Gagal Mencabut Link Undangan', data.error);
         }
       } catch (e) {
-        this.showToast('error', 'Gagal', e.message);
+        this.showToast('error', 'Kesalahan Jaringan', e.message);
       }
     },
 
@@ -1592,9 +1592,7 @@ function dashboardApp() {
         console.error('fetchChallenges error:', err);
       } finally {
         this.loadingChallenges = false;
-        this.$nextTick(() => {
-          if (window.lucide) window.lucide.createIcons();
-        });
+        this.renderIcons();
       }
     },
 
@@ -1639,21 +1637,21 @@ function dashboardApp() {
 
         const data = await res.json();
         if (res.ok && data.success) {
-          this.showToast('success', 'Berhasil', data.message || 'Challenge berhasil disimpan.');
+          this.showToast('success', 'Topik Challenge Disimpan', data.message || 'Topik tantangan berhasil disimpan.');
           this.showChallengeModal = false;
           await this.fetchChallenges();
         } else {
-          this.showToast('error', 'Gagal Menyimpan', data.error || 'Terjadi kesalahan sistem.');
+          this.showToast('error', 'Gagal Menyimpan Challenge', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Menyimpan Challenge', err.message);
       } finally {
         this.savingChallenge = false;
       }
     },
 
     async deleteChallengeAction(ch) {
-      if (!confirm(`Apakah Anda yakin ingin menghapus challenge "${ch.title}"?`)) return;
+      if (!confirm(`Hapus topik challenge "${ch.title}"? Referensi challenge pada tim terkait akan dikosongkan.`)) return;
 
       this.deletingChallengeId = ch.id;
       try {
@@ -1663,13 +1661,13 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          this.showToast('success', 'Dihapus', data.message || 'Challenge berhasil dihapus.');
+          this.showToast('success', 'Topik Challenge Dihapus', data.message || 'Topik tantangan berhasil dihapus.');
           await this.fetchChallenges();
         } else {
-          this.showToast('error', 'Gagal Menghapus', data.error || 'Terjadi kesalahan sistem.');
+          this.showToast('error', 'Gagal Menghapus Challenge', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Menghapus Challenge', err.message);
       } finally {
         this.deletingChallengeId = null;
       }
@@ -1677,7 +1675,7 @@ function dashboardApp() {
 
     async broadcastChallengesAction() {
       if (!this.broadcastChallengeChannelId) {
-        return this.showToast('error', 'Pilih Channel', 'Silakan pilih channel Discord target pengumuman.');
+        return this.showToast('error', 'Channel Belum Dipilih', 'Silakan pilih channel Discord target pengumuman.');
       }
 
       this.broadcastingChallenge = true;
@@ -1692,13 +1690,13 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          this.showToast('success', 'Terkirim', data.message || 'Daftar challenge berhasil diposting ke Discord.');
+          this.showToast('success', 'Daftar Challenge Diposting', data.message || 'Daftar tantangan resmi berhasil diposting ke channel Discord.');
           this.showBroadcastChallengeModal = false;
         } else {
-          this.showToast('error', 'Gagal Mengirim', data.error || 'Terjadi kesalahan sistem.');
+          this.showToast('error', 'Gagal Memposting Challenge', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Memposting Challenge', err.message);
       } finally {
         this.broadcastingChallenge = false;
       }
@@ -1739,7 +1737,7 @@ function dashboardApp() {
 
     async submitRegisterMember() {
       if (!this.registerMemberForm.userId) {
-        return this.showToast('error', 'Pilih Member', 'Silakan pilih member server yang ingin didaftarkan.');
+        return this.showToast('error', 'Member Belum Dipilih', 'Silakan pilih member Discord yang ingin didaftarkan.');
       }
 
       this.registeringMember = true;
@@ -1754,15 +1752,15 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          this.showToast('success', 'Registrasi Berhasil', data.message);
+          this.showToast('success', 'Registrasi Berhasil', data.message || 'Peserta berhasil didaftarkan dan role telah diberikan.');
           this.showRegisterMemberModal = false;
           this.fetchGuildMembers();
           if (this.activeTab === 'audit') this.fetchAuditLogs();
         } else {
-          this.showToast('error', 'Registrasi Gagal', data.error || 'Terjadi kesalahan.');
+          this.showToast('error', 'Registrasi Gagal', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Registrasi Peserta', err.message);
       } finally {
         this.registeringMember = false;
       }
@@ -1773,14 +1771,14 @@ function dashboardApp() {
     // ==========================================
     async submitPurgeMessages() {
       if (!this.purgeForm.channelId) {
-        return this.showToast('error', 'Pilih Channel', 'Silakan tentukan channel Discord yang ingin dibersihkan.');
+        return this.showToast('error', 'Channel Belum Dipilih', 'Silakan tentukan channel Discord yang ingin dibersihkan.');
       }
       const amount = parseInt(this.purgeForm.amount, 10);
       if (isNaN(amount) || amount < 1 || amount > 100) {
-        return this.showToast('error', 'Jumlah Pesan', 'Jumlah pesan harus antara 1 sampai 100.');
+        return this.showToast('error', 'Jumlah Pesan Tidak Valid', 'Jumlah pesan harus antara 1 sampai 100.');
       }
 
-      if (!confirm(`Apakah Anda yakin ingin menghapus ${amount} pesan di channel tersebut?`)) return;
+      if (!confirm(`Hapus ${amount} pesan terakhir di channel Discord ini? Tindakan ini tidak dapat dibatalkan.`)) return;
 
       this.purgingMessages = true;
       try {
@@ -1803,10 +1801,10 @@ function dashboardApp() {
           this.purgeForm.userId = '';
           if (this.activeTab === 'audit') this.fetchAuditLogs();
         } else {
-          this.showToast('error', 'Gagal Menghapus', data.error || 'Terjadi kesalahan.');
+          this.showToast('error', 'Gagal Menghapus Pesan', data.error || 'Terjadi kesalahan.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Membersihkan Pesan', err.message);
       } finally {
         this.purgingMessages = false;
       }
@@ -1816,7 +1814,7 @@ function dashboardApp() {
     // ADVANCED TEAM ACTIONS (/team subcommands)
     // ==========================================
     async purgeDisbandedTeamsAction() {
-      if (!confirm('Apakah Anda yakin ingin menghapus permanen semua tim berstatus DISBANDED dari database?')) return;
+      if (!confirm('Hapus permanen seluruh tim berstatus DIBUBARKAN dari database? Data riwayat tim tidak dapat dipulihkan.')) return;
 
       this.purgingDisbandedTeams = true;
       try {
@@ -1826,13 +1824,13 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          this.showToast('success', 'Selesai', data.message);
+          this.showToast('success', 'Pembersihan Selesai', data.message || 'Seluruh tim berstatus dibubarkan berhasil dibersihkan.');
           await this.fetchTeams();
         } else {
-          this.showToast('error', 'Gagal', data.error || 'Terjadi kesalahan sistem.');
+          this.showToast('error', 'Gagal Membersihkan Tim', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Kesalahan Sistem', err.message);
       } finally {
         this.purgingDisbandedTeams = false;
       }
@@ -1854,10 +1852,10 @@ function dashboardApp() {
 
     async submitForceRegister() {
       if (!this.forceRegisterForm.name || this.forceRegisterForm.name.trim().length < 3) {
-        return this.showToast('error', 'Validasi', 'Nama tim minimal 3 karakter.');
+        return this.showToast('error', 'Nama Tim Terlalu Pendek', 'Nama tim harus terdiri dari minimal 3 karakter.');
       }
       if (!this.forceRegisterForm.leaderId) {
-        return this.showToast('error', 'Pilih Leader', 'Ketua tim wajib dipilih.');
+        return this.showToast('error', 'Ketua Tim Belum Dipilih', 'Ketua tim (Leader Discord) wajib dipilih.');
       }
 
       const memberIds = [this.forceRegisterForm.member1Id, this.forceRegisterForm.member2Id].filter(Boolean);
@@ -1885,10 +1883,10 @@ function dashboardApp() {
           this.showForceRegisterModal = false;
           await this.fetchTeams();
         } else {
-          this.showToast('error', 'Gagal Mendaftar', data.error || 'Terjadi kesalahan sistem.');
+          this.showToast('error', 'Gagal Mendaftarkan Tim', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Mendaftarkan Tim', err.message);
       } finally {
         this.submittingForceRegister = false;
       }
@@ -1911,12 +1909,12 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          this.showToast('success', 'Panel Terkirim', data.message);
+          this.showToast('success', 'Panel Terkirim', data.message || 'Panel pendaftaran tim berhasil diposting ke channel Discord.');
         } else {
-          this.showToast('error', 'Gagal Deploy', data.error || 'Terjadi kendala saat mengirim panel.');
+          this.showToast('error', 'Gagal Deploy Panel', data.error || 'Terjadi kendala saat mengirim panel.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Mengirim Panel', err.message);
       } finally {
         this.deployingTeamPanel = false;
       }
@@ -1943,10 +1941,10 @@ function dashboardApp() {
             this.selectedTeam.challenge_title = ch ? ch.title : null;
           }
         } else {
-          this.showToast('error', 'Gagal Menyimpan', data.error || 'Terjadi kesalahan sistem.');
+          this.showToast('error', 'Gagal Menyimpan Topik', data.error || 'Terjadi kesalahan sistem.');
         }
       } catch (err) {
-        this.showToast('error', 'Gagal', err.message);
+        this.showToast('error', 'Gagal Menyimpan Topik', err.message);
       } finally {
         this.savingTeamChallenge = false;
       }
