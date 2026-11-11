@@ -83,17 +83,8 @@ export default {
           '• `/sync-nasa` — Menyelaraskan status validasi tim dengan database web NASA.\n' +
           '• `/invite` — Mengelola link undangan auto-role & memantau statistik tracker.\n' +
           '• `/purge` — Membersihkan pesan massal di channel aktif secara aman.\n' +
-          '• `/register member` — Mendaftarkan peserta secara manual dan memberi role.',
-        inline: false
-      });
-    }
-          '• `/sync-nasa` — Menjalankan sinkronisasi profil tim & lowongan dari web NASA Space Apps.\n' +
-          '• `/invite <create|list|delete|stats>` — Mengelola dynamic auto-role invite links.\n' +
-          '• `/purge <amount> [user]` — Menghapus pesan secara massal di channel aktif.\n' +
-          '• `/register member <user>` — Memberikan role peserta & mencabut unregistered secara manual.\n' +
-          '• `/faq <create|edit|sync>` / `/embed` — Mengelola live dynamic embed rules & panduan.\n' +
-          '• `/setup <dashboard|panels|config>` — Konfigurasi role, channel, dan panel kendali.\n' +
-          '• **Web Dashboard:** Kelola seluruh sistem dengan visual GUI di `http://localhost:8080`.',
+          '• `/register member` — Mendaftarkan peserta secara manual dan memberi role.\n' +
+          '• **Web Dashboard:** Kelola seluruh sistem dengan visual GUI di web dashboard.',
         inline: false
       });
     }
