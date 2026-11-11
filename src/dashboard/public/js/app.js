@@ -98,6 +98,9 @@ function dashboardApp() {
     statusTypes: [],
     savingPresence: false,
     loadingPresence: false,
+    loadingTeams: false,
+    loadingTickets: false,
+    loadingAuditLogs: false,
 
     // Challenges Management (/challenge)
     challenges: [],
@@ -479,11 +482,18 @@ function dashboardApp() {
     },
 
     async fetchTeams() {
+      this.loadingTeams = true;
       try {
         const res = await fetch('/api/teams', { headers: { 'Authorization': `Bearer ${this.token}` } });
         const data = await res.json();
-        if (data.success) this.teams = data.teams;
-      } catch (e) {}
+        if (data.success) {
+          this.teams = data.teams;
+          this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+        }
+      } catch (e) {
+      } finally {
+        this.loadingTeams = false;
+      }
     },
 
     async fetchRecruitments() {
@@ -524,14 +534,19 @@ function dashboardApp() {
     },
 
     async fetchTickets() {
+      this.loadingTickets = true;
       try {
         const res = await fetch('/api/tickets', { headers: { 'Authorization': `Bearer ${this.token}` } });
         const data = await res.json();
         if (data.success) {
           this.tickets = data.tickets;
           this.openTicketsCount = data.openCount || 0;
+          this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
         }
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        this.loadingTickets = false;
+      }
     },
 
     get filteredTickets() {
@@ -555,6 +570,7 @@ function dashboardApp() {
     },
 
     async fetchAuditLogs() {
+      this.loadingAuditLogs = true;
       try {
         const params = new URLSearchParams({
           limit: this.auditLimit,
@@ -571,8 +587,12 @@ function dashboardApp() {
         if (data.success) {
           this.auditLogs = data.logs || [];
           this.auditTotal = data.total || 0;
+          this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
         }
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        this.loadingAuditLogs = false;
+      }
     },
 
     async fetchConfigs() {

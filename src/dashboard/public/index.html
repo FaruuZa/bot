@@ -6,6 +6,41 @@
   <title>NSAC Jember — Staff Command Center</title>
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Focus & Selection Ergonomics */
+    ::selection {
+      background: rgba(37, 99, 235, 0.4);
+      color: #ffffff;
+    }
+    :focus-visible {
+      outline: 2px solid #3b82f6 !important;
+      outline-offset: 2px !important;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070a12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1a2234;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2563eb;
+    }
+    /* Motion Sensitivity Support (A11y) */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.001s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0s !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
 
   <!-- Application Logic & Tailwind Theme Configuration -->
   <script src="/js/app.js"></script>
@@ -63,7 +98,7 @@
         <div class="flex items-center gap-2.5 min-w-0">
           <div class="w-8 h-8 rounded-md bg-blue-600/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
             <template x-if="stats.bot.avatar">
-              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                    :src="stats.bot.avatar" class="w-8 h-8 rounded-md object-cover" alt="Bot Avatar">
             </template>
             <template x-if="!stats.bot.avatar">
@@ -88,7 +123,7 @@
         
         <!-- OPERASIONAL GROUP -->
         <div>
-          <div class="px-2 mb-2 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">Operasional</div>
+          <div class="px-2 mb-2 text-[11px] font-semibold tracking-wider uppercase text-slate-400">Operasional</div>
           <div class="space-y-0.5 text-xs">
             <button @click="switchTab('overview')"
                     :class="activeTab === 'overview' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
@@ -154,7 +189,7 @@
 
         <!-- SISTEM & REFERENSI GROUP -->
         <div>
-          <div class="px-2 mb-2 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">Sistem & Panduan</div>
+          <div class="px-2 mb-2 text-[11px] font-semibold tracking-wider uppercase text-slate-400">Sistem & Panduan</div>
           <div class="space-y-0.5 text-xs">
             <button @click="switchTab('audit'); fetchAuditLogs()"
                     :class="activeTab === 'audit' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200 hover:bg-surface-hover'"
@@ -192,7 +227,7 @@
       <div class="border-t border-surface-border p-3">
         <div class="flex items-center justify-between gap-2 p-1.5 rounded-md hover:bg-surface-hover transition-colors">
           <div class="flex items-center gap-2 min-w-0">
-            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                  :src="userProfile ? (userProfile.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png') : 'https://cdn.discordapp.com/embed/avatars/0.png'"
                  class="w-7 h-7 rounded-full bg-surface-border object-cover flex-shrink-0" alt="User Avatar">
             <div class="min-w-0">
@@ -240,7 +275,7 @@
         </div>
 
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-4 text-xs">
-          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold px-2">Menu Navigasi</div>
+          <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400 px-2">Menu Navigasi</div>
           <div class="space-y-1">
             <button @click="switchTab('overview'); mobileMenuOpen = false" :class="activeTab === 'overview' ? 'bg-blue-600/15 text-blue-400 font-medium' : 'text-slate-400'" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left">
               <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Ringkasan
@@ -339,7 +374,7 @@
         <!-- ========================================== -->
         <section x-show="activeTab === 'overview'" class="space-y-6">
           
-          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Ringkasan Event</h2>
+          <h2 class="text-base font-semibold text-white tracking-tight">Ringkasan Event</h2>
 
           <!-- Key Metrics Grid -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -594,45 +629,45 @@
                     <div class="flex items-center gap-1 flex-wrap p-1.5 bg-surface-base border-b border-surface-border text-slate-300">
                       <!-- Basic Styles -->
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('**', '**', 'teks tebal')" title="Tebal (**teks**)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs font-bold text-slate-200 hover:text-white flex items-center justify-center">B</button>
-                        <button type="button" @click.prevent="insertFormat('*', '*', 'teks miring')" title="Miring (*teks*)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs italic text-slate-200 hover:text-white flex items-center justify-center font-serif">I</button>
-                        <button type="button" @click.prevent="insertFormat('__', '__', 'garis bawah')" title="Garis Bawah (__teks__)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs underline text-slate-200 hover:text-white flex items-center justify-center">U</button>
-                        <button type="button" @click.prevent="insertFormat('~~', '~~', 'teks dicoret')" title="Coret (~~teks~~)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs line-through text-slate-200 hover:text-white flex items-center justify-center">S</button>
-                        <button type="button" @click.prevent="insertFormat('||', '||', 'spoiler')" title="Spoiler (||teks||)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-mono text-slate-300 hover:text-white">||</button>
+                        <button type="button" @click.prevent="insertFormat('**', '**', 'teks tebal')" title="Tebal (**teks**)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs font-bold text-slate-200 hover:text-white flex items-center justify-center transition-colors">B</button>
+                        <button type="button" @click.prevent="insertFormat('*', '*', 'teks miring')" title="Miring (*teks*)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs italic text-slate-200 hover:text-white flex items-center justify-center font-serif transition-colors">I</button>
+                        <button type="button" @click.prevent="insertFormat('__', '__', 'garis bawah')" title="Garis Bawah (__teks__)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs underline text-slate-200 hover:text-white flex items-center justify-center transition-colors">U</button>
+                        <button type="button" @click.prevent="insertFormat('~~', '~~', 'teks dicoret')" title="Coret (~~teks~~)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs line-through text-slate-200 hover:text-white flex items-center justify-center transition-colors">S</button>
+                        <button type="button" @click.prevent="insertFormat('||', '||', 'spoiler')" title="Spoiler (||teks||)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-300 hover:text-white transition-colors">||</button>
                       </div>
 
                       <!-- Headings -->
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('# ', '', 'Judul Utama')" title="Heading 1 (# Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-bold text-slate-200 hover:text-white">H1</button>
-                        <button type="button" @click.prevent="insertFormat('## ', '', 'Sub Judul')" title="Heading 2 (## Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-semibold text-slate-200 hover:text-white">H2</button>
-                        <button type="button" @click.prevent="insertFormat('### ', '', 'Bagian Kecil')" title="Heading 3 (### Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-medium text-slate-200 hover:text-white">H3</button>
-                        <button type="button" @click.prevent="insertFormat('-# ', '', 'Subtext kecil')" title="Subtext (-# Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-mono text-slate-400 hover:text-slate-200">-#</button>
+                        <button type="button" @click.prevent="insertFormat('# ', '', 'Judul Utama')" title="Heading 1 (# Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-slate-200 hover:text-white transition-colors">H1</button>
+                        <button type="button" @click.prevent="insertFormat('## ', '', 'Sub Judul')" title="Heading 2 (## Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-semibold text-slate-200 hover:text-white transition-colors">H2</button>
+                        <button type="button" @click.prevent="insertFormat('### ', '', 'Bagian Kecil')" title="Heading 3 (### Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-medium text-slate-200 hover:text-white transition-colors">H3</button>
+                        <button type="button" @click.prevent="insertFormat('-# ', '', 'Subtext kecil')" title="Subtext (-# Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-400 hover:text-slate-200 transition-colors">-#</button>
                       </div>
 
                       <!-- Lists & Quotes -->
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('- ', '', 'Poin')" title="Bullet List (- Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-xs text-slate-200 hover:text-white">&bull;</button>
-                        <button type="button" @click.prevent="insertFormat('1. ', '', 'Item 1')" title="Numbered List (1. Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-mono text-slate-200 hover:text-white">1.</button>
-                        <button type="button" @click.prevent="insertFormat('> ', '', 'Kutipan')" title="Blockquote (> Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white">&gt;</button>
+                        <button type="button" @click.prevent="insertFormat('- ', '', 'Poin')" title="Bullet List (- Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-slate-200 hover:text-white transition-colors">&bull;</button>
+                        <button type="button" @click.prevent="insertFormat('1. ', '', 'Item 1')" title="Numbered List (1. Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white transition-colors">1.</button>
+                        <button type="button" @click.prevent="insertFormat('> ', '', 'Kutipan')" title="Blockquote (> Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white transition-colors">&gt;</button>
                       </div>
 
                       <!-- Code & Colors -->
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('`', '`', 'kode')" title="Inline Code (`kode`)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-mono text-slate-200 hover:text-white">&lt;/&gt;</button>
-                        <button type="button" @click.prevent="insertFormat('```diff\n+ ', '\n```', 'teks hijau')" title="Warna Hijau (diff +)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-emerald-400">Hijau</button>
-                        <button type="button" @click.prevent="insertFormat('```diff\n- ', '\n```', 'teks merah')" title="Warna Merah (diff -)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-rose-400">Merah</button>
-                        <button type="button" @click.prevent="insertFormat('```fix\n', '\n```', 'teks kuning')" title="Warna Kuning (fix)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-amber-300">Kuning</button>
-                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-blue-400">Biru</button>
+                        <button type="button" @click.prevent="insertFormat('`', '`', 'kode')" title="Inline Code (`kode`)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white transition-colors">&lt;/&gt;</button>
+                        <button type="button" @click.prevent="insertFormat('```diff\n+ ', '\n```', 'teks hijau')" title="Warna Hijau (diff +)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-emerald-400 transition-colors">Hijau</button>
+                        <button type="button" @click.prevent="insertFormat('```diff\n- ', '\n```', 'teks merah')" title="Warna Merah (diff -)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-rose-400 transition-colors">Merah</button>
+                        <button type="button" @click.prevent="insertFormat('```fix\n', '\n```', 'teks kuning')" title="Warna Kuning (fix)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-amber-300 transition-colors">Kuning</button>
+                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-blue-400 transition-colors">Biru</button>
                       </div>
 
                       <!-- Links -->
                       <div class="flex items-center gap-0.5">
-                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] text-blue-400 font-mono">Link</button>
-                        <button type="button" @click.prevent="insertFormat('<', '>', 'https://')" title="Sembunyikan Preview Embed (&lt;url&gt;)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] text-slate-400 font-mono">&lt;URL&gt;</button>
+                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-blue-400 font-mono transition-colors">Link</button>
+                        <button type="button" @click.prevent="insertFormat('<', '>', 'https://')" title="Sembunyikan Preview Embed (&lt;url&gt;)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-slate-400 font-mono transition-colors">&lt;URL&gt;</button>
                       </div>
                     </div>
 
-                    <textarea id="studio-main-message" x-model="form.message" rows="6" placeholder="Tulis pesan lengkap pengumuman di sini..."
+                    <textarea id="studio-main-message" aria-label="Pesan Siaran Pengumuman" x-model="form.message" rows="6" placeholder="Tulis pesan lengkap pengumuman di sini..."
                               @focus="setActiveInput('studio-main-message')"
                               class="w-full bg-surface-input p-3 text-xs text-white focus:outline-none font-sans"></textarea>
                   </div>
@@ -650,7 +685,7 @@
                   </div>
 
                   <div class="flex items-center gap-2">
-                    <input type="url" x-model="form.imageUrl" placeholder="Atau tempel URL gambar eksternal (https://...)..."
+                    <input type="url" aria-label="URL Gambar Eksternal" x-model="form.imageUrl" placeholder="Atau tempel URL gambar eksternal (https://...)..."
                            class="flex-1 bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
                     <button type="button" x-show="form.imageUrl || form.imageFile" @click="clearImage()" class="text-xs text-rose-400 hover:underline px-1.5">Hapus</button>
                   </div>
@@ -678,14 +713,14 @@
                           <button type="button" @click="removeBlock(bIdx)" class="text-xs text-rose-400 hover:text-rose-300 px-1">Hapus</button>
                         </div>
 
-                        <input type="text" x-model="blk.title" placeholder="Subjudul blok embed (opsional)..."
+                        <input type="text" aria-label="Subjudul blok embed" x-model="blk.title" placeholder="Subjudul blok embed (opsional)..."
                                class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
 
-                        <textarea :id="'block-text-' + bIdx" x-model="blk.text" rows="3" placeholder="Teks lanjutan / penjelasan blok ini..."
+                        <textarea :id="'block-text-' + bIdx" aria-label="Teks konten blok embed" x-model="blk.text" rows="3" placeholder="Teks lanjutan / penjelasan blok ini..."
                                   @focus="setActiveInput('block-text-' + bIdx)"
                                   class="w-full bg-surface-input border border-surface-border rounded-md p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-sans"></textarea>
 
-                        <input type="url" x-model="blk.imageUrl" placeholder="URL gambar untuk blok ini (https://...)..."
+                        <input type="url" aria-label="URL gambar blok embed" x-model="blk.imageUrl" placeholder="URL gambar untuk blok ini (https://...)..."
                                class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
                       </div>
                     </template>
@@ -776,41 +811,41 @@
                     <!-- Formatting Toolbar -->
                     <div class="flex items-center gap-1 flex-wrap p-1.5 bg-surface-base border-b border-surface-border text-slate-300">
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('**', '**', 'teks tebal')" title="Tebal (**teks**)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs font-bold text-slate-200 hover:text-white flex items-center justify-center">B</button>
-                        <button type="button" @click.prevent="insertFormat('*', '*', 'teks miring')" title="Miring (*teks*)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs italic text-slate-200 hover:text-white flex items-center justify-center font-serif">I</button>
-                        <button type="button" @click.prevent="insertFormat('__', '__', 'garis bawah')" title="Garis Bawah (__teks__)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs underline text-slate-200 hover:text-white flex items-center justify-center">U</button>
-                        <button type="button" @click.prevent="insertFormat('~~', '~~', 'teks dicoret')" title="Coret (~~teks~~)" class="w-6 h-6 rounded hover:bg-surface-hover text-xs line-through text-slate-200 hover:text-white flex items-center justify-center">S</button>
-                        <button type="button" @click.prevent="insertFormat('||', '||', 'spoiler')" title="Spoiler (||teks||)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-mono text-slate-300 hover:text-white">||</button>
+                        <button type="button" @click.prevent="insertFormat('**', '**', 'teks tebal')" title="Tebal (**teks**)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs font-bold text-slate-200 hover:text-white flex items-center justify-center transition-colors">B</button>
+                        <button type="button" @click.prevent="insertFormat('*', '*', 'teks miring')" title="Miring (*teks*)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs italic text-slate-200 hover:text-white flex items-center justify-center font-serif transition-colors">I</button>
+                        <button type="button" @click.prevent="insertFormat('__', '__', 'garis bawah')" title="Garis Bawah (__teks__)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs underline text-slate-200 hover:text-white flex items-center justify-center transition-colors">U</button>
+                        <button type="button" @click.prevent="insertFormat('~~', '~~', 'teks dicoret')" title="Coret (~~teks~~)" class="min-h-[30px] min-w-[30px] p-1.5 rounded hover:bg-surface-hover text-xs line-through text-slate-200 hover:text-white flex items-center justify-center transition-colors">S</button>
+                        <button type="button" @click.prevent="insertFormat('||', '||', 'spoiler')" title="Spoiler (||teks||)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-300 hover:text-white transition-colors">||</button>
                       </div>
 
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('# ', '', 'Judul Utama')" title="Heading 1 (# Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-bold text-slate-200 hover:text-white">H1</button>
-                        <button type="button" @click.prevent="insertFormat('## ', '', 'Sub Judul')" title="Heading 2 (## Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-semibold text-slate-200 hover:text-white">H2</button>
-                        <button type="button" @click.prevent="insertFormat('### ', '', 'Bagian Kecil')" title="Heading 3 (### Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-medium text-slate-200 hover:text-white">H3</button>
-                        <button type="button" @click.prevent="insertFormat('-# ', '', 'Subtext kecil')" title="Subtext (-# Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-mono text-slate-400 hover:text-slate-200">-#</button>
+                        <button type="button" @click.prevent="insertFormat('# ', '', 'Judul Utama')" title="Heading 1 (# Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-slate-200 hover:text-white transition-colors">H1</button>
+                        <button type="button" @click.prevent="insertFormat('## ', '', 'Sub Judul')" title="Heading 2 (## Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-semibold text-slate-200 hover:text-white transition-colors">H2</button>
+                        <button type="button" @click.prevent="insertFormat('### ', '', 'Bagian Kecil')" title="Heading 3 (### Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-medium text-slate-200 hover:text-white transition-colors">H3</button>
+                        <button type="button" @click.prevent="insertFormat('-# ', '', 'Subtext kecil')" title="Subtext (-# Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-400 hover:text-slate-200 transition-colors">-#</button>
                       </div>
 
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('- ', '', 'Poin')" title="Bullet List (- Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-xs text-slate-200 hover:text-white">&bull;</button>
-                        <button type="button" @click.prevent="insertFormat('1. ', '', 'Item 1')" title="Numbered List (1. Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-mono text-slate-200 hover:text-white">1.</button>
-                        <button type="button" @click.prevent="insertFormat('> ', '', 'Kutipan')" title="Blockquote (> Teks)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white">&gt;</button>
+                        <button type="button" @click.prevent="insertFormat('- ', '', 'Poin')" title="Bullet List (- Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-slate-200 hover:text-white transition-colors">&bull;</button>
+                        <button type="button" @click.prevent="insertFormat('1. ', '', 'Item 1')" title="Numbered List (1. Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white transition-colors">1.</button>
+                        <button type="button" @click.prevent="insertFormat('> ', '', 'Kutipan')" title="Blockquote (> Teks)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white transition-colors">&gt;</button>
                       </div>
 
                       <div class="flex items-center gap-0.5 pr-1.5 border-r border-surface-border">
-                        <button type="button" @click.prevent="insertFormat('`', '`', 'kode')" title="Inline Code (`kode`)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] font-mono text-slate-200 hover:text-white">&lt;/&gt;</button>
-                        <button type="button" @click.prevent="insertFormat('```diff\n+ ', '\n```', 'teks hijau')" title="Warna Hijau (diff +)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-emerald-400">Hijau</button>
-                        <button type="button" @click.prevent="insertFormat('```diff\n- ', '\n```', 'teks merah')" title="Warna Merah (diff -)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-rose-400">Merah</button>
-                        <button type="button" @click.prevent="insertFormat('```fix\n', '\n```', 'teks kuning')" title="Warna Kuning (fix)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-amber-300">Kuning</button>
-                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[10px] font-bold text-blue-400">Biru</button>
+                        <button type="button" @click.prevent="insertFormat('`', '`', 'kode')" title="Inline Code (`kode`)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-mono text-slate-200 hover:text-white transition-colors">&lt;/&gt;</button>
+                        <button type="button" @click.prevent="insertFormat('```diff\n+ ', '\n```', 'teks hijau')" title="Warna Hijau (diff +)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-emerald-400 transition-colors">Hijau</button>
+                        <button type="button" @click.prevent="insertFormat('```diff\n- ', '\n```', 'teks merah')" title="Warna Merah (diff -)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-rose-400 transition-colors">Merah</button>
+                        <button type="button" @click.prevent="insertFormat('```fix\n', '\n```', 'teks kuning')" title="Warna Kuning (fix)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-amber-300 transition-colors">Kuning</button>
+                        <button type="button" @click.prevent="insertFormat('```ini\n[', ']\n```', 'teks biru')" title="Warna Biru (ini [])" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs font-bold text-blue-400 transition-colors">Biru</button>
                       </div>
 
                       <div class="flex items-center gap-0.5">
-                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] text-blue-400 font-mono">Link</button>
-                        <button type="button" @click.prevent="insertFormat('<', '>', 'https://')" title="Sembunyikan Preview Embed (&lt;url&gt;)" class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-[11px] text-slate-400 font-mono">&lt;URL&gt;</button>
+                        <button type="button" @click.prevent="insertFormat('[', '](https://)', 'Teks Link')" title="Masked Link [teks](url)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-blue-400 font-mono transition-colors">Link</button>
+                        <button type="button" @click.prevent="insertFormat('<', '>', 'https://')" title="Sembunyikan Preview Embed (&lt;url&gt;)" class="min-h-[30px] px-2 py-1 rounded hover:bg-surface-hover text-xs text-slate-400 font-mono transition-colors">&lt;URL&gt;</button>
                       </div>
                     </div>
 
-                    <textarea id="dynamic-description" x-model="dynamicForm.description" rows="3" placeholder="Teks intro / pembukaan sebelum daftar pertanyaan..."
+                    <textarea id="dynamic-description" aria-label="Deskripsi pesan dynamic embed" x-model="dynamicForm.description" rows="3" placeholder="Teks intro / pembukaan sebelum daftar pertanyaan..."
                               @focus="setActiveInput('dynamic-description')"
                               class="w-full bg-surface-input p-3 text-xs text-white focus:outline-none font-sans"></textarea>
                   </div>
@@ -845,10 +880,10 @@
                           </div>
                         </div>
 
-                        <input type="text" x-model="f.name" placeholder="Judul Bagian (misal: 1. Syarat Peserta)..."
+                        <input type="text" aria-label="Judul bagian dynamic embed" x-model="f.name" placeholder="Judul Bagian (misal: 1. Syarat Peserta)..."
                                class="w-full bg-surface-input border border-surface-border rounded-md px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-medium">
 
-                        <textarea :id="'field-val-' + fIdx" x-model="f.value" rows="3" placeholder="Isi penjelasan / jawaban (mendukung bullet, bold, kode)..."
+                        <textarea :id="'field-val-' + fIdx" aria-label="Isi bagian dynamic embed" x-model="f.value" rows="3" placeholder="Isi penjelasan / jawaban (mendukung bullet, bold, kode)..."
                                   @focus="setActiveInput('field-val-' + fIdx)"
                                   class="w-full bg-surface-input border border-surface-border rounded-md p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-sans"></textarea>
                       </div>
@@ -890,7 +925,7 @@
               <!-- Discord Mock Client Box -->
               <div class="bg-discord-bg rounded-md p-4 text-discord-text border border-surface-border min-h-[380px] max-h-[85vh] overflow-y-auto">
                 <div class="flex items-start gap-3">
-                  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                        :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'"
                        class="w-9 h-9 rounded-full flex-shrink-0 object-cover" alt="Bot Avatar">
                   
@@ -926,12 +961,12 @@
                                  x-html="renderDiscordMarkdown(form.message || 'Pratinjau isi pengumuman Discord akan tampil di sini saat Anda mengetik...')"></div>
                             
                             <div x-show="previewImageUrl || form.imageUrl" class="mt-2 rounded overflow-hidden border border-surface-border">
-                              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                                    :src="previewImageUrl || form.imageUrl" class="w-full max-h-72 object-cover" alt="Banner Preview">
                             </div>
 
                             <div class="pt-2 flex items-center gap-1.5 text-[10px] text-discord-muted border-t border-[#35373c]/50">
-                              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                                    :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'" class="w-3.5 h-3.5 rounded-full" alt="Icon">
                               <span x-text="'NSAC Jember 2026 • Hari ini pukul ' + currentClock"></span>
                             </div>
@@ -949,7 +984,7 @@
                               <div x-show="blk.text" class="text-xs text-discord-text whitespace-pre-wrap leading-relaxed discord-markdown"
                                    x-html="renderDiscordMarkdown(blk.text)"></div>
                               <div x-show="blk.imageUrl" class="mt-2 rounded overflow-hidden border border-surface-border">
-                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                                      :src="blk.imageUrl" class="w-full max-h-72 object-cover" alt="Block Image">
                               </div>
                             </div>
@@ -984,7 +1019,7 @@
 
                             <div class="pt-2 flex items-center justify-between text-[10px] text-discord-muted border-t border-[#35373c]/50">
                               <div class="flex items-center gap-1.5">
-                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E"
+                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
                                      :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'" class="w-3.5 h-3.5 rounded-full" alt="Icon">
                                 <span x-text="'NSAC Jember 2026 • Live Sync'"></span>
                               </div>
@@ -1010,7 +1045,7 @@
           <!-- Unified Subtab Navigation Header -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
             <div>
-              <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Pusat Manajemen Tim</h2>
+              <h2 class="text-base font-semibold text-white tracking-tight">Pusat Manajemen Tim</h2>
               <p class="text-xs text-slate-400 mt-0.5">Monitoring data tim terdaftar di Discord dan sinkronisasi snapshot resmi NASA Space Apps Challenge.</p>
             </div>
 
@@ -1036,13 +1071,13 @@
 
               <button @click="deployTeamPanelAction()" :disabled="deployingTeamPanel"
                       class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50">
-                <i data-lucide="layout" class="w-3.5 h-3.5 text-purple-400"></i>
+                <i data-lucide="layout" class="w-3.5 h-3.5 text-blue-400"></i>
                 <span x-text="deployingTeamPanel ? 'Mengirim...' : 'Deploy Panel Tim'"></span>
               </button>
             </div>
 
             <!-- Segmented Pill Switcher -->
-            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
+            <div class="flex items-center gap-1 bg-surface-elevated p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
               <button @click="teamSubTab = 'discord'"
                       :class="teamSubTab === 'discord' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
@@ -1068,8 +1103,8 @@
             <div class="flex flex-col sm:flex-row items-center gap-3">
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-                <input type="text" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
-                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                <input type="text" aria-label="Cari tim Discord" x-model="searchTeam" placeholder="Cari nama tim, ketua, atau tantangan..."
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
               </div>
 
               <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs w-full sm:w-auto">
@@ -1134,7 +1169,7 @@
                     <template x-if="filteredTeams.length === 0">
                       <tr>
                         <td colspan="7" class="px-4 py-8 text-center text-slate-400">
-                          Tidak ada data tim yang sesuai filter.
+                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="users" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada data tim yang sesuai filter.</span></div>
                         </td>
                       </tr>
                     </template>
@@ -1194,8 +1229,8 @@
             <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-                <input type="text" x-model="searchWebTeam" placeholder="Cari nama tim di web NASA, tantangan, atau slug..."
-                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                <input type="text" aria-label="Cari tim di web NASA" x-model="searchWebTeam" placeholder="Cari nama tim di web NASA, tantangan, atau slug..."
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
               </div>
 
               <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -1266,7 +1301,7 @@
                     <template x-if="filteredWebTeams.length === 0">
                       <tr>
                         <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-                          Tidak ada data tim web NASA yang cocok.
+                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="globe" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada data tim web NASA yang cocok.</span></div>
                         </td>
                       </tr>
                     </template>
@@ -1283,7 +1318,7 @@
         <section x-show="activeTab === 'challenges'" class="space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
             <div>
-              <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Manajemen Topik Challenge Hackathon (/challenge)</h2>
+              <h2 class="text-base font-semibold text-white tracking-tight">Manajemen Topik Tantangan (Challenge)</h2>
               <p class="text-xs text-slate-400 mt-0.5">Kelola daftar tantangan resmi Space Apps, pantau distribusi tim, dan umumkan challenge langsung ke channel Discord.</p>
             </div>
 
@@ -1336,8 +1371,8 @@
           <div class="flex flex-col sm:flex-row items-center gap-3">
             <div class="relative flex-1 w-full">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" x-model="challengeSearch" placeholder="Cari judul tantangan atau deskripsi..."
-                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              <input type="text" aria-label="Cari tantangan hackathon" x-model="challengeSearch" placeholder="Cari judul tantangan atau deskripsi..."
+                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
             </div>
             <button @click="fetchChallenges()" :disabled="loadingChallenges"
                     class="px-3 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 flex-shrink-0">
@@ -1380,12 +1415,12 @@
                       <td class="p-3 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                           <button @click="openEditChallengeModal(ch)"
-                                  class="px-2 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-slate-200 border border-surface-border transition-colors text-[11px] flex items-center gap-1">
+                                  class="px-2.5 py-1.5 rounded bg-surface-elevated hover:bg-surface-hover text-slate-200 border border-surface-border transition-colors text-xs sm:text-[11px] min-h-[30px] inline-flex items-center gap-1">
                             <i data-lucide="edit-2" class="w-3 h-3"></i>
                             <span>Edit</span>
                           </button>
                           <button @click="deleteChallengeAction(ch)" :disabled="deletingChallengeId === ch.id"
-                                  class="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors text-[11px] flex items-center gap-1 disabled:opacity-50">
+                                  class="px-2.5 py-1.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 transition-colors text-xs sm:text-[11px] min-h-[30px] inline-flex items-center gap-1 disabled:opacity-50">
                             <i data-lucide="trash-2" class="w-3 h-3"></i>
                             <span>Hapus</span>
                           </button>
@@ -1414,7 +1449,7 @@
         <section x-show="activeTab === 'invites'" class="space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
             <div>
-              <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Invite Tracker & Auto-Role Manager</h2>
+              <h2 class="text-base font-semibold text-white tracking-tight">Invite Tracker & Auto-Role</h2>
               <p class="text-xs text-slate-400 mt-0.5">Pantau penggunaan tautan undangan server, audit anggota yang bergabung, dan kelola link dengan auto-role otomatis.</p>
             </div>
 
@@ -1447,14 +1482,14 @@
 
             <div class="bg-surface-card border border-surface-border rounded-lg p-3.5">
               <div class="text-[11px] text-slate-400 font-medium">Link Dynamic Auto-Role</div>
-              <div class="text-2xl font-bold font-mono text-purple-400 mt-1 tabular-nums" x-text="inviteStats.dynamicCount || 0"></div>
+              <div class="text-2xl font-bold font-mono text-blue-400 mt-1 tabular-nums" x-text="inviteStats.dynamicCount || 0"></div>
               <div class="text-[10px] text-slate-400 mt-0.5">Otomatis memberikan role</div>
             </div>
           </div>
 
           <!-- Sub-Tab Navigation -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-3">
-            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
+            <div class="flex items-center gap-1 bg-surface-elevated p-1 rounded-lg border border-surface-border text-xs w-full sm:w-auto">
               <button @click="inviteSubTab = 'links'"
                       :class="inviteSubTab === 'links' ? 'bg-blue-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-white'"
                       class="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-md transition-colors flex items-center justify-center gap-2">
@@ -1490,8 +1525,8 @@
             <div class="flex flex-col sm:flex-row items-center gap-3">
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-                <input type="text" x-model="searchInvite" placeholder="Cari kode link, label, pembuat, channel, atau role..."
-                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                <input type="text" aria-label="Cari link undangan" x-model="searchInvite" placeholder="Cari kode link, label, pembuat, channel, atau role..."
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
               </div>
 
               <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs overflow-x-auto w-full sm:w-auto">
@@ -1587,7 +1622,7 @@
                     <template x-if="filteredInvites.length === 0">
                       <tr>
                         <td colspan="7" class="px-4 py-8 text-center text-slate-400">
-                          Tidak ada data link undangan yang cocok dengan filter.
+                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="link" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada data link undangan yang cocok dengan filter.</span></div>
                         </td>
                       </tr>
                     </template>
@@ -1647,7 +1682,7 @@
                     <template x-if="recentInviteJoins.length === 0">
                       <tr>
                         <td colspan="5" class="px-4 py-8 text-center text-slate-400">
-                          Belum ada aktivitas member bergabung melalui link undangan yang tercatat.
+                          <div class="flex flex-col items-center justify-center py-2"><i data-lucide="user-plus" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Belum ada aktivitas member bergabung melalui link undangan yang tercatat.</span></div>
                         </td>
                       </tr>
                     </template>
@@ -1697,19 +1732,25 @@
         <!-- ========================================== -->
         <section x-show="activeTab === 'tickets'" class="space-y-4">
           
-          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Inbox Tiket Pendaftaran & Bantuan</h2>
+          <h2 class="text-base font-semibold text-white tracking-tight">Inbox Tiket Pendaftaran & Bantuan</h2>
 
           <div class="flex flex-col sm:flex-row items-center gap-3">
             <div class="relative flex-1 w-full">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" x-model="searchTicket" placeholder="Cari pembuat tiket, Discord ID, atau channel ID..."
-                     class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              <input type="text" aria-label="Cari tiket bantuan" x-model="searchTicket" placeholder="Cari pembuat tiket, Discord ID, atau channel ID..."
+                     class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
             </div>
 
-            <div class="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-surface-border text-xs">
-              <button @click="ticketFilterStatus = 'ALL'" :class="ticketFilterStatus === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">Semua</button>
-              <button @click="ticketFilterStatus = 'OPEN'" :class="ticketFilterStatus === 'OPEN' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">OPEN</button>
-              <button @click="ticketFilterStatus = 'CLOSED'" :class="ticketFilterStatus === 'CLOSED' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">CLOSED</button>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1 bg-surface-elevated p-1 rounded-md border border-surface-border text-xs">
+                <button @click="ticketFilterStatus = 'ALL'" :class="ticketFilterStatus === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">Semua</button>
+                <button @click="ticketFilterStatus = 'OPEN'" :class="ticketFilterStatus === 'OPEN' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">OPEN</button>
+                <button @click="ticketFilterStatus = 'CLOSED'" :class="ticketFilterStatus === 'CLOSED' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-3 py-1 rounded transition-colors">CLOSED</button>
+              </div>
+              <button @click="fetchTickets()" :disabled="loadingTickets" class="px-3 py-1.5 rounded-md bg-surface-elevated hover:bg-surface-hover border border-surface-border text-xs text-slate-300 flex items-center gap-1.5 transition-colors disabled:opacity-50" title="Muat ulang tiket">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="loadingTickets ? 'animate-spin' : ''"></i>
+                <span class="hidden sm:inline">Refresh</span>
+              </button>
             </div>
           </div>
 
@@ -1775,7 +1816,7 @@
                   <template x-if="filteredTickets.length === 0">
                     <tr>
                       <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-                        Tidak ada tiket yang cocok dengan filter.
+                        <div class="flex flex-col items-center justify-center py-2"><i data-lucide="inbox" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada tiket yang cocok dengan filter.</span></div>
                       </td>
                     </tr>
                   </template>
@@ -1790,14 +1831,14 @@
         <!-- ========================================== -->
         <section x-show="activeTab === 'audit'" class="space-y-4">
           
-          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Riwayat Jejak Audit & Aktivitas Sistem</h2>
+          <h2 class="text-base font-semibold text-white tracking-tight">Riwayat Jejak Audit & Aktivitas Sistem</h2>
 
           <!-- Filter Controls -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Aksi</label>
               <select x-model="auditFilterAction" @change="auditOffset = 0; fetchAuditLogs()"
-                      class="w-full bg-surface-card border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
                 <option value="">Semua Aksi</option>
                 <option value="TEAM_CREATED">TEAM_CREATED</option>
                 <option value="TEAM_ARCHIVED">TEAM_ARCHIVED</option>
@@ -1817,7 +1858,7 @@
             <div>
               <label class="block text-[11px] font-medium text-slate-400 mb-1">Filter Tim</label>
               <select x-model="auditFilterTeamId" @change="auditOffset = 0; fetchAuditLogs()"
-                      class="w-full bg-surface-card border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
                 <option value="">Semua Tim</option>
                 <template x-for="t in teams" :key="t.id">
                   <option :value="t.id" x-text="t.name"></option>
@@ -1828,10 +1869,11 @@
             <div>
               <label class="block text-[11px] font-medium text-slate-400 mb-1">Cari Kata Kunci</label>
               <div class="flex gap-2">
-                <input type="text" x-model="auditSearchText" @keydown.enter="auditOffset = 0; fetchAuditLogs()" placeholder="Username, ID, JSON..."
-                       class="flex-1 bg-surface-card border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
-                <button @click="auditOffset = 0; fetchAuditLogs()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-medium transition-colors">
-                  Cari
+                <input type="text" aria-label="Cari kata kunci log audit" x-model="auditSearchText" @keydown.enter="auditOffset = 0; fetchAuditLogs()" placeholder="Username, ID, JSON..."
+                       class="flex-1 bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <button @click="auditOffset = 0; fetchAuditLogs()" :disabled="loadingAuditLogs" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1.5" title="Cari audit log">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="loadingAuditLogs ? 'animate-spin' : ''" x-show="loadingAuditLogs"></i>
+                  <span>Cari</span>
                 </button>
               </div>
             </div>
@@ -1890,7 +1932,7 @@
                   <template x-if="auditLogs.length === 0">
                     <tr>
                       <td colspan="5" class="px-4 py-8 text-center text-slate-400">
-                        Tidak ada catatan log audit yang cocok.
+                        <div class="flex flex-col items-center justify-center py-2"><i data-lucide="history" class="w-8 h-8 text-slate-500 opacity-60 mb-2"></i><span>Tidak ada catatan log audit yang cocok.</span></div>
                       </td>
                     </tr>
                   </template>
@@ -1948,10 +1990,10 @@
                   </div>
                   <input type="range" min="1" max="100" x-model.number="purgeForm.amount" class="w-full accent-blue-600 bg-surface-input h-1.5 rounded cursor-pointer">
                   <div class="flex items-center gap-2 mt-2">
-                    <button type="button" @click="purgeForm.amount = 10" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">10 Pesan</button>
-                    <button type="button" @click="purgeForm.amount = 25" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">25 Pesan</button>
-                    <button type="button" @click="purgeForm.amount = 50" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">50 Pesan</button>
-                    <button type="button" @click="purgeForm.amount = 100" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">100 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 10" class="px-2.5 py-1 rounded text-xs bg-surface-elevated border border-surface-border text-slate-300 hover:bg-surface-hover transition-colors">10 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 25" class="px-2.5 py-1 rounded text-xs bg-surface-elevated border border-surface-border text-slate-300 hover:bg-surface-hover transition-colors">25 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 50" class="px-2.5 py-1 rounded text-xs bg-surface-elevated border border-surface-border text-slate-300 hover:bg-surface-hover transition-colors">50 Pesan</button>
+                    <button type="button" @click="purgeForm.amount = 100" class="px-2.5 py-1 rounded text-xs bg-surface-elevated border border-surface-border text-slate-300 hover:bg-surface-hover transition-colors">100 Pesan</button>
                   </div>
                 </div>
 
@@ -1966,75 +2008,7 @@
                   <p class="text-[11px] text-slate-400 mt-1">Jika dipilih, bot hanya menghapus pesan dari user tersebut dalam rentang 100 pesan terakhir.</p>
                 </div>
 
-                <div class="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2.5">
-                  <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400"></i>
-                  <div>
-                    <span class="font-semibold text-amber-300">Batasan Teknis Discord:</span>
-                    Pesan yang berumur lebih dari 14 hari tidak dapat dihapus massal oleh Discord API.
-                  </div>
-                </div>
-
-                <div class="pt-2">
-                  <button type="button" @click="submitPurgeMessages()" :disabled="purgingMessages || !purgeForm.channelId"
-                          class="px-4 py-2 rounded-md bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-2">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    <span x-text="purgingMessages ? 'Sedang Menghapus...' : 'Bersihkan Pesan Sekarang'"></span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- SUB-VIEW 3: CHANNEL MESSAGE PURGE TOOL (/purge) -->
-          <div x-show="studioMode === 'purge'" class="space-y-6">
-            <div class="bg-surface-card border border-surface-border rounded-lg p-6 max-w-2xl space-y-5">
-              <div>
-                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                  <i data-lucide="trash-2" class="w-4 h-4 text-rose-400"></i>
-                  <span>Pembersih Pesan Massal Channel (/purge)</span>
-                </h3>
-                <p class="text-xs text-slate-400 mt-1">
-                  Hapus pesan massal di channel Discord tertentu secara instan dan aman. Seluruh riwayat penghapusan dicatat ke log audit bot.
-                </p>
-              </div>
-
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
-                  <select x-model="purgeForm.channelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                    <option value="">-- Pilih Text Channel --</option>
-                    <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
-                      <option :value="c.id" x-text="'#' + c.name"></option>
-                    </template>
-                  </select>
-                </div>
-
-                <div>
-                  <div class="flex items-center justify-between mb-1">
-                    <label class="text-xs font-medium text-slate-300">Jumlah Pesan yang Dihapus (1 - 100) <span class="text-rose-400">*</span></label>
-                    <span class="text-xs font-mono text-blue-400 font-semibold" x-text="purgeForm.amount + ' pesan'"></span>
-                  </div>
-                  <input type="range" min="1" max="100" x-model.number="purgeForm.amount" class="w-full accent-blue-600 bg-surface-input h-1.5 rounded cursor-pointer">
-                  <div class="flex items-center gap-2 mt-2">
-                    <button type="button" @click="purgeForm.amount = 10" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">10 Pesan</button>
-                    <button type="button" @click="purgeForm.amount = 25" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">25 Pesan</button>
-                    <button type="button" @click="purgeForm.amount = 50" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">50 Pesan</button>
-                    <button type="button" @click="purgeForm.amount = 100" class="px-2 py-0.5 rounded text-[10px] bg-surface-base border border-surface-border text-slate-300 hover:bg-surface-hover">100 Pesan</button>
-                  </div>
-                </div>
-
-                <div>
-                  <label class="block text-xs font-medium text-slate-300 mb-1">Filter User Tertentu (Opsional)</label>
-                  <select x-model="purgeForm.userId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                    <option value="">Semua User (Hapus pesan siapa pun)</option>
-                    <template x-for="m in guildMembers" :key="m.id">
-                      <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
-                    </template>
-                  </select>
-                  <p class="text-[11px] text-slate-400 mt-1">Jika dipilih, bot hanya menghapus pesan dari user tersebut dalam rentang 100 pesan terakhir.</p>
-                </div>
-
-                <div class="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2.5">
+                <div class="p-3 rounded-md bg-amber-500/10 text-amber-200 text-xs flex items-start gap-2.5">
                   <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400"></i>
                   <div>
                     <span class="font-semibold text-amber-300">Batasan Teknis Discord:</span>
@@ -2078,8 +2052,8 @@
             <div class="flex flex-col sm:flex-row items-center gap-3">
               <div class="relative flex-1 w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-                <input type="text" x-model="faqSearch" placeholder="Cari pertanyaan, aturan, atau nama command..."
-                       class="w-full bg-surface-card border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
+                <input type="text" aria-label="Cari FAQ dan aturan" x-model="faqSearch" placeholder="Cari pertanyaan, aturan, atau nama command..."
+                       class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
               </div>
 
               <!-- Categories Filter -->
@@ -2146,7 +2120,7 @@
         <!-- ========================================== -->
         <section x-show="activeTab === 'presence'" class="space-y-6">
           <div class="border-b border-surface-border pb-4">
-            <h2 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">Teks & Status Bot Discord</h2>
+            <h2 class="text-base font-semibold text-white tracking-tight">Teks & Status Bot Discord</h2>
             <p class="text-xs text-slate-400 mt-0.5">Atur status online bot, rotasi perputaran aktivitas otomatis (cycle), dan template teks dinamis dengan placeholder variabel realtime.</p>
           </div>
 
@@ -2155,7 +2129,8 @@
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div class="flex items-center gap-4">
                 <div class="relative flex-shrink-0">
-                  <img :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'"
+                  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3C/svg%3E" loading="lazy" decoding="async"
+                       :src="stats.bot.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'"
                        class="w-14 h-14 rounded-full object-cover bg-surface-border ring-2 ring-surface-border" alt="Bot Avatar">
                   <!-- Status Indicator Dot -->
                   <span class="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-surface-card"
@@ -2187,20 +2162,20 @@
               </div>
 
               <!-- Live Variable Badges -->
-              <div class="flex flex-wrap items-center gap-2 bg-surface-input p-3 rounded-lg border border-surface-border text-xs">
+              <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
                 <div class="text-[10px] font-mono uppercase text-slate-400 w-full mb-0.5">Nilai Placeholder Realtime:</div>
-                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                <span class="px-2 py-0.5 rounded bg-surface-elevated text-slate-300 font-mono text-[11px]">
                   <span class="text-slate-400 font-mono">{countdown}:</span> <strong class="text-white" x-text="livePresenceVariables.countdown || '-'"></strong>
-                </div>
-                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                </span>
+                <span class="px-2 py-0.5 rounded bg-surface-elevated text-slate-300 font-mono text-[11px]">
                   <span class="text-slate-400 font-mono">{teams}:</span> <strong class="text-white" x-text="livePresenceVariables.teams ?? 0"></strong>
-                </div>
-                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                </span>
+                <span class="px-2 py-0.5 rounded bg-surface-elevated text-slate-300 font-mono text-[11px]">
                   <span class="text-slate-400 font-mono">{participants}:</span> <strong class="text-white" x-text="livePresenceVariables.participants ?? 0"></strong>
-                </div>
-                <div class="px-2 py-1 rounded bg-surface-card border border-surface-border text-[11px]">
+                </span>
+                <span class="px-2 py-0.5 rounded bg-surface-elevated text-slate-300 font-mono text-[11px]">
                   <span class="text-slate-400 font-mono">{members}:</span> <strong class="text-white" x-text="livePresenceVariables.members ?? 0"></strong>
-                </div>
+                </span>
               </div>
             </div>
           </div>
@@ -2270,8 +2245,8 @@
             <!-- Activities Cards List -->
             <div class="space-y-3">
               <template x-for="(act, idx) in (botPresence.activities || [])" :key="act.id || idx">
-                <div class="bg-surface-card border border-surface-border rounded-lg p-4 space-y-3 transition-colors"
-                     :class="act.enabled ? '' : 'opacity-60 bg-surface-card/60'">
+                <div class="bg-surface-elevated/40 rounded-lg p-3.5 space-y-3 transition-colors"
+                     :class="act.enabled ? '' : 'opacity-60 bg-surface-elevated/60'">
                   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-border pb-2.5">
                     <div class="flex items-center gap-2">
                       <span class="w-5 h-5 rounded-full bg-surface-elevated border border-surface-border flex items-center justify-center font-mono text-[10px] text-slate-300 font-bold" x-text="idx + 1"></span>
@@ -2328,18 +2303,18 @@
                         <label class="block text-[11px] font-medium text-slate-400">Teks Status / Template</label>
                         <div class="flex items-center gap-1">
                           <span class="text-[10px] text-slate-400">Sisipkan:</span>
-                          <button type="button" @click="insertPresenceTag(idx, '{countdown}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-blue-400 border border-surface-border font-mono text-[10px]">+ {countdown}</button>
-                          <button type="button" @click="insertPresenceTag(idx, '{teams}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-emerald-400 border border-surface-border font-mono text-[10px]">+ {teams}</button>
-                          <button type="button" @click="insertPresenceTag(idx, '{participants}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-purple-400 border border-surface-border font-mono text-[10px]">+ {participants}</button>
-                          <button type="button" @click="insertPresenceTag(idx, '{members}')" class="px-1.5 py-0.5 rounded bg-surface-elevated hover:bg-surface-hover text-amber-400 border border-surface-border font-mono text-[10px]">+ {members}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{countdown}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-blue-400 border border-surface-border font-mono text-[10px]">+ {countdown}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{teams}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-emerald-400 border border-surface-border font-mono text-[10px]">+ {teams}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{participants}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-purple-400 border border-surface-border font-mono text-[10px]">+ {participants}</button>
+                          <button type="button" @click="insertPresenceTag(idx, '{members}')" class="px-2.5 py-1 rounded bg-surface-elevated hover:bg-surface-hover text-amber-400 border border-surface-border font-mono text-[10px]">+ {members}</button>
                         </div>
                       </div>
 
-                      <input type="text" x-model="act.text" placeholder="Masukkan teks status bot..."
+                      <input type="text" aria-label="Teks status bot" x-model="act.text" placeholder="Masukkan teks status bot..."
                              class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-sans">
 
                       <!-- Live Result Preview for this item -->
-                      <div class="bg-surface-base/80 border border-surface-border rounded px-3 py-1.5 text-[11px] flex items-center justify-between">
+                      <div class="bg-surface-base/60 rounded px-3 py-1.5 text-[11px] flex items-center justify-between">
                         <div class="text-slate-400">
                           Pratinjau Hasil: <span class="text-slate-200 font-medium ml-1" x-text="getResolvedPreview(act.text)"></span>
                         </div>
@@ -2380,7 +2355,7 @@
               </div>
 
               <!-- Category filter pills -->
-              <div class="flex items-center gap-1 bg-surface-input p-1 rounded-md border border-surface-border text-xs overflow-x-auto">
+              <div class="flex items-center gap-1 pb-2 border-b border-surface-border text-xs overflow-x-auto">
                 <button @click="configCategoryFilter = 'ALL'" :class="configCategoryFilter === 'ALL' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Semua</button>
                 <button @click="configCategoryFilter = 'ROLES'" :class="configCategoryFilter === 'ROLES' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Role</button>
                 <button @click="configCategoryFilter = 'CHANNELS'" :class="configCategoryFilter === 'CHANNELS' ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'" class="px-2.5 py-1 rounded whitespace-nowrap">Channel</button>
@@ -2392,7 +2367,7 @@
             <!-- Search box for configs -->
             <div class="relative w-full">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" x-model="searchConfig" placeholder="Cari nama konfigurasi, key, atau deskripsi..."
+              <input type="text" aria-label="Cari konfigurasi server" x-model="searchConfig" placeholder="Cari nama konfigurasi, key, atau deskripsi..."
                      class="w-full bg-surface-input border border-surface-border rounded-md pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500">
             </div>
 
@@ -2520,27 +2495,27 @@
     <!-- ========================================== -->
     <!-- MODAL: TEAM DETAIL -->
     <!-- ========================================== -->
-    <div x-show="showTeamModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showTeamModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-2xl w-full p-6 space-y-4 my-8 shadow-xl">
+    <div x-show="showTeamModal" @keydown.escape.window="showTeamModal = false" role="dialog" aria-modal="true" aria-labelledby="modal-team-title" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showTeamModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-2xl w-full p-6 space-y-4 my-8 shadow-xl max-h-[90vh] overflow-y-auto">
         <template x-if="selectedTeam">
           <div class="space-y-4">
             
             <div class="flex items-start justify-between border-b border-surface-border pb-3">
               <div>
                 <div class="flex items-center gap-2">
-                  <h3 class="text-base font-bold text-white" x-text="selectedTeam.name"></h3>
+                  <h3 id="modal-team-title" class="text-base font-bold text-white" x-text="selectedTeam.name"></h3>
                   <span :class="selectedTeam.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'"
                         class="px-2 py-0.5 rounded border text-[10px] font-semibold" x-text="selectedTeam.status"></span>
                 </div>
                 <p class="text-[11px] text-slate-400 mt-0.5" x-text="'ID: ' + selectedTeam.id + ' • Dibuat: ' + formatDate(selectedTeam.created_at)"></p>
               </div>
-              <button @click="showTeamModal = false" class="p-1 rounded text-slate-400 hover:text-white">
+              <button @click="showTeamModal = false" aria-label="Tutup dialog tim" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
                 <i data-lucide="x" class="w-4 h-4"></i>
               </button>
             </div>
 
             <!-- Definition List -->
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-surface-input p-3 rounded">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs p-1">
               <div>
                 <dt class="text-slate-400 text-[10px]">Tantangan:</dt>
                 <dd class="font-medium text-slate-200" x-text="selectedTeam.challenge_title || '-(Belum memilih)-'"></dd>
@@ -2645,7 +2620,7 @@
 
               <!-- Add member -->
               <div class="flex items-center gap-2 pt-1">
-                <input type="text" x-model="newMemberDiscordId" placeholder="Discord ID anggota baru..."
+                <input type="text" aria-label="Discord ID anggota baru" x-model="newMemberDiscordId" placeholder="Discord ID anggota baru..."
                        class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
                 <button @click="addMemberAction()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
                   Tambah
@@ -2679,14 +2654,14 @@
     <!-- ========================================== -->
     <!-- MODAL: TICKET REPLY -->
     <!-- ========================================== -->
-    <div x-show="showTicketReplyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showTicketReplyModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl">
+    <div x-show="showTicketReplyModal" @keydown.escape.window="showTicketReplyModal = false" role="dialog" aria-modal="true" aria-labelledby="modal-ticket-title" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showTicketReplyModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-start justify-between border-b border-surface-border pb-3">
           <div>
-            <h3 class="text-sm font-semibold text-white">Balas Tiket Dukungan</h3>
+            <h3 id="modal-ticket-title" class="text-sm font-semibold text-white">Balas Tiket Dukungan</h3>
             <p class="text-xs text-slate-400 mt-0.5" x-text="replyingTicket ? 'Tiket #' + replyingTicket.id + ' oleh @' + (replyingTicket.creator_username || 'User') : ''"></p>
           </div>
-          <button @click="showTicketReplyModal = false" class="p-1 rounded text-slate-400 hover:text-white">
+          <button @click="showTicketReplyModal = false" aria-label="Tutup dialog tiket" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
@@ -2714,27 +2689,27 @@
     <!-- ========================================== -->
     <!-- MODAL: CREATE DYNAMIC INVITE -->
     <!-- ========================================== -->
-    <div x-show="showCreateInviteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showCreateInviteModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-6 space-y-4 my-8 shadow-xl">
+    <div x-show="showCreateInviteModal" @keydown.escape.window="showCreateInviteModal = false" role="dialog" aria-modal="true" aria-labelledby="modal-invite-title" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showCreateInviteModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-6 space-y-4 my-8 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-start justify-between border-b border-surface-border pb-3">
           <div>
-            <h3 class="text-base font-bold text-white">Buat Link Undangan Server</h3>
+            <h3 id="modal-invite-title" class="text-base font-bold text-white">Buat Link Undangan Server</h3>
             <p class="text-xs text-slate-400 mt-0.5">Tautan undangan dengan auto-assign role otomatis bagi anggota baru yang bergabung.</p>
           </div>
-          <button @click="showCreateInviteModal = false" class="p-1 rounded text-slate-400 hover:text-white">
+          <button @click="showCreateInviteModal = false" aria-label="Tutup dialog invite" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-surface-hover transition-colors">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
 
         <!-- Generated Result Banner -->
         <template x-if="createdInviteResult">
-          <div class="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/25 space-y-2">
+          <div class="p-4 rounded-lg bg-emerald-500/10 space-y-2">
             <div class="flex items-center justify-between text-xs font-semibold text-emerald-400">
               <span>Link Undangan Berhasil Dibuat</span>
               <span class="font-mono" x-text="'Kode: ' + createdInviteResult.code"></span>
             </div>
             <div class="flex items-center gap-2">
-              <input type="text" readonly :value="createdInviteResult.url"
+              <input type="text" readonly aria-label="URL link undangan Discord yang dibuat" :value="createdInviteResult.url"
                      class="flex-1 bg-surface-input border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono selection:bg-blue-600">
               <button @click="copyToClipboard(createdInviteResult.url, 'Link invite')"
                       class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors whitespace-nowrap">
@@ -2763,7 +2738,7 @@
             <div class="max-h-36 overflow-y-auto space-y-1 bg-surface-input border border-surface-border rounded-md p-2.5">
               <template x-for="r in roles" :key="r.id">
                 <label class="flex items-center gap-2 text-xs text-slate-300 hover:text-white cursor-pointer py-0.5">
-                  <input type="checkbox" :value="r.id" x-model="createInviteForm.roleIds" class="rounded bg-surface-card border-surface-border text-blue-600 focus:ring-0">
+                  <input type="checkbox" :value="r.id" x-model="createInviteForm.roleIds" class="rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
                   <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="'background-color: ' + (r.color || '#99aab5')"></span>
                   <span x-text="r.name"></span>
                 </label>
@@ -2829,14 +2804,14 @@
     <!-- ========================================== -->
     <!-- MODAL: CREATE / EDIT CHALLENGE -->
     <!-- ========================================== -->
-    <div x-show="showChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+    <div x-show="showChallengeModal" @keydown.escape.window="showChallengeModal = false" role="dialog" aria-modal="true" aria-labelledby="modal-challenge-title" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <h3 id="modal-challenge-title" class="text-sm font-semibold text-white flex items-center gap-2">
             <i data-lucide="award" class="w-4 h-4 text-blue-400"></i>
             <span x-text="challengeModalMode === 'edit' ? 'Edit Topik Challenge' : 'Tambah Topik Challenge Baru'"></span>
           </h3>
-          <button @click="showChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showChallengeModal = false" aria-label="Tutup dialog challenge" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -2866,14 +2841,14 @@
     <!-- ========================================== -->
     <!-- MODAL: BROADCAST CHALLENGE TO DISCORD -->
     <!-- ========================================== -->
-    <div x-show="showBroadcastChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showBroadcastChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-md w-full p-5 space-y-4 shadow-xl">
+    <div x-show="showBroadcastChallengeModal" @keydown.escape.window="showBroadcastChallengeModal = false" role="dialog" aria-modal="true" aria-labelledby="modal-broadcast-title" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showBroadcastChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-md w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <h3 id="modal-broadcast-title" class="text-sm font-semibold text-white flex items-center gap-2">
             <i data-lucide="send" class="w-4 h-4 text-blue-400"></i>
             <span>Kirim Daftar Challenge ke Discord</span>
           </h3>
-          <button @click="showBroadcastChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showBroadcastChallengeModal = false" aria-label="Tutup dialog broadcast" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -2902,14 +2877,14 @@
     <!-- ========================================== -->
     <!-- MODAL: FORCE REGISTER TIM (/team force-register) -->
     <!-- ========================================== -->
-    <div x-show="showForceRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showForceRegisterModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+    <div x-show="showForceRegisterModal" @keydown.escape.window="showForceRegisterModal = false" role="dialog" aria-modal="true" aria-labelledby="modal-force-reg-title" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showForceRegisterModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <h3 id="modal-force-reg-title" class="text-sm font-semibold text-white flex items-center gap-2">
             <i data-lucide="user-plus" class="w-4 h-4 text-blue-400"></i>
             <span>Daftarkan Tim Baru (Force Register)</span>
           </h3>
-          <button @click="showForceRegisterModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showForceRegisterModal = false" aria-label="Tutup dialog pendaftaran" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -2980,14 +2955,14 @@
     <!-- ========================================== -->
     <!-- MODAL: MANUAL MEMBER REGISTRATION (/register member) -->
     <!-- ========================================== -->
-    <div x-show="showRegisterMemberModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showRegisterMemberModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
+    <div x-show="showRegisterMemberModal" @keydown.escape.window="showRegisterMemberModal = false" role="dialog" aria-modal="true" aria-labelledby="modal-reg-member-title" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
+      <div @click.away="showRegisterMemberModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <h3 id="modal-reg-member-title" class="text-sm font-semibold text-white flex items-center gap-2">
             <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
             <span>Registrasi Peserta Manual (/register member)</span>
           </h3>
-          <button @click="showRegisterMemberModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
+          <button @click="showRegisterMemberModal = false" aria-label="Tutup dialog registrasi" class="p-1.5 rounded text-slate-400 hover:text-white">&times;</button>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -3035,225 +3010,18 @@
       </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL: CREATE / EDIT CHALLENGE -->
-    <!-- ========================================== -->
-    <div x-show="showChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <i data-lucide="award" class="w-4 h-4 text-blue-400"></i>
-            <span x-text="challengeModalMode === 'edit' ? 'Edit Topik Challenge' : 'Tambah Topik Challenge Baru'"></span>
-          </h3>
-          <button @click="showChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
-        </div>
 
-        <div class="space-y-3 text-xs">
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Judul Challenge <span class="text-rose-400">*</span></label>
-            <input type="text" x-model="challengeForm.title" placeholder="Contoh: Earth Observation for Climate..."
-                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Deskripsi & Rincian Tantangan</label>
-            <textarea rows="5" x-model="challengeForm.description" placeholder="Jelaskan gambaran umum tantangan, tujuan, dan data yang dapat dimanfaatkan peserta..."
-                      class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
-          <button @click="showChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
-          <button @click="saveChallenge()" :disabled="savingChallenge"
-                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
-            <span x-text="savingChallenge ? 'Menyimpan...' : 'Simpan Challenge'"></span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- MODAL: BROADCAST CHALLENGE TO DISCORD -->
-    <!-- ========================================== -->
-    <div x-show="showBroadcastChallengeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showBroadcastChallengeModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-md w-full p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <i data-lucide="send" class="w-4 h-4 text-blue-400"></i>
-            <span>Kirim Daftar Challenge ke Discord</span>
-          </h3>
-          <button @click="showBroadcastChallengeModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
-        </div>
-
-        <div class="space-y-3 text-xs">
-          <p class="text-slate-400">Pilih channel Discord target. Bot akan memposting embed resmi berisi seluruh daftar tantangan yang telah diinput.</p>
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Channel Discord Target <span class="text-rose-400">*</span></label>
-            <select x-model="broadcastChallengeChannelId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-              <option value="">-- Pilih Text Channel --</option>
-              <template x-for="c in channels.filter(ch => ch.type === 0 || ch.type === 5)" :key="c.id">
-                <option :value="c.id" x-text="'#' + c.name"></option>
-              </template>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
-          <button @click="showBroadcastChallengeModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
-          <button @click="broadcastChallengesAction()" :disabled="broadcastingChallenge || !broadcastChallengeChannelId"
-                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
-            <span x-text="broadcastingChallenge ? 'Mengirim...' : 'Kirim Embed'"></span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- MODAL: FORCE REGISTER TIM (/team force-register) -->
-    <!-- ========================================== -->
-    <div x-show="showForceRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showForceRegisterModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <i data-lucide="user-plus" class="w-4 h-4 text-blue-400"></i>
-            <span>Daftarkan Tim Baru (Force Register)</span>
-          </h3>
-          <button @click="showForceRegisterModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
-        </div>
-
-        <div class="space-y-3 text-xs">
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Nama Tim <span class="text-rose-400">*</span></label>
-            <input type="text" x-model="forceRegisterForm.name" placeholder="Contoh: AstroDevs"
-                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Ketua Tim (Leader Discord) <span class="text-rose-400">*</span></label>
-            <select x-model="forceRegisterForm.leaderId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-              <option value="">-- Pilih Member Discord --</option>
-              <template x-for="m in guildMembers" :key="m.id">
-                <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')'"></option>
-              </template>
-            </select>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 2 (Opsional)</label>
-              <select x-model="forceRegisterForm.member1Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
-                <option value="">-- Kosong --</option>
-                <template x-for="m in guildMembers" :key="m.id">
-                  <option :value="m.id" x-text="'@' + m.tag"></option>
-                </template>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Anggota 3 (Opsional)</label>
-              <select x-model="forceRegisterForm.member2Id" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
-                <option value="">-- Kosong --</option>
-                <template x-for="m in guildMembers" :key="m.id">
-                  <option :value="m.id" x-text="'@' + m.tag"></option>
-                </template>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Topik Challenge (Opsional)</label>
-            <select x-model="forceRegisterForm.challengeId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-              <option value="">-- Belum Memilih --</option>
-              <template x-for="ch in challenges" :key="ch.id">
-                <option :value="ch.id" x-text="ch.title"></option>
-              </template>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Tautan Web NASA Space Apps (Opsional)</label>
-            <input type="url" x-model="forceRegisterForm.nsacLink" placeholder="https://www.spaceappschallenge.org/..."
-                   class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
-          <button @click="showForceRegisterModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
-          <button @click="submitForceRegister()" :disabled="submittingForceRegister || !forceRegisterForm.name || !forceRegisterForm.leaderId"
-                  class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
-            <span x-text="submittingForceRegister ? 'Memproses...' : 'Daftarkan & Buat Channel'"></span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- MODAL: MANUAL MEMBER REGISTRATION (/register member) -->
-    <!-- ========================================== -->
-    <div x-show="showRegisterMemberModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 overflow-y-auto">
-      <div @click.away="showRegisterMemberModal = false" class="bg-surface-card border border-surface-border rounded-lg max-w-lg w-full p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between border-b border-surface-border pb-3">
-          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
-            <span>Registrasi Peserta Manual (/register member)</span>
-          </h3>
-          <button @click="showRegisterMemberModal = false" class="p-1 rounded text-slate-400 hover:text-white">&times;</button>
-        </div>
-
-        <div class="space-y-3 text-xs">
-          <p class="text-slate-400">
-            Daftarkan peserta server secara langsung. Sistem akan memberikan role Participant (+ No-Team) dan mencabut role @Unregistered jika dicentang.
-          </p>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Cari / Pilih Member Discord <span class="text-rose-400">*</span></label>
-            <input type="text" x-model="memberSearchQuery" placeholder="Ketik nama user atau tag untuk memfilter list..."
-                   class="w-full bg-surface-base border border-surface-border rounded-md px-3 py-1.5 text-xs text-white placeholder-slate-400 mb-2 focus:outline-none focus:border-blue-500">
-            <select x-model="registerMemberForm.userId" size="5" class="w-full bg-surface-input border border-surface-border rounded-md px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
-              <template x-for="m in filteredGuildMembers" :key="m.id">
-                <option :value="m.id" x-text="'@' + m.tag + ' (' + m.displayName + ')' + (m.isUnregistered ? ' [Unregistered]' : (m.isParticipant ? ' [Peserta]' : ''))"></option>
-              </template>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Target Role Kustom (Opsional)</label>
-            <select x-model="registerMemberForm.roleId" class="w-full bg-surface-input border border-surface-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-              <option value="">Default: Role Participant + No-Team</option>
-              <template x-for="r in roles" :key="r.id">
-                <option :value="r.id" x-text="'@' + r.name"></option>
-              </template>
-            </select>
-          </div>
-
-          <div class="flex items-center gap-2 pt-1">
-            <input type="checkbox" id="keepUnregisteredCheckbox" x-model="registerMemberForm.keepUnregistered"
-                   class="w-4 h-4 rounded bg-surface-input border-surface-border text-blue-600 focus:ring-0">
-            <label for="keepUnregisteredCheckbox" class="text-xs text-slate-300 cursor-pointer">
-              Biarkan role @Unregistered tetap ada (jangan dicabut)
-            </label>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-surface-border">
-          <button @click="showRegisterMemberModal = false" class="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition-colors">Batal</button>
-          <button @click="submitRegisterMember()" :disabled="registeringMember || !registerMemberForm.userId"
-                  class="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
-            <span x-text="registeringMember ? 'Mendaftarkan...' : 'Registrasikan Peserta'"></span>
-          </button>
-        </div>
-      </div>
-    </div>
 
     <!-- TOAST NOTIFICATION -->
     <div class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full" x-show="toast.show" x-transition>
-      <div :class="toast.type === 'success' ? 'bg-[#061e16] border-emerald-500/40 text-emerald-200' : 'bg-[#2a0c10] border-rose-500/40 text-rose-200'"
+      <div :class="toast.type === 'success' ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200' : 'bg-rose-950/90 border-rose-500/40 text-rose-200'"
            class="p-3.5 rounded-md border shadow-lg flex items-start gap-3">
         <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
         <div class="flex-1 text-xs">
           <p class="font-semibold text-xs text-white" x-text="toast.title"></p>
           <p x-text="toast.message" class="mt-0.5 opacity-90 text-[11px]"></p>
         </div>
-        <button @click="toast.show = false" class="opacity-60 hover:opacity-100 text-sm">&times;</button>
+        <button @click="toast.show = false" aria-label="Tutup notifikasi" class="opacity-60 hover:opacity-100 text-sm">&times;</button>
       </div>
     </div>
 
