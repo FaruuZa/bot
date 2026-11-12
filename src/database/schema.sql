@@ -205,6 +205,8 @@ CREATE TABLE IF NOT EXISTS web_teams (
     can_accept_members BOOLEAN NOT NULL DEFAULT false,
     is_recruiting BOOLEAN NOT NULL DEFAULT false,
     desired_skills JSONB DEFAULT '[]'::jsonb,
+    member_count INT DEFAULT 0,
+    members JSONB DEFAULT '[]'::jsonb,
     last_synced_at TIMESTAMP WITH TIME ZONE,
     present_in_latest_sync BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -212,6 +214,8 @@ CREATE TABLE IF NOT EXISTS web_teams (
 );
 CREATE INDEX IF NOT EXISTS idx_web_teams_is_recruiting ON web_teams(is_recruiting);
 CREATE INDEX IF NOT EXISTS idx_web_teams_present ON web_teams(present_in_latest_sync);
+ALTER TABLE web_teams ADD COLUMN IF NOT EXISTS member_count INT DEFAULT 0;
+ALTER TABLE web_teams ADD COLUMN IF NOT EXISTS members JSONB DEFAULT '[]'::jsonb;
 
 
 -- 13. Member Invites Table (Invite tracker & join audit)

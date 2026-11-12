@@ -57,13 +57,20 @@ export class ChallengeService {
       .setTitle(`Detail Challenge: ${challenge.title}`)
       .setColor(EMBED_COLORS.PRIMARY)
       .setDescription(challenge.description || '*(Tidak ada deskripsi rinci untuk challenge ini)*')
-      .setFooter({ text: 'NSAC Jember • Detail Challenge' })
       .setTimestamp();
 
     if (isStaff) {
+      const dcCount = parseInt(challenge.dc_team_count || 0, 10);
+      const webCount = parseInt(challenge.web_team_count || 0, 10);
+      const totalCount = parseInt(challenge.team_count ?? (dcCount + webCount), 10);
+      let breakdown = `${totalCount} tim`;
+      if (webCount > 0) {
+        breakdown += ` (${dcCount} Discord, ${webCount} Web)`;
+      }
+
       embed.addFields(
         { name: 'ID Challenge', value: `\`${challenge.id}\``, inline: true },
-        { name: 'Total Tim Terdaftar', value: `${challenge.team_count ?? 0} tim`, inline: true }
+        { name: 'Total Tim Memilih', value: breakdown, inline: true }
       );
     } else {
       embed.addFields(

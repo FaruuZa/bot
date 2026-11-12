@@ -92,9 +92,8 @@ export default {
 
     const embed = new EmbedBuilder()
       .setColor(EMBED_COLORS[colorChoice] || EMBED_COLORS.PRIMARY)
-      .setTitle(`📢 ${safeTitle}`)
+      .setTitle(safeTitle)
       .setDescription(safeDesc)
-      .setFooter({ text: `Announced by ${interaction.user.tag}` })
       .setTimestamp();
 
     // Attach image if provided

@@ -518,71 +518,44 @@ export class TeamService {
       : '*(Tim belum mencantumkan deskripsi profil / About the Team)*';
 
     const embed = new EmbedBuilder()
-      .setTitle(`Lowongan Tim — ${teamName}`)
+      .setTitle(teamName)
       .setColor(EMBED_COLORS.PRIMARY)
       .setDescription(`**About the Team**\n${aboutContent}`);
 
-    if (isExternal) {
-      embed.addFields(
-        {
-          name: 'Challenge',
-          value: challengeValue,
-          inline: false
-        },
-        {
-          name: 'Status di Discord',
-          value: '*(Belum ada di server Discord)*',
-          inline: true
-        },
-        {
-          name: 'Status Rekrutmen',
-          value: '**Membuka Lowongan (Open)**',
-          inline: true
-        }
-      );
+    embed.addFields({
+      name: 'Challenge',
+      value: challengeValue,
+      inline: false
+    });
 
-      if (desiredSkills && Array.isArray(desiredSkills) && desiredSkills.length > 0) {
-        embed.addFields({
-          name: 'Keahlian yang Dicari',
-          value: desiredSkills.join(', ').substring(0, 1024),
-          inline: false
-        });
+    const leaderVal = isExternal
+      ? '*(Web Space Apps)*'
+      : (leaderDiscordId ? `<@${leaderDiscordId}>` : '*(Tidak ada)*');
+
+    embed.addFields(
+      {
+        name: 'Leader Tim',
+        value: leaderVal,
+        inline: true
+      },
+      {
+        name: 'Slot Dibutuhkan',
+        value: `**${slotsNeeded}** orang`,
+        inline: true
+      },
+      {
+        name: 'Anggota Saat Ini',
+        value: `**${currentCount}** / ${maxTeamSize}`,
+        inline: true
       }
+    );
 
-      embed.setFooter({ text: 'NSAC Jember • Team Recruitment Board (Web Space Apps)' });
-    } else {
-      embed.addFields(
-        {
-          name: 'Challenge',
-          value: challengeValue,
-          inline: false
-        },
-        {
-          name: 'Leader Tim',
-          value: leaderDiscordId ? `<@${leaderDiscordId}>` : '*(Tidak ada)*',
-          inline: true
-        },
-        {
-          name: 'Slot Dibutuhkan',
-          value: `**${slotsNeeded}** orang`,
-          inline: true
-        },
-        {
-          name: 'Anggota Saat Ini',
-          value: `**${currentCount}** / ${maxTeamSize}`,
-          inline: true
-        }
-      );
-
-      if (desiredSkills && Array.isArray(desiredSkills) && desiredSkills.length > 0) {
-        embed.addFields({
-          name: 'Keahlian yang Dicari',
-          value: desiredSkills.join(', ').substring(0, 1024),
-          inline: false
-        });
-      }
-
-      embed.setFooter({ text: 'NSAC Jember • Team Recruitment Board' });
+    if (desiredSkills && Array.isArray(desiredSkills) && desiredSkills.length > 0) {
+      embed.addFields({
+        name: 'Keahlian yang Dicari',
+        value: desiredSkills.join(', ').substring(0, 1024),
+        inline: false
+      });
     }
 
     embed.setTimestamp();

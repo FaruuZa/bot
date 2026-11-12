@@ -56,19 +56,17 @@ export function teamInfoEmbed(team, members) {
 
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLORS.PRIMARY)
-    .setTitle(`Informasi Tim: ${team.name}`)
-    .setDescription('Detail resmi tim peserta NSAC Jember')
+    .setTitle(team.name)
     .addFields(
       { name: 'Status', value: `\`${team.status}\``, inline: true },
       { name: 'Leader', value: leader.discord_id ? `<@${leader.discord_id}>` : 'Tidak diketahui', inline: true },
-      { name: 'Total Anggota', value: `**${members.length}** orang`, inline: true },
+      { name: 'Total Anggota', value: `**${members.length}** / 6`, inline: true },
       { name: 'Challenge', value: challengeText, inline: false },
       { name: 'Tautan Web NSAC', value: nsacLinkText, inline: false },
-      { name: 'Daftar Anggota (Roster)', value: memberList, inline: false },
+      { name: 'Daftar Anggota', value: memberList, inline: false },
       { name: 'Text Channel', value: team.text_channel_id ? `<#${team.text_channel_id}>` : '*(Tidak ada)*', inline: true },
       { name: 'Voice Channel', value: team.voice_channel_id ? `<#${team.voice_channel_id}>` : '*(Tidak ada)*', inline: true }
     )
-    .setFooter({ text: `ID Tim: ${team.id} • NSAC Jember` })
     .setTimestamp();
 
   return embed;

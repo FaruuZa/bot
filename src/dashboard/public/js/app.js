@@ -518,6 +518,40 @@ function dashboardApp() {
       } catch (e) {}
     },
 
+    async downloadExport(type = 'teams', format = 'xlsx') {
+      try {
+        const label = type === 'teams' ? 'Tim' : 'Peserta';
+        this.showToast('info', 'Menyiapkan File Export', `Sedang mengunduh data ${label} format ${format.toUpperCase()}...`);
+        const res = await fetch(`/api/export/${type}?format=${format}`, {
+          headers: {
+            'Authorization': `Bearer ${this.token}`
+          }
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const dateStr = new Date().toISOString().slice(0, 10);
+        a.download = `NSAC_Jember_${type === 'teams' ? 'Teams' : 'Participants'}_${dateStr}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        this.showToast('success', 'Export Selesai', `File export ${label} berhasil diunduh.`);
+      } catch (err) {
+        console.error('Export error:', err);
+        this.showToast('error', 'Gagal Export', err.message || 'Terjadi kesalahan saat mengunduh data export.');
+      }
+    },
+
     async fetchWebTeams() {
       try {
         const res = await fetch('/api/web-teams', { headers: { 'Authorization': `Bearer ${this.token}` } });

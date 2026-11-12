@@ -17,6 +17,7 @@ import challengeCmd from './commands/team/challenge.js';
 import syncNasaCmd from './commands/admin/sync-nasa.js';
 import inviteCmd from './commands/admin/invite.js';
 import helpCmd from './commands/general/help.js';
+import exportCmd from './commands/admin/export.js';
 
 const commands = [
   registerCmd.data.toJSON(),
@@ -30,7 +31,8 @@ const commands = [
   challengeCmd.data.toJSON(),
   syncNasaCmd.data.toJSON(),
   inviteCmd.data.toJSON(),
-  helpCmd.data.toJSON()
+  helpCmd.data.toJSON(),
+  exportCmd.data.toJSON()
 ];
 
 export async function deployCommands() {

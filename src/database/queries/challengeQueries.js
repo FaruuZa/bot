@@ -14,12 +14,39 @@ export async function createChallenge({ title, description }, client = pool) {
 }
 
 /**
- * Ambil semua challenge
+ * Ambil semua challenge (menghitung tim di Discord dan tim dari web NASA Space Apps)
  */
 export async function getAllChallenges(client = pool) {
   const sql = `
     SELECT c.*,
-      (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') as team_count
+      (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') as dc_team_count,
+      (
+        SELECT COUNT(*) FROM web_teams wt
+        WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
+        AND NOT EXISTS (
+          SELECT 1 FROM teams t
+          WHERE t.status != 'DISBANDED'
+            AND (
+              LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
+              OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
+            )
+        )
+      ) as web_team_count,
+      (
+        (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') +
+        (
+          SELECT COUNT(*) FROM web_teams wt
+          WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
+          AND NOT EXISTS (
+            SELECT 1 FROM teams t
+            WHERE t.status != 'DISBANDED'
+              AND (
+                LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
+                OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
+              )
+          )
+        )
+      ) as team_count
     FROM challenges c
     ORDER BY c.title ASC;
   `;
@@ -32,7 +59,37 @@ export async function getAllChallenges(client = pool) {
  */
 export async function getChallengeById(id, client = pool) {
   const sql = `
-    SELECT * FROM challenges WHERE id = $1;
+    SELECT c.*,
+      (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') as dc_team_count,
+      (
+        SELECT COUNT(*) FROM web_teams wt
+        WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
+        AND NOT EXISTS (
+          SELECT 1 FROM teams t
+          WHERE t.status != 'DISBANDED'
+            AND (
+              LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
+              OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
+            )
+        )
+      ) as web_team_count,
+      (
+        (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') +
+        (
+          SELECT COUNT(*) FROM web_teams wt
+          WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
+          AND NOT EXISTS (
+            SELECT 1 FROM teams t
+            WHERE t.status != 'DISBANDED'
+              AND (
+                LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
+                OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
+              )
+          )
+        )
+      ) as team_count
+    FROM challenges c
+    WHERE c.id = $1;
   `;
   const res = await client.query(sql, [id]);
   return res.rows[0] || null;

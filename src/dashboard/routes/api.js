@@ -39,6 +39,7 @@ import { FAQService } from '../../services/faqService.js';
 import { CountdownService } from '../../services/countdownService.js';
 import { InviteService } from '../../services/inviteService.js';
 import { getRecentInviteJoins, getTopInviters, getInviteTrackerStats } from '../../database/queries/inviteQueries.js';
+import { ExportService } from '../../services/exportService.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)
@@ -420,10 +421,13 @@ export function createApiRouter(client) {
 
       const embed = new EmbedBuilder()
         .setColor(embedColor)
-        .setTitle(`📢 ${safeTitle}`)
+        .setTitle(safeTitle)
         .setDescription(safeDesc)
-        .setFooter({ text: footerText?.trim() || `NSAC Jember Announcement • Web Dashboard` })
         .setTimestamp();
+
+      if (footerText && footerText.trim()) {
+        embed.setFooter({ text: footerText.trim() });
+      }
 
       // Files attachment array
       const files = [];
@@ -1825,6 +1829,43 @@ export function createApiRouter(client) {
       return res.json({ success: true, logs, total });
     } catch (err) {
       logger.error(`[Dashboard API] /audit-logs error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // ==========================================
+  // 8. Data Export (CSV / Excel for Teams & Participants)
+  // ==========================================
+  router.get('/export/teams', requireAuth, async (req, res) => {
+    try {
+      const format = (req.query.format || 'xlsx').toLowerCase();
+      const guild = getGuild();
+      const fileData = format === 'csv'
+        ? await ExportService.exportTeamsToCsv(guild)
+        : await ExportService.exportTeamsToExcel(guild);
+
+      res.setHeader('Content-Type', fileData.mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${fileData.filename}"`);
+      return res.send(fileData.buffer);
+    } catch (err) {
+      logger.error(`[Dashboard API] /export/teams error: ${err.message}`);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.get('/export/participants', requireAuth, async (req, res) => {
+    try {
+      const format = (req.query.format || 'xlsx').toLowerCase();
+      const guild = getGuild();
+      const fileData = format === 'csv'
+        ? await ExportService.exportParticipantsToCsv(guild)
+        : await ExportService.exportParticipantsToExcel(guild);
+
+      res.setHeader('Content-Type', fileData.mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${fileData.filename}"`);
+      return res.send(fileData.buffer);
+    } catch (err) {
+      logger.error(`[Dashboard API] /export/participants error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
     }
   });

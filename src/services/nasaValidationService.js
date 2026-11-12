@@ -98,14 +98,19 @@ export class NasaValidationService {
     const canAcceptMembers = webTeam.canAcceptMembers !== false;
     const isRecruiting = joinEnabled && canAcceptMembers;
     const desiredSkills = Array.isArray(webTeam.desiredSkills) ? JSON.stringify(webTeam.desiredSkills) : '[]';
+    const memberCount = typeof webTeam.memberCount === 'number'
+      ? webTeam.memberCount
+      : (Array.isArray(webTeam.members) ? webTeam.members.length : 0);
+    const membersJson = Array.isArray(webTeam.members) ? JSON.stringify(webTeam.members) : '[]';
 
     const sql = `
       INSERT INTO web_teams (
         slug, nasa_id, title, url, description, challenge_title,
         join_enabled, can_accept_members, is_recruiting, desired_skills,
+        member_count, members,
         last_synced_at, present_in_latest_sync, created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW(), true, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb, NOW(), true, NOW(), NOW())
       ON CONFLICT (slug) DO UPDATE SET
         nasa_id = COALESCE(EXCLUDED.nasa_id, web_teams.nasa_id),
         title = EXCLUDED.title,
@@ -116,6 +121,8 @@ export class NasaValidationService {
         can_accept_members = EXCLUDED.can_accept_members,
         is_recruiting = EXCLUDED.is_recruiting,
         desired_skills = CASE WHEN EXCLUDED.desired_skills = '[]'::jsonb THEN web_teams.desired_skills ELSE EXCLUDED.desired_skills END,
+        member_count = CASE WHEN EXCLUDED.member_count > 0 THEN EXCLUDED.member_count ELSE web_teams.member_count END,
+        members = CASE WHEN EXCLUDED.members = '[]'::jsonb THEN web_teams.members ELSE EXCLUDED.members END,
         last_synced_at = NOW(),
         present_in_latest_sync = true,
         updated_at = NOW()
@@ -123,7 +130,8 @@ export class NasaValidationService {
     `;
     const res = await client.query(sql, [
       slug, nasaId, title, url, description, challengeTitle,
-      joinEnabled, canAcceptMembers, isRecruiting, desiredSkills
+      joinEnabled, canAcceptMembers, isRecruiting, desiredSkills,
+      memberCount, membersJson
     ]);
     return res.rows[0];
   }
@@ -336,6 +344,27 @@ export class NasaValidationService {
           }
         }
 
+        // 9. Extract Memberships & Member Count
+        let memberCount = 0;
+        let members = [];
+        const memMatch = html.match(/memberships\\":(\[[\s\S]*?\])(?:,\\"[a-zA-Z]|})/);
+        if (memMatch) {
+          try {
+            const cleanJson = memMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            const parsed = JSON.parse(cleanJson);
+            if (Array.isArray(parsed)) {
+              members = parsed.map((m) => ({
+                id: m.userDetails?.id || m.user || null,
+                fullName: m.userDetails?.fullName || 'Anonymous',
+                username: m.userDetails?.username || null
+              }));
+              memberCount = members.length;
+            }
+          } catch (mErr) {
+            logger.warn(`[NasaValidation] Failed to parse memberships JSON: ${mErr.message}`);
+          }
+        }
+
         let teamSlug = '';
         try {
           const parsed = new URL(trimmedUrl);
@@ -356,6 +385,8 @@ export class NasaValidationService {
           challengeTitle,
           isLookingForTeammates,
           desiredSkills,
+          memberCount,
+          members,
           url: trimmedUrl
         };
       } catch (err) {
@@ -434,7 +465,9 @@ export class NasaValidationService {
           challengeTitle: val.challengeTitle,
           joinEnabled,
           canAcceptMembers,
-          desiredSkills: val.desiredSkills
+          desiredSkills: val.desiredSkills,
+          memberCount: val.memberCount,
+          members: val.members
         });
       }
     } catch (upsertErr) {
@@ -819,15 +852,17 @@ export class NasaValidationService {
   }
 
   /**
-   * Mengambil teks deskripsi (About the Team) dari halaman profil tim Space Apps
+   * Mengambil teks deskripsi (About the Team) serta daftar & total member dari halaman profil tim Space Apps
    * @param {string} url
-   * @returns {Promise<string|null>}
+   * @returns {Promise<{ description: string|null, memberCount: number, members: Array<{ id: string|null, fullName: string, username: string|null }> }>}
    */
-  static async extractTeamDescriptionFromUrl(url) {
-    if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) return null;
+  static async extractTeamDetailsFromUrl(url) {
+    if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+      return { description: null, memberCount: 0, members: [] };
+    }
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const res = await fetch(url, {
         method: 'GET',
         dispatcher: sslSafeDispatcher,
@@ -837,11 +872,14 @@ export class NasaValidationService {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
-      if (!res.ok) return null;
+      if (!res.ok) return { description: null, memberCount: 0, members: [] };
       const html = await res.text();
-      const match = html.match(/\\"[,\s]*description\\":\\"([\s\S]*?)\\",\\"[a-zA-Z]/);
-      if (match) {
-        let raw = match[1];
+
+      // Extract Description
+      let description = null;
+      const descMatch = html.match(/\\"[,\s]*description\\":\\"([\s\S]*?)\\",\\"[a-zA-Z]/);
+      if (descMatch) {
+        let raw = descMatch[1];
         let decoded = raw
           .replace(/\\u003c/gi, '<')
           .replace(/\\u003e/gi, '>')
@@ -851,12 +889,47 @@ export class NasaValidationService {
           .replace(/\\\\/gi, '\\');
         let clean = decoded.replace(/<[^>]+>/g, '').trim();
         clean = clean.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
-        return clean.length > 0 ? clean : null;
+        if (clean.length > 0) {
+          description = clean;
+        }
       }
+
+      // Extract Members & Member Count
+      let members = [];
+      let memberCount = 0;
+      const memMatch = html.match(/memberships\\":(\[[\s\S]*?\])(?:,\\"[a-zA-Z]|})/);
+      if (memMatch) {
+        try {
+          const cleanJson = memMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          const parsed = JSON.parse(cleanJson);
+          if (Array.isArray(parsed)) {
+            members = parsed.map((m) => ({
+              id: m.userDetails?.id || m.user || null,
+              fullName: m.userDetails?.fullName || 'Anonymous',
+              username: m.userDetails?.username || null
+            }));
+            memberCount = members.length;
+          }
+        } catch (mErr) {
+          logger.warn(`[NasaSync] Gagal parse memberships JSON: ${mErr.message}`);
+        }
+      }
+
+      return { description, memberCount, members };
     } catch (e) {
-      logger.warn(`[NasaSync] Could not extract description from ${url}: ${e.message}`);
+      logger.warn(`[NasaSync] Could not extract details from ${url}: ${e.message}`);
+      return { description: null, memberCount: 0, members: [] };
     }
-    return null;
+  }
+
+  /**
+   * Mengambil teks deskripsi (About the Team) dari halaman profil tim Space Apps
+   * @param {string} url
+   * @returns {Promise<string|null>}
+   */
+  static async extractTeamDescriptionFromUrl(url) {
+    const details = await this.extractTeamDetailsFromUrl(url);
+    return details.description;
   }
 
   /**
@@ -921,8 +994,13 @@ export class NasaValidationService {
     // 1. Upsert snapshot untuk SETIAP webTeam sebelum filter isOpenRec
     for (const webTeam of webTeams) {
       const isOpenRec = webTeam.joinEnabled && webTeam.canAcceptMembers;
-      if (isOpenRec && !webTeam.description && webTeam.url) {
-        webTeam.description = await this.extractTeamDescriptionFromUrl(webTeam.url);
+      if (isOpenRec && webTeam.url) {
+        const details = await this.extractTeamDetailsFromUrl(webTeam.url);
+        if (!webTeam.description && details.description) {
+          webTeam.description = details.description;
+        }
+        webTeam.memberCount = details.memberCount;
+        webTeam.members = details.members;
       }
       try {
         await this.upsertWebTeam(webTeam);
@@ -1067,10 +1145,16 @@ export class NasaValidationService {
             ? webTeam.description
             : (existingRecruit?.description || webTeam.description || '*(Tim belum mencantumkan deskripsi profil / About the Team)*');
 
+          const count = webTeam.memberCount || 1;
+          const slots = Math.max(1, env.MAX_TEAM_SIZE - count);
+
           const recruitEmbed = TeamService.buildRecruitmentBoardEmbed({
             teamName: webTeam.title,
             description: finalDesc,
             challengeTitle: webTeam.challengeTitle,
+            slotsNeeded: slots,
+            currentCount: count,
+            maxTeamSize: env.MAX_TEAM_SIZE,
             isExternal: true,
             desiredSkills: webTeam.desiredSkills
           });

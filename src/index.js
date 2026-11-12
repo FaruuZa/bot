@@ -16,6 +16,7 @@ import challengeCmd from './commands/team/challenge.js';
 import syncNasaCmd from './commands/admin/sync-nasa.js';
 import inviteCmd from './commands/admin/invite.js';
 import helpCmd from './commands/general/help.js';
+import exportCmd from './commands/admin/export.js';
 
 // Import Events
 import readyEvent from './events/ready.js';
@@ -55,7 +56,8 @@ const commandList = [
   challengeCmd,
   syncNasaCmd,
   inviteCmd,
-  helpCmd
+  helpCmd,
+  exportCmd
 ];
 
 for (const cmd of commandList) {

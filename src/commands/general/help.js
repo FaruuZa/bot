@@ -77,6 +77,7 @@ export default {
       embed.addFields({
         name: 'Khusus Panitia & Administrator',
         value:
+          '• `/export <data> [format]` — Export data tim atau peserta ke file Excel (.xlsx) atau CSV.\n' +
           '• `/announce` — Mengirim pengumuman berformat embed kaya dengan opsi mention.\n' +
           '• `/faq` atau `/embed` — Mengelola live dynamic embed, FAQ, dan rules.\n' +
           '• `/setup` — Mengonfigurasi ID role, channel, kategori, jadwal, dan sistem bot.\n' +
@@ -89,7 +90,6 @@ export default {
       });
     }
 
-    embed.setFooter({ text: 'NASA Space Apps Challenge Jember • Staff Command Center' });
     embed.setTimestamp();
 
     return await interaction.reply({
