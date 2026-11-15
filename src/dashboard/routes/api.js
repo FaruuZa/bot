@@ -40,6 +40,7 @@ import { CountdownService } from '../../services/countdownService.js';
 import { InviteService } from '../../services/inviteService.js';
 import { getRecentInviteJoins, getTopInviters, getInviteTrackerStats } from '../../database/queries/inviteQueries.js';
 import { ExportService } from '../../services/exportService.js';
+import { matchWebTeam } from '../../utils/teamMatch.js';
 import { logger } from '../../utils/logger.js';
 
 // Setup multer memory storage for image upload (max 8MB)
@@ -57,6 +58,7 @@ const upload = multer({
 
 // Active dashboard session tokens in memory: token -> sessionUser
 const activeSessions = new Map();
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
 
 export function createApiRouter(client) {
   const router = express.Router();
@@ -89,7 +91,12 @@ export function createApiRouter(client) {
     if (!token || !activeSessions.has(token)) {
       return res.status(401).json({ success: false, error: 'Akses tidak sah. Silakan login terlebih dahulu.' });
     }
-    req.user = activeSessions.get(token);
+    const session = activeSessions.get(token);
+    if (session.createdAt && Date.now() - session.createdAt > SESSION_TTL_MS) {
+      activeSessions.delete(token);
+      return res.status(401).json({ success: false, error: 'Sesi telah berakhir. Silakan login kembali.' });
+    }
+    req.user = session;
     next();
   };
 
@@ -252,11 +259,16 @@ export function createApiRouter(client) {
         }
       }
 
-      const [teamsRes, recruitRes, inTeamsRes] = await Promise.all([
-        pool.query("SELECT COUNT(*) FROM teams WHERE status != 'DISBANDED'"),
+      const [teamsRes, recruitRes, inTeamsRes, webTeamsRes] = await Promise.all([
+        pool.query("SELECT id, name, nsac_link FROM teams WHERE status != 'DISBANDED'"),
         pool.query("SELECT COUNT(*) FROM team_recruitments WHERE status = 'OPEN'"),
-        pool.query("SELECT COUNT(DISTINCT user_id) as count FROM team_members WHERE status = 'ACTIVE'")
+        pool.query("SELECT COUNT(DISTINCT tm.user_id) as count FROM team_members tm JOIN teams t ON tm.team_id = t.id WHERE tm.status = 'ACTIVE' AND t.status != 'DISBANDED'"),
+        pool.query("SELECT id, title, slug FROM web_teams WHERE present_in_latest_sync = true")
       ]);
+
+      const dcTeams = teamsRes.rows;
+      const webTeams = webTeamsRes.rows;
+      const webOnlyTeams = webTeams.filter((wt) => !dcTeams.some((lt) => matchWebTeam(lt, wt)));
 
       const participantRoleId = GuildConfigService.get('PARTICIPANT_ROLE_ID');
       const noTeamRoleId = GuildConfigService.get('NO_TEAM_ROLE_ID');
@@ -298,7 +310,10 @@ export function createApiRouter(client) {
             memberCount: guild?.memberCount || 0
           },
           stats: {
-            totalTeams: parseInt(teamsRes.rows[0]?.count || '0', 10),
+            totalTeams: dcTeams.length,
+            totalCombinedTeams: dcTeams.length + webOnlyTeams.length,
+            dcTeamsCount: dcTeams.length,
+            webOnlyTeamsCount: webOnlyTeams.length,
             openRecruitments: parseInt(recruitRes.rows[0]?.count || '0', 10),
             participantCount,
             participantRoleConfigured,
@@ -855,7 +870,7 @@ export function createApiRouter(client) {
     }
   });
 
-  router.post('/teams/:id/remove-member', requireAuth, async (req, res) => {
+  const handleRemoveMember = async (req, res) => {
     try {
       const teamId = parseInt(req.params.id, 10);
       const { discordId } = req.body || {};
@@ -875,7 +890,10 @@ export function createApiRouter(client) {
       logger.error(`[Dashboard API] removeMemberFromTeam error: ${err.message}`);
       return res.status(500).json({ success: false, error: err.message });
     }
-  });
+  };
+
+  router.post('/teams/:id/remove-member', requireAuth, handleRemoveMember);
+  router.post('/teams/:id/kick-member', requireAuth, handleRemoveMember);
 
   router.post('/teams/:id/archive', requireAuth, async (req, res) => {
     try {
@@ -1178,13 +1196,9 @@ export function createApiRouter(client) {
         WHERE status != 'DISBANDED'
       `);
 
-      // 3. Perform matching using identical logic
+      // 3. Perform matching using single shared matcher
       let list = webTeams.map((wt) => {
-        const matchedLocal = localTeams.find((lt) => {
-          const nameMatches = lt.name && wt.title && lt.name.trim().toLowerCase() === wt.title.trim().toLowerCase();
-          const linkMatches = lt.nsac_link && wt.slug && lt.nsac_link.toLowerCase().includes(wt.slug.toLowerCase());
-          return nameMatches || linkMatches;
-        });
+        const matchedLocal = localTeams.find((lt) => matchWebTeam(lt, wt));
 
         return {
           ...wt,

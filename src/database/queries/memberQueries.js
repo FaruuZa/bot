@@ -39,9 +39,13 @@ export async function getActiveTeamMembers(teamId, client = pool) {
 
 export async function getUserActiveTeam(userId, client = pool) {
   const sql = `
-    SELECT t.*, tm.role as user_team_role, tm.status as member_status, u.discord_id as leader_discord_id
+    SELECT t.*, 
+           c.title as challenge_title, c.description as challenge_description,
+           tm.role as user_team_role, tm.status as member_status, 
+           u.discord_id as leader_discord_id, u.username as leader_username
     FROM team_members tm
     JOIN teams t ON tm.team_id = t.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
     LEFT JOIN users u ON t.leader_id = u.id
     WHERE tm.user_id = $1 AND tm.status = 'ACTIVE' AND t.status IN ('PENDING', 'ACTIVE');
   `;
@@ -51,10 +55,16 @@ export async function getUserActiveTeam(userId, client = pool) {
 
 export async function getUserActiveTeamByDiscordId(discordId, client = pool) {
   const sql = `
-    SELECT t.*, tm.role as user_team_role, tm.status as member_status, u.discord_id as user_discord_id, u.username as user_username
+    SELECT t.*, 
+           c.title as challenge_title, c.description as challenge_description,
+           u_lead.discord_id as leader_discord_id, u_lead.username as leader_username,
+           tm.role as user_team_role, tm.status as member_status, 
+           u.discord_id as user_discord_id, u.username as user_username
     FROM users u
     JOIN team_members tm ON u.id = tm.user_id
     JOIN teams t ON tm.team_id = t.id
+    LEFT JOIN challenges c ON t.challenge_id = c.id
+    LEFT JOIN users u_lead ON t.leader_id = u_lead.id
     WHERE u.discord_id = $1 AND tm.status = 'ACTIVE' AND t.status IN ('PENDING', 'ACTIVE');
   `;
   const res = await client.query(sql, [discordId]);

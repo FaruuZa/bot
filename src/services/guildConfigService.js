@@ -86,6 +86,13 @@ export class GuildConfigService {
    */
   static async set(key, value) {
     const trimmed = (value || '').trim();
+    const def = CONFIG_DEFINITIONS[key];
+    if (def?.type === 'DATETIME' && trimmed) {
+      const d = new Date(trimmed);
+      if (isNaN(d.getTime())) {
+        throw new Error(`Format tanggal/waktu untuk "${def.label || key}" tidak valid. Gunakan format ISO seperti 2026-10-03T09:00:00+07:00`);
+      }
+    }
     await setConfig(key, trimmed);
     if (trimmed) {
       this.cache.set(key, trimmed);

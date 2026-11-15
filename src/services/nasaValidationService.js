@@ -25,6 +25,7 @@ import { AuditService } from './auditService.js';
 import { GuildConfigService } from './guildConfigService.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
+import { matchWebTeam, normalizeTeamName, slugFromNsacLink } from '../utils/teamMatch.js';
 
 // Custom dispatcher to handle environments with local SSL certificate inspection
 const sslSafeDispatcher = new Agent({
@@ -180,7 +181,7 @@ export class NasaValidationService {
    */
   static async validateTeamUrl(url) {
     if (!url || typeof url !== 'string') {
-      return { valid: false, inputUrl: url || '', error: 'Tautan URL tidak boleh kosong.' };
+      return { valid: false, code: 'INVALID_URL', inputUrl: url || '', error: 'Tautan URL tidak boleh kosong.' };
     }
 
     const trimmedUrl = url.trim();
@@ -190,13 +191,14 @@ export class NasaValidationService {
     try {
       parsedUrl = new URL(trimmedUrl);
     } catch {
-      return { valid: false, inputUrl: trimmedUrl, error: 'Format URL tidak valid (harus diawali http:// atau https://).' };
+      return { valid: false, code: 'INVALID_URL', inputUrl: trimmedUrl, error: 'Format URL tidak valid (harus diawali http:// atau https://).' };
     }
 
     const hostname = parsedUrl.hostname.toLowerCase();
     if (hostname !== 'spaceappschallenge.org' && !hostname.endsWith('.spaceappschallenge.org')) {
       return {
         valid: false,
+        code: 'INVALID_URL',
         inputUrl: trimmedUrl,
         error: 'Tautan harus mengarah ke situs resmi NASA Space Apps Challenge (**spaceappschallenge.org**).'
       };
@@ -224,6 +226,7 @@ export class NasaValidationService {
         if (response.status === 404) {
           return {
             valid: false,
+            code: 'TEAM_NOT_FOUND',
             inputUrl: trimmedUrl,
             error: 'Halaman tim tidak ditemukan di web NASA Space Apps (Status 404). Pastikan tim sudah dibuat dan link disalin dengan benar.'
           };
@@ -232,6 +235,7 @@ export class NasaValidationService {
         if (!response.ok) {
           return {
             valid: false,
+            code: 'FETCH_ERROR',
             inputUrl: trimmedUrl,
             error: `Situs web NASA merespons dengan status HTTP ${response.status}. Mohon coba lagi beberapa saat.`
           };
@@ -245,6 +249,7 @@ export class NasaValidationService {
         if (!hasJember) {
           return {
             valid: false,
+            code: 'NOT_JEMBER',
             inputUrl: trimmedUrl,
             error: 'Tautan tim ditemukan di situs NASA, namun tidak terafiliasi dengan lokasi **Jember** (Pastikan tim Anda terdaftar di event lokal Jember).'
           };
@@ -394,6 +399,7 @@ export class NasaValidationService {
         if (err.name === 'AbortError') {
           return {
             valid: false,
+            code: 'FETCH_ERROR',
             inputUrl: trimmedUrl,
             error: 'Koneksi ke server web NASA Space Apps mengalami batas waktu (Timeout). Mohon periksa kembali link atau coba lagi sesaat lagi.'
           };
@@ -401,6 +407,7 @@ export class NasaValidationService {
 
         return {
           valid: false,
+          code: 'FETCH_ERROR',
           inputUrl: trimmedUrl,
           error: `Gagal melakukan verifikasi ke situs NASA: ${err.message}`
         };
@@ -436,7 +443,13 @@ export class NasaValidationService {
 
     const val = await this.validateTeamUrl(team.nsac_link);
     if (!val.valid) {
-      return { success: false, error: val.error || 'Gagal memvalidasi profil tim di web NASA.' };
+      return {
+        success: false,
+        error: val.error || 'Gagal memvalidasi profil tim di web NASA.',
+        stale: val.code === 'TEAM_NOT_FOUND',
+        staleCode: val.code,
+        teamName: team.name
+      };
     }
 
     // Upsert snapshot into web_teams
@@ -711,16 +724,48 @@ export class NasaValidationService {
       teams = rows;
     } catch (dbErr) {
       logger.error(`[NasaSync] Gagal mengambil daftar tim aktif dari database: ${dbErr.message}`);
-      return;
+      return {
+        success: false,
+        error: dbErr.message,
+        totalTeams: 0,
+        successCount: 0,
+        failCount: 0,
+        skippedCount: 0,
+        updatedCount: 0,
+        staleTeams: [],
+        staleWebTeams: [],
+        staleLocalTeams: [],
+        renamedTeams: []
+      };
     }
 
     if (!teams || teams.length === 0) {
       logger.info('[NasaSync] Tidak ada tim aktif dengan tautan web NASA untuk disinkronkan.');
-      return;
+      let openRecResult = null;
+      try {
+        openRecResult = await this.syncOpenRecruitmentFromWeb(client);
+      } catch (openRecErr) {
+        logger.warn(`[NasaSync] Gagal menyinkronkan open recruitment dari web NASA: ${openRecErr.message}`);
+      }
+      return {
+        success: true,
+        totalTeams: 0,
+        successCount: 0,
+        failCount: 0,
+        skippedCount: 0,
+        updatedCount: 0,
+        staleTeams: [],
+        staleWebTeams: openRecResult?.staleWebTeams || [],
+        staleLocalTeams: openRecResult?.staleLocalTeams || [],
+        renamedTeams: openRecResult?.renamedTeams || []
+      };
     }
 
     let updatedCount = 0;
     let skippedCount = 0;
+    let successCount = 0;
+    let failCount = 0;
+    const staleTeams = [];
     // Ambang batas: Tim yang disinkronkan dalam 4 jam terakhir (misal jam 20:00 - 23:59)
     // dilewati saat sinkronisasi jam 12 malam agar tidak boros request & tidak spam.
     const RECENT_SYNC_THRESHOLD_MS = 4 * 60 * 60 * 1000;
@@ -736,22 +781,45 @@ export class NasaValidationService {
         }
 
         const res = await this.syncTeam(team.id, client);
-        if (res.challengeUpdated || res.recruitmentOpened || res.recruitmentClosed) {
-          updatedCount++;
+        if (res.success) {
+          successCount++;
+          if (res.challengeUpdated || res.recruitmentOpened || res.recruitmentClosed) {
+            updatedCount++;
+          }
+        } else {
+          failCount++;
+          if (res.stale) {
+            staleTeams.push({ id: team.id, name: team.name, nsacLink: team.nsac_link });
+          }
         }
       } catch (err) {
+        failCount++;
         logger.warn(`[NasaSync] Gagal menyinkronkan tim "${team.name}": ${err.message}`);
       }
     }
 
-    logger.info(`[NasaSync] Sinkronisasi tengah malam selesai. Sebanyak ${updatedCount} tim diperbarui, ${skippedCount} tim dilewati (sudah sync sebelumnya).`);
+    logger.info(`[NasaSync] Sinkronisasi tim aktif selesai: ${teams.length} tim diperiksa (${successCount} sukses, ${failCount} gagal, ${skippedCount} dilewati, ${staleTeams.length} stale).`);
 
     // Otomatis sinkronkan lowongan rekrutmen dari web Space Apps (Jember)
+    let openRecResult = null;
     try {
-      await this.syncOpenRecruitmentFromWeb(client);
+      openRecResult = await this.syncOpenRecruitmentFromWeb(client);
     } catch (openRecErr) {
       logger.warn(`[NasaSync] Gagal menyinkronkan open recruitment dari web NASA: ${openRecErr.message}`);
     }
+
+    return {
+      success: true,
+      totalTeams: teams.length,
+      successCount,
+      failCount,
+      skippedCount,
+      updatedCount,
+      staleTeams,
+      staleWebTeams: openRecResult?.staleWebTeams || [],
+      staleLocalTeams: openRecResult?.staleLocalTeams || [],
+      renamedTeams: openRecResult?.renamedTeams || []
+    };
   }
 
   /**
@@ -861,6 +929,15 @@ export class NasaValidationService {
       return { description: null, memberCount: 0, members: [] };
     }
     try {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      if (host !== 'spaceappschallenge.org' && !host.endsWith('.spaceappschallenge.org')) {
+        return { description: null, memberCount: 0, members: [] };
+      }
+    } catch {
+      return { description: null, memberCount: 0, members: [] };
+    }
+    try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000);
       const res = await fetch(url, {
@@ -928,7 +1005,7 @@ export class NasaValidationService {
       if (memberCount === 0) {
         const nameMatches = [...html.matchAll(/(?:\\?"fullName\\?":\\?"([^"\\]+)\\?")/g)];
         if (nameMatches.length > 0) {
-          const uniqueNames = [...new Set(nameMatches.map((m) => m[1].trim()).filter((n) => n.length > 2))];
+          const uniqueNames = [...new Set(nameMatches.map((m) => m[1].trim()).filter((n) => n.length > 2 && n.toLowerCase() !== 'anonymous'))];
           if (uniqueNames.length > 0) {
             members = uniqueNames.map((name) => ({ id: null, fullName: name, username: null }));
             memberCount = members.length;
@@ -1019,8 +1096,10 @@ export class NasaValidationService {
         if (details.description) {
           webTeam.description = details.description;
         }
-        webTeam.memberCount = details.memberCount;
-        webTeam.members = details.members;
+        if (details.memberCount > 0) {
+          webTeam.memberCount = details.memberCount;
+          webTeam.members = details.members;
+        }
       }
       try {
         await this.upsertWebTeam(webTeam);
@@ -1041,11 +1120,7 @@ export class NasaValidationService {
         }
 
         // Cek apakah tim cocok dengan tim lokal yang sudah terdaftar di Discord
-        const matchedLocal = localTeams.find((lt) => {
-          const nameMatches = lt.name && webTeam.title && lt.name.trim().toLowerCase() === webTeam.title.trim().toLowerCase();
-          const linkMatches = lt.nsac_link && webTeam.slug && lt.nsac_link.toLowerCase().includes(webTeam.slug.toLowerCase());
-          return nameMatches || linkMatches;
-        });
+        const matchedLocal = localTeams.find((lt) => matchWebTeam(lt, webTeam));
 
         if (matchedLocal) {
           // Kasus 1: Tim sudah dibuat di Discord
@@ -1247,8 +1322,6 @@ export class NasaValidationService {
       }
     }
 
-    const totalOpenRec = await countOpenRecruitments();
-
     // Tandai tim yang tidak muncul dalam sync kali ini
     const fetchedSlugs = webTeams.map(wt => (wt.slug && String(wt.slug).trim()) || wt.url).filter(Boolean);
     if (fetchedSlugs.length > 0) {
@@ -1258,17 +1331,73 @@ export class NasaValidationService {
       ).catch((err) => logger.warn(`[NasaSync] Gagal update present_in_latest_sync: ${err.message}`));
     }
 
+    // Ambil tim web yang kini stale (hilang dari fetch NASA terbaru)
+    const { rows: staleWebRows } = await pool.query(`
+      SELECT slug, title FROM web_teams WHERE present_in_latest_sync = false
+    `).catch(() => ({ rows: [] }));
+
+    let closedStaleCount = 0;
+    for (const swt of staleWebRows) {
+      const closedRecs = await closeExternalRecruitment(swt.slug).catch(() => []);
+      for (const rec of closedRecs) {
+        if (rec.message_id) {
+          const msg = await recruitChannel.messages.fetch(rec.message_id).catch(() => null);
+          if (msg) {
+            const closedEmbed = new EmbedBuilder(msg.embeds[0]?.data || {})
+              .setTitle(`Lowongan Tim (Ditutup) — ${swt.title}`)
+              .setColor(0x7f8c8d);
+            await msg.edit({ embeds: [closedEmbed], components: [] }).catch(() => {});
+          }
+        }
+        closedStaleCount++;
+      }
+    }
+
+    // Deteksi tim Discord yang stale atau di-rename di web Space Apps
+    const staleLocalTeams = [];
+    const renamedTeams = [];
+    const fetchedSlugsSet = new Set(webTeams.map(wt => String(wt.slug).toLowerCase()));
+
+    for (const lt of localTeams) {
+      if (!lt.nsac_link) continue;
+      const dcSlug = slugFromNsacLink(lt.nsac_link);
+      if (!dcSlug) continue;
+
+      if (!fetchedSlugsSet.has(dcSlug)) {
+        // Cek apakah tim ini di-rename di web (nama ternormalisasi sama, tapi slug berbeda)
+        const normLocal = normalizeTeamName(lt.name);
+        const renamedMatch = webTeams.find(wt => {
+          return normalizeTeamName(wt.title) === normLocal && String(wt.slug).toLowerCase() !== dcSlug;
+        });
+
+        if (renamedMatch) {
+          const newUrl = renamedMatch.url || `https://www.spaceappschallenge.org/2026/find-a-team/${renamedMatch.slug}/`;
+          await pool.query('UPDATE teams SET nsac_link = $1, updated_at = NOW() WHERE id = $2', [newUrl, lt.id])
+            .catch(err => logger.warn(`[NasaSync] Gagal update rename link tim ${lt.name}: ${err.message}`));
+          renamedTeams.push({
+            id: lt.id,
+            name: lt.name,
+            oldSlug: dcSlug,
+            newSlug: renamedMatch.slug,
+            newUrl
+          });
+          logger.info(`[NasaSync] Tim "${lt.name}" terdeteksi berganti slug dari "${dcSlug}" ke "${renamedMatch.slug}". URL diperbarui.`);
+        } else {
+          staleLocalTeams.push({
+            id: lt.id,
+            name: lt.name,
+            nsacLink: lt.nsac_link
+          });
+        }
+      }
+    }
+
+    const totalOpenRec = await countOpenRecruitments();
     const recruitingCount = webTeams.filter(wt => wt.joinEnabled && wt.canAcceptMembers).length;
     const nonRecruitingCount = webTeams.length - recruitingCount;
-    const webOnlyCount = webTeams.filter(wt => {
-      return !localTeams.some(lt => {
-        const nameMatches = lt.name && wt.title && lt.name.trim().toLowerCase() === wt.title.trim().toLowerCase();
-        const linkMatches = lt.nsac_link && wt.slug && lt.nsac_link.toLowerCase().includes(wt.slug.toLowerCase());
-        return nameMatches || linkMatches;
-      });
-    }).length;
+    const webOnlyCount = webTeams.filter(wt => !localTeams.some(lt => matchWebTeam(lt, wt))).length;
 
-    logger.info(`[NasaSync] Sinkronisasi open recruitment selesai. Total web teams: ${webTeams.length} (${recruitingCount} open, ${nonRecruitingCount} closed, ${webOnlyCount} web-only). Baru: ${createdCount}, Diperbarui: ${updatedCount}, Ditutup: ${closedCount}. Total lowongan aktif di bot: ${totalOpenRec}.`);
+    logger.info(`[NasaSync] Sinkronisasi open recruitment selesai. Total web teams: ${webTeams.length} (${recruitingCount} open, ${nonRecruitingCount} closed, ${webOnlyCount} web-only). Baru: ${createdCount}, Diperbarui: ${updatedCount}, Ditutup: ${closedCount}, Stale Ditutup: ${closedStaleCount}. Total lowongan aktif di bot: ${totalOpenRec}.`);
 
     return {
       success: true,
@@ -1280,7 +1409,11 @@ export class NasaValidationService {
       createdCount,
       updatedCount,
       closedCount,
-      totalOpenRec
+      closedStaleCount,
+      totalOpenRec,
+      staleWebTeams: staleWebRows.map(wt => wt.title),
+      staleLocalTeams,
+      renamedTeams
     };
   }
 

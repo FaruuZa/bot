@@ -1,4 +1,5 @@
 import { pool } from '../pool.js';
+import { matchWebTeam, normalizeTeamName } from '../../utils/teamMatch.js';
 
 /**
  * Buat challenge baru
@@ -14,85 +15,59 @@ export async function createChallenge({ title, description }, client = pool) {
 }
 
 /**
+ * Helper to compute team counts for challenges using the shared team matcher
+ */
+function attachTeamCountsToChallenges(challenges, dcTeams, webTeams) {
+  return challenges.map((c) => {
+    const normChTitle = normalizeTeamName(c.title);
+
+    // Hitung tim Discord yang memilih challenge ini
+    const dcTeamCount = dcTeams.filter((t) => t.challenge_id === c.id).length;
+
+    // Hitung tim web resmi NASA Space Apps yang memilih challenge ini
+    // dan BELUM terdaftar sebagai tim Discord
+    const webTeamCount = webTeams.filter((wt) => {
+      if (!wt.challenge_title || normalizeTeamName(wt.challenge_title) !== normChTitle) {
+        return false;
+      }
+      return !dcTeams.some((t) => matchWebTeam(t, wt));
+    }).length;
+
+    return {
+      ...c,
+      dc_team_count: dcTeamCount,
+      web_team_count: webTeamCount,
+      team_count: dcTeamCount + webTeamCount
+    };
+  });
+}
+
+/**
  * Ambil semua challenge (menghitung tim di Discord dan tim dari web NASA Space Apps)
  */
 export async function getAllChallenges(client = pool) {
-  const sql = `
-    SELECT c.*,
-      (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') as dc_team_count,
-      (
-        SELECT COUNT(*) FROM web_teams wt
-        WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
-        AND NOT EXISTS (
-          SELECT 1 FROM teams t
-          WHERE t.status != 'DISBANDED'
-            AND (
-              LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
-              OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
-            )
-        )
-      ) as web_team_count,
-      (
-        (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') +
-        (
-          SELECT COUNT(*) FROM web_teams wt
-          WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
-          AND NOT EXISTS (
-            SELECT 1 FROM teams t
-            WHERE t.status != 'DISBANDED'
-              AND (
-                LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
-                OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
-              )
-          )
-        )
-      ) as team_count
-    FROM challenges c
-    ORDER BY c.title ASC;
-  `;
-  const res = await client.query(sql);
-  return res.rows;
+  const [chRes, dcRes, webRes] = await Promise.all([
+    client.query('SELECT * FROM challenges ORDER BY title ASC'),
+    client.query("SELECT id, name, nsac_link, challenge_id FROM teams WHERE status != 'DISBANDED'"),
+    client.query('SELECT id, title, slug, challenge_title FROM web_teams WHERE present_in_latest_sync = true')
+  ]);
+
+  return attachTeamCountsToChallenges(chRes.rows, dcRes.rows, webRes.rows);
 }
 
 /**
  * Ambil challenge berdasarkan ID
  */
 export async function getChallengeById(id, client = pool) {
-  const sql = `
-    SELECT c.*,
-      (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') as dc_team_count,
-      (
-        SELECT COUNT(*) FROM web_teams wt
-        WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
-        AND NOT EXISTS (
-          SELECT 1 FROM teams t
-          WHERE t.status != 'DISBANDED'
-            AND (
-              LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
-              OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
-            )
-        )
-      ) as web_team_count,
-      (
-        (SELECT COUNT(*) FROM teams t WHERE t.challenge_id = c.id AND t.status = 'ACTIVE') +
-        (
-          SELECT COUNT(*) FROM web_teams wt
-          WHERE LOWER(TRIM(wt.challenge_title)) = LOWER(TRIM(c.title))
-          AND NOT EXISTS (
-            SELECT 1 FROM teams t
-            WHERE t.status != 'DISBANDED'
-              AND (
-                LOWER(TRIM(t.name)) = LOWER(TRIM(wt.title))
-                OR (t.nsac_link IS NOT NULL AND wt.slug IS NOT NULL AND LOWER(t.nsac_link) LIKE '%' || LOWER(wt.slug) || '%')
-              )
-          )
-        )
-      ) as team_count
-    FROM challenges c
-    WHERE c.id = $1;
-  `;
-  const res = await client.query(sql, [id]);
-  return res.rows[0] || null;
+  const [chRes, dcRes, webRes] = await Promise.all([
+    client.query('SELECT * FROM challenges WHERE id = $1', [id]),
+    client.query("SELECT id, name, nsac_link, challenge_id FROM teams WHERE status != 'DISBANDED'"),
+    client.query('SELECT id, title, slug, challenge_title FROM web_teams WHERE present_in_latest_sync = true')
+  ]);
+
+  if (chRes.rows.length === 0) return null;
+  const enriched = attachTeamCountsToChallenges(chRes.rows, dcRes.rows, webRes.rows);
+  return enriched[0] || null;
 }
 
 /**

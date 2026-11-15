@@ -1,27 +1,54 @@
 import ExcelJS from 'exceljs';
 import { pool } from '../database/pool.js';
 import { GuildConfigService } from './guildConfigService.js';
-import { NasaValidationService } from './nasaValidationService.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
+import { matchWebTeam, normalizeTeamName } from '../utils/teamMatch.js';
+
+export const TEAM_COLUMNS = [
+  { header: 'No', key: 'no', width: 6, align: 'center' },
+  { header: 'Nama Tim', key: 'nama', width: 28 },
+  { header: 'Status', key: 'status', width: 14, align: 'center' },
+  { header: 'Jumlah Anggota', key: 'jumlahAnggota', width: 16, align: 'center' },
+  { header: 'Status Rekrutmen', key: 'statusRekrutmen', width: 20, align: 'center' },
+  { header: 'Tantangan', key: 'challenge', width: 34 },
+  { header: 'Leader Tim', key: 'leader', width: 22 },
+  { header: 'Daftar Anggota', key: 'daftarAnggota', width: 45 },
+  { header: 'Tautan Web NSAC', key: 'nsacLink', width: 40 },
+  { header: 'Dibuat Pada', key: 'dibuatPada', width: 20, align: 'center' }
+];
+
+export const PARTICIPANT_COLUMNS = [
+  { header: 'No', key: 'no', width: 6, align: 'center' },
+  { header: 'Username', key: 'username', width: 24 },
+  { header: 'Status Peserta', key: 'statusPeserta', width: 18, align: 'center' },
+  { header: 'Nama Tim', key: 'namaTim', width: 28 },
+  { header: 'Peran di Tim', key: 'peranTim', width: 16, align: 'center' },
+  { header: 'Tantangan', key: 'challengeTim', width: 34 },
+  { header: 'Tanggal Gabung Tim', key: 'tanggalGabungTim', width: 20, align: 'center' }
+];
 
 export class ExportService {
   /**
-   * Helper to format Date to Indonesian locale string
+   * Helper to format Date deterministically to DD/MM/YYYY HH:MM (Asia/Jakarta)
    */
   static formatDate(date) {
     if (!date) return '-';
     try {
       const d = new Date(date);
       if (isNaN(d.getTime())) return '-';
-      return d.toLocaleString('id-ID', {
+      const formatter = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Asia/Jakarta',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
-        minute: '2-digit'
-      }).replace(/\./g, ':');
+        minute: '2-digit',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(d);
+      const part = (type) => parts.find(p => p.type === type)?.value || '';
+      return `${part('day')}/${part('month')}/${part('year')} ${part('hour')}:${part('minute')}`;
     } catch {
       return String(date);
     }
@@ -35,10 +62,8 @@ export class ExportService {
     const { rows: dcTeams } = await pool.query(`
       SELECT 
         t.id, t.name, t.status, t.nsac_link, t.created_at, t.last_synced_at,
-        t.text_channel_id, t.voice_channel_id,
-        u.username as leader_username, u.discord_id as leader_discord_id,
+        u.username as leader_username,
         c.title as challenge_title,
-        (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id AND tm.status = 'ACTIVE') as member_count,
         tr.id as recruitment_id, tr.status as recruitment_status, tr.slots_needed
       FROM teams t
       LEFT JOIN users u ON t.leader_id = u.id
@@ -48,102 +73,122 @@ export class ExportService {
       ORDER BY t.created_at ASC
     `);
 
-    // 2. Ambil snapshot tim web Space Apps
-    const { rows: webTeams } = await pool.query(`
-      SELECT * FROM web_teams
-      ORDER BY title ASC
+    // 2. Ambil seluruh anggota tim aktif Discord untuk kolom Daftar Anggota
+    const { rows: allTeamMembers } = await pool.query(`
+      SELECT tm.team_id, tm.role, tm.joined_at, u.username
+      FROM team_members tm
+      JOIN users u ON tm.user_id = u.id
+      JOIN teams t ON tm.team_id = t.id
+      WHERE tm.status = 'ACTIVE' AND t.status != 'DISBANDED'
+      ORDER BY tm.team_id ASC, (CASE WHEN tm.role = 'LEADER' THEN 0 ELSE 1 END) ASC, u.username ASC
     `);
 
-    // Pastikan seluruh tim web memiliki data anggota aktual dari profil web NASA
-    for (const wt of webTeams) {
-      if ((!wt.member_count || wt.member_count === 0) && wt.url) {
-        try {
-          const details = await NasaValidationService.extractTeamDetailsFromUrl(wt.url);
-          if (details && details.memberCount > 0) {
-            wt.member_count = details.memberCount;
-            wt.members = details.members;
-            pool.query('UPDATE web_teams SET member_count = $1, members = $2::jsonb, updated_at = NOW() WHERE slug = $3', [
-              details.memberCount,
-              JSON.stringify(details.members),
-              wt.slug
-            ]).catch(() => {});
-          }
-        } catch (e) {
-          logger.warn(`[Export] Gagal mengekstrak anggota web untuk ${wt.slug}: ${e.message}`);
-        }
+    const teamMembersMap = new Map();
+    for (const row of allTeamMembers) {
+      if (!teamMembersMap.has(row.team_id)) {
+        teamMembersMap.set(row.team_id, []);
       }
+      teamMembersMap.get(row.team_id).push(row);
     }
+
+    // 3. Ambil snapshot tim web Space Apps yang masih ada pada sync terakhir
+    const { rows: webTeams } = await pool.query(`
+      SELECT * FROM web_teams
+      WHERE present_in_latest_sync = true
+      ORDER BY title ASC
+    `);
 
     const result = [];
     let counter = 1;
 
     // Masukkan tim Discord terlebih dahulu
     for (const t of dcTeams) {
-      const activeCount = parseInt(t.member_count || 1, 10);
       const isRecruiting = t.recruitment_status === 'OPEN';
 
-      // Cek apakah tim ini terhubung ke web
-      const matchedWeb = webTeams.find((wt) => {
-        const nameMatches = wt.title && t.name && wt.title.trim().toLowerCase() === t.name.trim().toLowerCase();
-        const linkMatches = t.nsac_link && wt.slug && t.nsac_link.toLowerCase().includes(wt.slug.toLowerCase());
-        return nameMatches || linkMatches;
-      });
+      // Cek apakah tim ini terhubung ke web dengan matcher bersama
+      const matchedWeb = webTeams.find((wt) => matchWebTeam(t, wt));
 
-      // Hitung anggota aktual: gunakan jumlah tertinggi antara terdaftar di Discord vs resmi di web Space Apps
-      const effectiveMemberCount = Math.max(activeCount, matchedWeb?.member_count || 0);
-      const slotsNeeded = isRecruiting ? (t.slots_needed || Math.max(0, env.MAX_TEAM_SIZE - effectiveMemberCount)) : 0;
+      // Susun daftar anggota: Discord members (leader first, lalu alfabetis)
+      const dcMembers = teamMembersMap.get(t.id) || [];
+      const memberNames = dcMembers.map((m) => `@${m.username}`);
 
-      let channelName = '-';
-      if (guild && t.text_channel_id) {
-        const ch = guild.channels.cache.get(t.text_channel_id);
-        if (ch) channelName = `#${ch.name}`;
+      // Tambahkan anggota web jika ada yang belum tercover di Discord
+      let webMembers = [];
+      if (matchedWeb?.members) {
+        if (Array.isArray(matchedWeb.members)) {
+          webMembers = matchedWeb.members;
+        } else if (typeof matchedWeb.members === 'string') {
+          try {
+            webMembers = JSON.parse(matchedWeb.members);
+          } catch {}
+        }
       }
+
+      if (webMembers.length > 0) {
+        const existingNormalized = new Set(dcMembers.map((m) => normalizeTeamName(m.username)));
+        for (const wm of webMembers) {
+          const rawName = wm.fullName || wm.name || wm.username || '';
+          const norm = normalizeTeamName(rawName);
+          const normUser = normalizeTeamName(wm.username);
+          if (norm && !existingNormalized.has(norm) && (!normUser || !existingNormalized.has(normUser))) {
+            existingNormalized.add(norm);
+            if (normUser) existingNormalized.add(normUser);
+            memberNames.push(`${rawName.trim()} (web)`);
+          }
+        }
+      }
+
+      const totalMembers = memberNames.length;
+      const slotsNeeded = isRecruiting ? (t.slots_needed || Math.max(0, env.MAX_TEAM_SIZE - totalMembers)) : 0;
 
       result.push({
         no: counter++,
-        tipe: matchedWeb ? 'Discord & Web' : 'Discord Server',
         nama: t.name,
         status: t.status,
-        jumlahAnggota: effectiveMemberCount,
-        maxAnggota: env.MAX_TEAM_SIZE,
-        slotKosong: Math.max(0, env.MAX_TEAM_SIZE - effectiveMemberCount),
+        jumlahAnggota: totalMembers,
         statusRekrutmen: isRecruiting ? `Buka (${slotsNeeded} slot)` : 'Tutup',
-        challenge: t.challenge_title || (matchedWeb?.challenge_title) || 'Belum memilih',
+        challenge: t.challenge_title || matchedWeb?.challenge_title || 'Belum memilih',
         leader: t.leader_username ? `@${t.leader_username}` : '-',
-        leaderDiscordId: t.leader_discord_id || '-',
+        daftarAnggota: memberNames.length > 0 ? memberNames.join(', ') : '-',
         nsacLink: t.nsac_link || matchedWeb?.url || '-',
-        channelDiscord: channelName,
-        terakhirSync: this.formatDate(t.last_synced_at || matchedWeb?.last_synced_at),
         dibuatPada: this.formatDate(t.created_at)
       });
     }
 
     // Masukkan tim Web yang BELUM terdaftar di Discord
     for (const wt of webTeams) {
-      const alreadyInDc = dcTeams.some((t) => {
-        const nameMatches = wt.title && t.name && wt.title.trim().toLowerCase() === t.name.trim().toLowerCase();
-        const linkMatches = t.nsac_link && wt.slug && t.nsac_link.toLowerCase().includes(wt.slug.toLowerCase());
-        return nameMatches || linkMatches;
-      });
+      const alreadyInDc = dcTeams.some((t) => matchWebTeam(t, wt));
 
       if (!alreadyInDc) {
-        const count = wt.member_count > 0 ? wt.member_count : 1;
+        let webMembers = [];
+        if (wt.members) {
+          if (Array.isArray(wt.members)) {
+            webMembers = wt.members;
+          } else if (typeof wt.members === 'string') {
+            try {
+              webMembers = JSON.parse(wt.members);
+            } catch {}
+          }
+        }
+
+        const memberNames = webMembers.map((wm) => {
+          const n = wm.fullName || wm.name || wm.username || 'Member';
+          return `${n.trim()} (web)`;
+        });
+
+        const totalMembers = memberNames.length > 0 ? memberNames.length : (wt.member_count || 0);
+
         result.push({
           no: counter++,
-          tipe: 'Space Apps Web (Belum di DC)',
           nama: wt.title,
           status: 'WEB ONLY',
-          jumlahAnggota: count,
-          maxAnggota: env.MAX_TEAM_SIZE,
-          slotKosong: Math.max(0, env.MAX_TEAM_SIZE - count),
+          jumlahAnggota: totalMembers,
           statusRekrutmen: wt.is_recruiting ? 'Buka (Web)' : 'Tutup',
           challenge: wt.challenge_title || 'Belum memilih',
-          leader: '*(Akun Web NASA)*',
-          leaderDiscordId: '-',
-          nsacLink: wt.url || `https://www.spaceappschallenge.org/2026/find-a-team/${wt.slug}/`,
-          channelDiscord: '-',
-          terakhirSync: this.formatDate(wt.last_synced_at),
-          dibuatPada: this.formatDate(wt.created_at)
+          leader: '-',
+          daftarAnggota: memberNames.length > 0 ? memberNames.join(', ') : '-',
+          nsacLink: wt.url || (wt.slug ? `https://www.spaceappschallenge.org/2026/find-a-team/${wt.slug}/` : '-'),
+          dibuatPada: '-'
         });
       }
     }
@@ -205,28 +250,18 @@ export class ExportService {
         statusPeserta = 'Belum Terdaftar';
       }
 
-      const roleNames = member.roles.cache
-        .filter((r) => r.name !== '@everyone')
-        .map((r) => r.name)
-        .join(', ') || '-';
-
       result.push({
         no: counter++,
-        discordId: member.id,
         username: member.user.username,
-        tag: member.user.tag || member.user.username,
-        displayName: member.displayName || member.user.username,
         statusPeserta,
         namaTim: membership ? membership.team_name : (isParticipant ? 'Belum Memiliki Tim' : '-'),
         peranTim: membership ? membership.team_role : '-',
-        statusTim: membership ? membership.team_status : '-',
         challengeTim: membership?.challenge_title || '-',
-        bergabungServer: this.formatDate(member.joinedAt),
-        rolesDiscord: roleNames
+        tanggalGabungTim: membership?.joined_at ? this.formatDate(membership.joined_at) : '-'
       });
     }
 
-    // Urutkan: yang sudah ada di tim dulu, lalu peserta resmi, lalu lainnya
+    // Urutkan: yang sudah ada di tim dulu, lalu mencari tim, lalu peserta resmi, dll.
     result.sort((a, b) => {
       const order = { 'Dalam Tim': 1, 'Mencari Tim': 2, 'Peserta Resmi': 3, 'Belum Terdaftar': 4, 'Tamu': 5 };
       const diff = (order[a.statusPeserta] || 99) - (order[b.statusPeserta] || 99);
@@ -252,24 +287,11 @@ export class ExportService {
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet('Daftar Tim NSAC');
-
-    sheet.columns = [
-      { header: 'No', key: 'no', width: 6 },
-      { header: 'Tipe Tim', key: 'tipe', width: 24 },
-      { header: 'Nama Tim', key: 'nama', width: 28 },
-      { header: 'Status', key: 'status', width: 14 },
-      { header: 'Anggota', key: 'jumlahAnggota', width: 10 },
-      { header: 'Maksimal', key: 'maxAnggota', width: 10 },
-      { header: 'Slot Kosong', key: 'slotKosong', width: 12 },
-      { header: 'Status Rekrutmen', key: 'statusRekrutmen', width: 20 },
-      { header: 'Tantangan (Challenge)', key: 'challenge', width: 34 },
-      { header: 'Leader Tim', key: 'leader', width: 22 },
-      { header: 'Leader Discord ID', key: 'leaderDiscordId', width: 22 },
-      { header: 'Tautan Web NSAC', key: 'nsacLink', width: 40 },
-      { header: 'Channel Discord', key: 'channelDiscord', width: 20 },
-      { header: 'Terakhir Sync', key: 'terakhirSync', width: 20 },
-      { header: 'Dibuat Pada', key: 'dibuatPada', width: 20 }
-    ];
+    sheet.columns = TEAM_COLUMNS.map((col) => ({
+      header: col.header,
+      key: col.key,
+      width: col.width
+    }));
 
     // Style Header Row
     const headerRow = sheet.getRow(1);
@@ -282,17 +304,15 @@ export class ExportService {
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     headerRow.height = 26;
 
-    // Add rows
+    // Add rows & apply alignments
     for (const item of data) {
       const row = sheet.addRow(item);
       row.alignment = { vertical: 'middle' };
-      // Center numerical and status columns
-      row.getCell('no').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('status').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('jumlahAnggota').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('maxAnggota').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('slotKosong').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('statusRekrutmen').alignment = { vertical: 'middle', horizontal: 'center' };
+      for (const col of TEAM_COLUMNS) {
+        if (col.align) {
+          row.getCell(col.key).alignment = { vertical: 'middle', horizontal: col.align };
+        }
+      }
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -308,23 +328,7 @@ export class ExportService {
    */
   static async exportTeamsToCsv(guild = null) {
     const data = await this.getTeamsExportData(guild);
-    const headers = [
-      'No',
-      'Tipe Tim',
-      'Nama Tim',
-      'Status',
-      'Jumlah Anggota',
-      'Maksimal Anggota',
-      'Slot Kosong',
-      'Status Rekrutmen',
-      'Tantangan (Challenge)',
-      'Leader Tim',
-      'Leader Discord ID',
-      'Tautan Web NSAC',
-      'Channel Discord',
-      'Terakhir Sync',
-      'Dibuat Pada'
-    ];
+    const headers = TEAM_COLUMNS.map((c) => c.header);
 
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return '""';
@@ -335,26 +339,9 @@ export class ExportService {
     const rows = [headers.map(escapeCsv).join(',')];
 
     for (const item of data) {
-      rows.push([
-        escapeCsv(item.no),
-        escapeCsv(item.tipe),
-        escapeCsv(item.nama),
-        escapeCsv(item.status),
-        escapeCsv(item.jumlahAnggota),
-        escapeCsv(item.maxAnggota),
-        escapeCsv(item.slotKosong),
-        escapeCsv(item.statusRekrutmen),
-        escapeCsv(item.challenge),
-        escapeCsv(item.leader),
-        escapeCsv(item.leaderDiscordId),
-        escapeCsv(item.nsacLink),
-        escapeCsv(item.channelDiscord),
-        escapeCsv(item.terakhirSync),
-        escapeCsv(item.dibuatPada)
-      ].join(','));
+      rows.push(TEAM_COLUMNS.map((c) => escapeCsv(item[c.key])).join(','));
     }
 
-    // UTF-8 BOM (\uFEFF) ensures Excel opens Indonesian characters cleanly
     const csvContent = '\uFEFF' + rows.join('\r\n');
     return {
       filename: `NSAC_Jember_Teams_${new Date().toISOString().slice(0, 10)}.csv`,
@@ -373,20 +360,11 @@ export class ExportService {
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet('Daftar Peserta NSAC');
-
-    sheet.columns = [
-      { header: 'No', key: 'no', width: 6 },
-      { header: 'Discord ID', key: 'discordId', width: 22 },
-      { header: 'Username', key: 'username', width: 20 },
-      { header: 'Display Name', key: 'displayName', width: 24 },
-      { header: 'Status Peserta', key: 'statusPeserta', width: 18 },
-      { header: 'Nama Tim', key: 'namaTim', width: 28 },
-      { header: 'Peran di Tim', key: 'peranTim', width: 14 },
-      { header: 'Status Tim', key: 'statusTim', width: 14 },
-      { header: 'Tantangan (Challenge)', key: 'challengeTim', width: 34 },
-      { header: 'Bergabung Server', key: 'bergabungServer', width: 20 },
-      { header: 'Roles Discord', key: 'rolesDiscord', width: 36 }
-    ];
+    sheet.columns = PARTICIPANT_COLUMNS.map((col) => ({
+      header: col.header,
+      key: col.key,
+      width: col.width
+    }));
 
     // Style Header Row
     const headerRow = sheet.getRow(1);
@@ -399,14 +377,15 @@ export class ExportService {
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     headerRow.height = 26;
 
-    // Add rows
+    // Add rows & apply alignments
     for (const item of data) {
       const row = sheet.addRow(item);
       row.alignment = { vertical: 'middle' };
-      row.getCell('no').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('statusPeserta').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('peranTim').alignment = { vertical: 'middle', horizontal: 'center' };
-      row.getCell('statusTim').alignment = { vertical: 'middle', horizontal: 'center' };
+      for (const col of PARTICIPANT_COLUMNS) {
+        if (col.align) {
+          row.getCell(col.key).alignment = { vertical: 'middle', horizontal: col.align };
+        }
+      }
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -422,19 +401,7 @@ export class ExportService {
    */
   static async exportParticipantsToCsv(guild) {
     const data = await this.getParticipantsExportData(guild);
-    const headers = [
-      'No',
-      'Discord ID',
-      'Username',
-      'Display Name',
-      'Status Peserta',
-      'Nama Tim',
-      'Peran di Tim',
-      'Status Tim',
-      'Tantangan (Challenge)',
-      'Bergabung Server',
-      'Roles Discord'
-    ];
+    const headers = PARTICIPANT_COLUMNS.map((c) => c.header);
 
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return '""';
@@ -445,19 +412,7 @@ export class ExportService {
     const rows = [headers.map(escapeCsv).join(',')];
 
     for (const item of data) {
-      rows.push([
-        escapeCsv(item.no),
-        escapeCsv(item.discordId),
-        escapeCsv(item.username),
-        escapeCsv(item.displayName),
-        escapeCsv(item.statusPeserta),
-        escapeCsv(item.namaTim),
-        escapeCsv(item.peranTim),
-        escapeCsv(item.statusTim),
-        escapeCsv(item.challengeTim),
-        escapeCsv(item.bergabungServer),
-        escapeCsv(item.rolesDiscord)
-      ].join(','));
+      rows.push(PARTICIPANT_COLUMNS.map((c) => escapeCsv(item[c.key])).join(','));
     }
 
     const csvContent = '\uFEFF' + rows.join('\r\n');

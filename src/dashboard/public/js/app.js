@@ -797,12 +797,16 @@ function dashboardApp() {
       }
     },
 
+    async removeMemberAction(discordId) {
+      return this.kickMemberAction(discordId);
+    },
+
     async kickMemberAction(discordId) {
       if (!this.selectedTeam || !discordId) return;
       if (!confirm('Keluarkan anggota ini dari tim? Role channel Discord tim juga akan dicabut.')) return;
 
       try {
-        const res = await fetch(`/api/teams/${this.selectedTeam.id}/kick-member`, {
+        const res = await fetch(`/api/teams/${this.selectedTeam.id}/remove-member`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.token}`,
@@ -820,6 +824,28 @@ function dashboardApp() {
         }
       } catch (e) {
         this.showToast('error', 'Gagal Mengeluarkan Anggota', e.message);
+      }
+    },
+
+    async archiveTeamAction() {
+      if (!this.selectedTeam) return;
+      if (!confirm(`Arsipkan tim "${this.selectedTeam.name}"? Channel Discord akan diarsipkan dan tim ditandai ARCHIVED.`)) return;
+
+      try {
+        const res = await fetch(`/api/teams/${this.selectedTeam.id}/archive`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.showToast('success', 'Tim Diarsipkan', `Tim "${this.selectedTeam.name}" berhasil diarsipkan.`);
+          await this.openTeamDetail(this.selectedTeam.id);
+          await this.loadAllData();
+        } else {
+          this.showToast('error', 'Gagal Mengarsipkan', data.error);
+        }
+      } catch (e) {
+        this.showToast('error', 'Gagal Mengarsipkan Tim', e.message);
       }
     },
 
@@ -1305,7 +1331,10 @@ function dashboardApp() {
         });
         const data = await res.json();
         if (data.success) {
-          const summaryMsg = `Total: ${data.totalWebTeams || 0} tim web (${data.recruitingCount || 0} mencari anggota). Lowongan: +${data.createdCount || 0} baru.`;
+          let summaryMsg = `Total: ${data.totalWebTeams || 0} tim web (${data.recruitingCount || 0} open). Lowongan: +${data.createdCount || 0} baru`;
+          if (data.closedStaleCount > 0) {
+            summaryMsg += `, ${data.closedStaleCount} tim dihapus ditutup`;
+          }
           this.showToast('success', 'Sinkronisasi Selesai', summaryMsg);
           await this.fetchWebTeams();
           this.loadAllData();
@@ -1317,6 +1346,10 @@ function dashboardApp() {
       } finally {
         this.syncingNasa = false;
       }
+    },
+
+    async syncNasaTeams() {
+      return this.triggerNasaSync();
     },
 
     async closeRecruitment(id) {

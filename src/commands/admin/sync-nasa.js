@@ -22,7 +22,7 @@ export default {
     .addStringOption((opt) =>
       opt
         .setName('team')
-        .setDescription('Nama tim, slug, atau URL untuk diuji (cth: polije-to-the-moooon)')
+        .setDescription('Nama tim, slug, atau URL untuk diuji (wajib untuk mode test_team)')
         .setRequired(false)
     ),
 
@@ -36,10 +36,16 @@ export default {
     }
 
     const mode = interaction.options.getString('mode') || 'all';
-    const targetTeamInput = interaction.options.getString('team') || 'polije-to-the-moooon';
+    const targetTeamInput = interaction.options.getString('team');
 
     try {
       if (mode === 'test_team') {
+        if (!targetTeamInput || !targetTeamInput.trim()) {
+          return await interaction.editReply({
+            embeds: [errorEmbed('Parameter Kurang', 'Silakan masukkan nama tim, slug, atau URL pada opsi team untuk mode uji scrape.')]
+          });
+        }
+
         let targetUrl = targetTeamInput.trim();
         if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
           const cleanSlug = targetUrl.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
@@ -65,33 +71,62 @@ export default {
 
       if (mode === 'active_teams') {
         const result = await NasaValidationService.syncAllActiveTeams(interaction.client);
+
+        let desc = `Berhasil menyinkronkan seluruh tim aktif di server Discord dengan situs resmi NASA Space Apps Challenge!\n\n` +
+          `• **Total Tim Diperiksa:** ${result.totalTeams}\n` +
+          `• **Berhasil:** ${result.successCount}\n` +
+          `• **Gagal / Cooldown:** ${result.failCount}\n` +
+          `• **Diperbarui:** ${result.updatedCount}\n`;
+
+        if (result.staleTeams && result.staleTeams.length > 0) {
+          const list = result.staleTeams.slice(0, 5).map((t) => `• **${t.name}**`).join('\n');
+          const extra = result.staleTeams.length > 5 ? `\n*...dan ${result.staleTeams.length - 5} tim lainnya.*` : '';
+          desc += `\n**Tim Discord yang tautan web-nya sudah tidak ditemukan (404):**\n${list}${extra}\n*(Silakan diarsip dari dashboard bila sudah dihapus)*\n`;
+        }
+
+        if (result.renamedTeams && result.renamedTeams.length > 0) {
+          const list = result.renamedTeams.slice(0, 5).map((t) => `• **${t.name}** (slug baru: \`${t.newSlug}\`)`).join('\n');
+          const extra = result.renamedTeams.length > 5 ? `\n*...dan ${result.renamedTeams.length - 5} tim lainnya.*` : '';
+          desc += `\n**Tim yang terdeteksi berganti nama/slug di web:**\n${list}${extra}\n*(Tautan tim otomatis diperbarui)*\n`;
+        }
+
         return await interaction.editReply({
-          embeds: [
-            successEmbed(
-              'Sinkronisasi Tim Aktif Selesai',
-              `Berhasil menyinkronkan seluruh tim aktif di server Discord dengan situs resmi NASA Space Apps Challenge!\n\n` +
-              `• **Total Tim Diperiksa:** ${result.totalTeams}\n` +
-              `• **Berhasil:** ${result.successCount}\n` +
-              `• **Gagal / Cooldown:** ${result.failCount}\n\n` +
-              `*Tantangan dan lowongan anggota pada channel tim telah diperbarui.*`
-            )
-          ]
+          embeds: [successEmbed('Sinkronisasi Tim Aktif Selesai', desc)]
         });
       } else {
         const result = await NasaValidationService.syncOpenRecruitmentFromWeb(interaction.client, interaction.guild);
+
+        let desc = `Berhasil menyinkronkan snapshot tim resmi lokasi Jember dari spaceappschallenge.org ke sistem bot!\n\n` +
+          `• **Total Tim Web Terambil:** ${result.totalWebTeams || 0}\n` +
+          `• **Lowongan Baru Diposting:** ${result.createdCount || 0}\n` +
+          `• **Lowongan Diperbarui:** ${result.updatedCount || 0}\n` +
+          `• **Lowongan Ditutup Otomatis:** ${result.closedCount || 0}\n` +
+          `• **Total Lowongan Aktif di Board:** ${result.totalOpenRec || 0}\n`;
+
+        if (result.closedStaleCount > 0) {
+          desc += `• **Lowongan Tim Web Dihapus yang Ditutup:** ${result.closedStaleCount}\n`;
+        }
+
+        if (result.staleWebTeams && result.staleWebTeams.length > 0) {
+          const list = result.staleWebTeams.slice(0, 5).map((title) => `• **${title}**`).join('\n');
+          const extra = result.staleWebTeams.length > 5 ? `\n*...dan ${result.staleWebTeams.length - 5} tim lainnya.*` : '';
+          desc += `\n**Tim web yang sudah dihapus dari NASA:**\n${list}${extra}\n`;
+        }
+
+        if (result.staleLocalTeams && result.staleLocalTeams.length > 0) {
+          const list = result.staleLocalTeams.slice(0, 5).map((t) => `• **${t.name}**`).join('\n');
+          const extra = result.staleLocalTeams.length > 5 ? `\n*...dan ${result.staleLocalTeams.length - 5} tim lainnya.*` : '';
+          desc += `\n**Tim Discord yang tautannya tidak ditemukan di web:**\n${list}${extra}\n*(Silakan cek atau arsip melalui dashboard)*\n`;
+        }
+
+        if (result.renamedTeams && result.renamedTeams.length > 0) {
+          const list = result.renamedTeams.slice(0, 5).map((t) => `• **${t.name}** (slug baru: \`${t.newSlug}\`)`).join('\n');
+          const extra = result.renamedTeams.length > 5 ? `\n*...dan ${result.renamedTeams.length - 5} tim lainnya.*` : '';
+          desc += `\n**Tim yang terdeteksi berganti nama/slug:**\n${list}${extra}\n*(Tautan tim otomatis diperbarui)*\n`;
+        }
+
         return await interaction.editReply({
-          embeds: [
-            successEmbed(
-              'Sinkronisasi Web NASA Selesai',
-              `Berhasil menyinkronkan snapshot tim resmi lokasi Jember dari spaceappschallenge.org ke sistem bot!\n\n` +
-              `• **Total Tim Web Terambil:** ${result.totalWebTeams || 0}\n` +
-              `• **Lowongan Baru Diposting:** ${result.createdCount || 0}\n` +
-              `• **Lowongan Diperbarui:** ${result.updatedCount || 0}\n` +
-              `• **Lowongan Ditutup Otomatis:** ${result.closedCount || 0}\n` +
-              `• **Total Lowongan Aktif di Board:** ${result.totalOpenRec || 0}\n\n` +
-              `*Data tim terbaru dapat dilihat langsung pada dashboard panitia.*`
-            )
-          ]
+          embeds: [successEmbed('Sinkronisasi Web NASA Selesai', desc)]
         });
       }
     } catch (err) {
