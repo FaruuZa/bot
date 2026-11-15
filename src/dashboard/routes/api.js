@@ -263,7 +263,7 @@ export function createApiRouter(client) {
         pool.query("SELECT id, name, nsac_link FROM teams WHERE status = 'ACTIVE'"),
         pool.query("SELECT COUNT(*) FROM team_recruitments WHERE status = 'OPEN'"),
         pool.query("SELECT COUNT(DISTINCT tm.user_id) as count FROM team_members tm JOIN teams t ON tm.team_id = t.id WHERE tm.status = 'ACTIVE' AND t.status = 'ACTIVE'"),
-        pool.query("SELECT id, title, slug FROM web_teams WHERE present_in_latest_sync = true")
+        pool.query("SELECT slug, title FROM web_teams WHERE present_in_latest_sync = true")
       ]);
 
       const dcTeams = teamsRes.rows;
@@ -1183,9 +1183,10 @@ export function createApiRouter(client) {
     try {
       const { recruiting, matched, q } = req.query;
 
-      // 1. Get all web teams from DB
+      // 1. Get active web teams from latest sync in DB
       const { rows: webTeams } = await pool.query(`
         SELECT * FROM web_teams
+        WHERE present_in_latest_sync = true
         ORDER BY is_recruiting DESC, title ASC
       `);
 

@@ -8,12 +8,11 @@ import { matchWebTeam, normalizeTeamName } from '../utils/teamMatch.js';
 export const TEAM_COLUMNS = [
   { header: 'No', key: 'no', width: 6, align: 'center' },
   { header: 'Nama Tim', key: 'nama', width: 28 },
-  { header: 'Status', key: 'status', width: 14, align: 'center' },
   { header: 'Jumlah Anggota', key: 'jumlahAnggota', width: 16, align: 'center' },
   { header: 'Status Rekrutmen', key: 'statusRekrutmen', width: 20, align: 'center' },
   { header: 'Tantangan', key: 'challenge', width: 34 },
-  { header: 'Leader Tim', key: 'leader', width: 22 },
-  { header: 'Daftar Anggota', key: 'daftarAnggota', width: 45 },
+  { header: 'Leader Tim', key: 'leader', width: 24 },
+  { header: 'Daftar Anggota', key: 'daftarAnggota', width: 50 },
   { header: 'Tautan Web NSAC', key: 'nsacLink', width: 40 },
   { header: 'Dibuat Pada', key: 'dibuatPada', width: 20, align: 'center' }
 ];
@@ -58,7 +57,14 @@ export class ExportService {
    * Mengumpulkan data seluruh tim (Discord dan Web Space Apps)
    */
   static async getTeamsExportData(guild = null) {
-    // 1. Ambil tim Discord
+    // 1. Ambil snapshot tim resmi dari web Space Apps (sumber utama laporan)
+    const { rows: webTeams } = await pool.query(`
+      SELECT * FROM web_teams
+      WHERE present_in_latest_sync = true
+      ORDER BY title ASC
+    `);
+
+    // 2. Ambil tim Discord aktif untuk matching korelasi (Discord cuma bonus)
     const { rows: dcTeams } = await pool.query(`
       SELECT 
         t.id, t.name, t.status, t.nsac_link, t.created_at, t.last_synced_at,
@@ -73,122 +79,76 @@ export class ExportService {
       ORDER BY t.created_at ASC
     `);
 
-    // 2. Ambil seluruh anggota tim aktif Discord untuk kolom Daftar Anggota
-    const { rows: allTeamMembers } = await pool.query(`
-      SELECT tm.team_id, tm.role, tm.joined_at, u.username
-      FROM team_members tm
-      JOIN users u ON tm.user_id = u.id
-      JOIN teams t ON tm.team_id = t.id
-      WHERE tm.status = 'ACTIVE' AND t.status = 'ACTIVE'
-      ORDER BY tm.team_id ASC, (CASE WHEN tm.role = 'LEADER' THEN 0 ELSE 1 END) ASC, u.username ASC
-    `);
-
-    const teamMembersMap = new Map();
-    for (const row of allTeamMembers) {
-      if (!teamMembersMap.has(row.team_id)) {
-        teamMembersMap.set(row.team_id, []);
-      }
-      teamMembersMap.get(row.team_id).push(row);
-    }
-
-    // 3. Ambil snapshot tim web Space Apps yang masih ada pada sync terakhir
-    const { rows: webTeams } = await pool.query(`
-      SELECT * FROM web_teams
-      WHERE present_in_latest_sync = true
-      ORDER BY title ASC
-    `);
-
     const result = [];
     let counter = 1;
 
-    // Masukkan tim Discord terlebih dahulu
-    for (const t of dcTeams) {
-      const isRecruiting = t.recruitment_status === 'OPEN';
+    // Loop utama: Seluruh tim resmi terdaftar di web Space Apps
+    for (const wt of webTeams) {
+      const matchedDc = dcTeams.find((t) => matchWebTeam(t, wt));
 
-      // Cek apakah tim ini terhubung ke web dengan matcher bersama
-      const matchedWeb = webTeams.find((wt) => matchWebTeam(t, wt));
-
-      // Susun daftar anggota: Discord members (leader first, lalu alfabetis)
-      const dcMembers = teamMembersMap.get(t.id) || [];
-      const memberNames = dcMembers.map((m) => `@${m.username}`);
-
-      // Tambahkan anggota web jika ada yang belum tercover di Discord
+      // Parse seluruh anggota resmi dari web
       let webMembers = [];
-      if (matchedWeb?.members) {
-        if (Array.isArray(matchedWeb.members)) {
-          webMembers = matchedWeb.members;
-        } else if (typeof matchedWeb.members === 'string') {
+      if (wt.members) {
+        if (Array.isArray(wt.members)) {
+          webMembers = wt.members;
+        } else if (typeof wt.members === 'string') {
           try {
-            webMembers = JSON.parse(matchedWeb.members);
+            webMembers = JSON.parse(wt.members);
           } catch {}
         }
       }
 
-      if (webMembers.length > 0) {
-        const existingNormalized = new Set(dcMembers.map((m) => normalizeTeamName(m.username)));
-        for (const wm of webMembers) {
-          const rawName = wm.fullName || wm.name || wm.username || '';
-          const norm = normalizeTeamName(rawName);
-          const normUser = normalizeTeamName(wm.username);
-          if (norm && !existingNormalized.has(norm) && (!normUser || !existingNormalized.has(normUser))) {
-            existingNormalized.add(norm);
-            if (normUser) existingNormalized.add(normUser);
-            memberNames.push(`${rawName.trim()} (web)`);
-          }
-        }
-      }
+      // Bersihkan daftar nama anggota (tanpa @ dan tanpa (web))
+      const memberNames = webMembers.map((wm) => {
+        const raw = wm.fullName || wm.name || wm.username || '';
+        return raw.trim();
+      }).filter(Boolean);
 
-      const totalMembers = memberNames.length;
-      const slotsNeeded = isRecruiting ? (t.slots_needed || Math.max(0, env.MAX_TEAM_SIZE - totalMembers)) : 0;
+      const totalMembers = memberNames.length > 0 ? memberNames.length : (wt.member_count || 1);
+
+      // Cari ketua tim dari web (owner atau urutan pertama di web)
+      const ownerMember = webMembers.find((wm) => wm.isOwner) || webMembers[0];
+      const leaderName = ownerMember
+        ? (ownerMember.fullName || ownerMember.name || ownerMember.username || '').trim()
+        : '-';
+
+      // Status rekrutmen: Buka (X slot) atau Tutup (baik web maupun discord)
+      const isRecruiting = wt.is_recruiting || (matchedDc && matchedDc.recruitment_status === 'OPEN');
+      const maxTeamSize = env.MAX_TEAM_SIZE || 6;
+      const slotsNeeded = matchedDc?.slots_needed || Math.max(1, maxTeamSize - totalMembers);
+      const statusRekrutmen = isRecruiting ? `Buka (${slotsNeeded} slot)` : 'Tutup';
 
       result.push({
         no: counter++,
-        nama: t.name,
-        status: t.status,
+        nama: wt.title,
         jumlahAnggota: totalMembers,
-        statusRekrutmen: isRecruiting ? `Buka (${slotsNeeded} slot)` : 'Tutup',
-        challenge: t.challenge_title || matchedWeb?.challenge_title || 'Belum memilih',
-        leader: t.leader_username ? `@${t.leader_username}` : '-',
+        statusRekrutmen,
+        challenge: wt.challenge_title || matchedDc?.challenge_title || 'Belum memilih',
+        leader: leaderName || '-',
         daftarAnggota: memberNames.length > 0 ? memberNames.join(', ') : '-',
-        nsacLink: t.nsac_link || matchedWeb?.url || '-',
-        dibuatPada: this.formatDate(t.created_at)
+        nsacLink: wt.url || (wt.slug ? `https://www.spaceappschallenge.org/2026/find-a-team/${wt.slug}/` : (matchedDc?.nsac_link || '-')),
+        dibuatPada: this.formatDate(wt.last_synced_at || wt.created_at || matchedDc?.created_at)
       });
     }
 
-    // Masukkan tim Web yang BELUM terdaftar di Discord
-    for (const wt of webTeams) {
-      const alreadyInDc = dcTeams.some((t) => matchWebTeam(t, wt));
-
-      if (!alreadyInDc) {
-        let webMembers = [];
-        if (wt.members) {
-          if (Array.isArray(wt.members)) {
-            webMembers = wt.members;
-          } else if (typeof wt.members === 'string') {
-            try {
-              webMembers = JSON.parse(wt.members);
-            } catch {}
-          }
-        }
-
-        const memberNames = webMembers.map((wm) => {
-          const n = wm.fullName || wm.name || wm.username || 'Member';
-          return `${n.trim()} (web)`;
-        });
-
-        const totalMembers = memberNames.length > 0 ? memberNames.length : (wt.member_count || 0);
+    // Fallback: Jika ada tim aktif di Discord yang belum terdata di web (Discord cuma bonus)
+    for (const dt of dcTeams) {
+      const alreadyInWeb = webTeams.some((wt) => matchWebTeam(dt, wt));
+      if (!alreadyInWeb) {
+        const maxTeamSize = env.MAX_TEAM_SIZE || 6;
+        const isRecruiting = dt.recruitment_status === 'OPEN';
+        const slotsNeeded = dt.slots_needed || maxTeamSize;
 
         result.push({
           no: counter++,
-          nama: wt.title,
-          status: 'WEB ONLY',
-          jumlahAnggota: totalMembers,
-          statusRekrutmen: wt.is_recruiting ? 'Buka (Web)' : 'Tutup',
-          challenge: wt.challenge_title || 'Belum memilih',
-          leader: '-',
-          daftarAnggota: memberNames.length > 0 ? memberNames.join(', ') : '-',
-          nsacLink: wt.url || (wt.slug ? `https://www.spaceappschallenge.org/2026/find-a-team/${wt.slug}/` : '-'),
-          dibuatPada: '-'
+          nama: dt.name,
+          jumlahAnggota: 1,
+          statusRekrutmen: isRecruiting ? `Buka (${slotsNeeded} slot)` : 'Tutup',
+          challenge: dt.challenge_title || 'Belum memilih',
+          leader: dt.leader_username || '-',
+          daftarAnggota: dt.leader_username || '-',
+          nsacLink: dt.nsac_link || '-',
+          dibuatPada: this.formatDate(dt.created_at)
         });
       }
     }

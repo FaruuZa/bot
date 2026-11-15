@@ -49,7 +49,7 @@ export async function getAllChallenges(client = pool) {
   const [chRes, dcRes, webRes] = await Promise.all([
     client.query('SELECT * FROM challenges ORDER BY title ASC'),
     client.query("SELECT id, name, nsac_link, challenge_id FROM teams WHERE status = 'ACTIVE'"),
-    client.query('SELECT id, title, slug, challenge_title FROM web_teams WHERE present_in_latest_sync = true')
+    client.query('SELECT slug, title, challenge_title FROM web_teams WHERE present_in_latest_sync = true')
   ]);
 
   return attachTeamCountsToChallenges(chRes.rows, dcRes.rows, webRes.rows);
@@ -62,7 +62,7 @@ export async function getChallengeById(id, client = pool) {
   const [chRes, dcRes, webRes] = await Promise.all([
     client.query('SELECT * FROM challenges WHERE id = $1', [id]),
     client.query("SELECT id, name, nsac_link, challenge_id FROM teams WHERE status = 'ACTIVE'"),
-    client.query('SELECT id, title, slug, challenge_title FROM web_teams WHERE present_in_latest_sync = true')
+    client.query('SELECT slug, title, challenge_title FROM web_teams WHERE present_in_latest_sync = true')
   ]);
 
   if (chRes.rows.length === 0) return null;

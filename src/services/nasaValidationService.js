@@ -446,7 +446,7 @@ export class NasaValidationService {
       return {
         success: false,
         error: val.error || 'Gagal memvalidasi profil tim di web NASA.',
-        stale: val.code === 'TEAM_NOT_FOUND',
+        stale: val.code === 'TEAM_NOT_FOUND' || val.code === 'NOT_JEMBER',
         staleCode: val.code,
         teamName: team.name
       };
@@ -951,8 +951,15 @@ export class NasaValidationService {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
-      if (!res.ok) return { description: null, memberCount: 0, members: [] };
+      if (!res.ok) return { exists: false, description: null, memberCount: 0, members: [] };
       const html = await res.text();
+      const lowerHtml = html.toLowerCase();
+
+      // NASA SPA returns 200 for missing pages; verify genuine team page content
+      const hasTeamContent = html.includes('memberships') || lowerHtml.includes('jember');
+      if (!hasTeamContent) {
+        return { exists: false, description: null, memberCount: 0, members: [] };
+      }
 
       // Extract Description
       let description = null;
@@ -973,6 +980,26 @@ export class NasaValidationService {
         }
       }
 
+      // Extract Owner / Leader details
+      let ownerId = null;
+      let ownerUsername = null;
+      let ownerDetailsMatch = html.match(/ownerDetails\\":(\{[\s\S]*?\})/);
+      if (!ownerDetailsMatch) {
+        ownerDetailsMatch = html.match(/"ownerDetails":(\{[\s\S]*?\})/);
+      }
+      if (ownerDetailsMatch) {
+        try {
+          const cleanOwner = ownerDetailsMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          const parsedOwner = JSON.parse(cleanOwner);
+          ownerId = parsedOwner.id || null;
+          ownerUsername = parsedOwner.username || null;
+        } catch {}
+      }
+      if (!ownerId) {
+        const ownerMatch = html.match(/\\?"owner\\?":\\?"([^"\\]+)\\?"/);
+        if (ownerMatch) ownerId = ownerMatch[1];
+      }
+
       // Extract Members & Member Count
       let members = [];
       let memberCount = 0;
@@ -989,11 +1016,25 @@ export class NasaValidationService {
           }
           const parsed = JSON.parse(cleanJson);
           if (Array.isArray(parsed)) {
-            members = parsed.map((m) => ({
-              id: m.userDetails?.id || m.user || null,
-              fullName: m.userDetails?.fullName || m.fullName || 'Anonymous',
-              username: m.userDetails?.username || m.username || null
-            }));
+            members = parsed.map((m) => {
+              const id = m.userDetails?.id || m.user || null;
+              const username = m.userDetails?.username || m.username || null;
+              const isOwner = (ownerId && id === ownerId) || (ownerUsername && username === ownerUsername);
+              return {
+                id,
+                fullName: m.userDetails?.fullName || m.fullName || 'Anonymous',
+                username,
+                isOwner: !!isOwner
+              };
+            });
+            // Pastikan ketua (owner) berada di urutan pertama array members
+            const ownerIdx = members.findIndex(m => m.isOwner);
+            if (ownerIdx > 0) {
+              const [ownerObj] = members.splice(ownerIdx, 1);
+              members.unshift(ownerObj);
+            } else if (members.length > 0 && !members.some(m => m.isOwner)) {
+              members[0].isOwner = true;
+            }
             memberCount = members.length;
           }
         } catch (mErr) {
@@ -1013,10 +1054,10 @@ export class NasaValidationService {
         }
       }
 
-      return { description, memberCount, members };
+      return { exists: true, description, memberCount, members };
     } catch (e) {
       logger.warn(`[NasaSync] Could not extract details from ${url}: ${e.message}`);
-      return { description: null, memberCount: 0, members: [] };
+      return { exists: false, description: null, memberCount: 0, members: [] };
     }
   }
 
@@ -1089,10 +1130,22 @@ export class NasaValidationService {
     let closedCount = 0;
     let openWebTeamsCount = 0;
 
-    // 1. Upsert snapshot untuk SETIAP webTeam (ekstrak deskripsi & seluruh anggota baik open maupun full)
+    // 1. Periksa setiap halaman profil tim satu per satu dan upsert snapshot
+    const validWebTeams = [];
+    const directStaleWebSlugs = [];
+
     for (const webTeam of webTeams) {
       if (webTeam.url) {
         const details = await this.extractTeamDetailsFromUrl(webTeam.url);
+        if (details.exists === false) {
+          logger.warn(`[NasaSync] Halaman profil tim "${webTeam.title}" (${webTeam.url}) tidak ditemukan (404/deleted di NASA).`);
+          if (webTeam.slug) {
+            await pool.query('UPDATE web_teams SET present_in_latest_sync = false WHERE slug = $1', [webTeam.slug]).catch(() => {});
+            directStaleWebSlugs.push(webTeam.slug);
+          }
+          continue;
+        }
+
         if (details.description) {
           webTeam.description = details.description;
         }
@@ -1103,12 +1156,24 @@ export class NasaValidationService {
       }
       try {
         await this.upsertWebTeam(webTeam);
+
+        // Deaktivasi slug lama/duplikat yang memiliki nama tim yang sama agar tidak double di dashboard
+        const normTitle = normalizeTeamName(webTeam.title);
+        if (normTitle && webTeam.slug) {
+          await pool.query(
+            `UPDATE web_teams SET present_in_latest_sync = false 
+             WHERE slug != $1 AND LOWER(REGEXP_REPLACE(title, '[^a-zA-Z0-9]', '', 'g')) = $2`,
+            [webTeam.slug, normTitle]
+          ).catch(() => {});
+        }
+
+        validWebTeams.push(webTeam);
       } catch (err) {
         logger.warn(`[NasaSync] Gagal upsert snapshot tim web "${webTeam.title}": ${err.message}`);
       }
     }
 
-    for (const webTeam of webTeams) {
+    for (const webTeam of validWebTeams) {
       const isOpenRec = webTeam.joinEnabled && webTeam.canAcceptMembers;
 
       if (isOpenRec) {
@@ -1323,7 +1388,7 @@ export class NasaValidationService {
     }
 
     // Tandai tim yang tidak muncul dalam sync kali ini
-    const fetchedSlugs = webTeams.map(wt => (wt.slug && String(wt.slug).trim()) || wt.url).filter(Boolean);
+    const fetchedSlugs = validWebTeams.map(wt => (wt.slug && String(wt.slug).trim()) || wt.url).filter(Boolean);
     if (fetchedSlugs.length > 0) {
       await pool.query(
         `UPDATE web_teams SET present_in_latest_sync = false WHERE slug != ALL($1::text[])`,
@@ -1356,7 +1421,7 @@ export class NasaValidationService {
     // Deteksi tim Discord yang stale atau di-rename di web Space Apps
     const staleLocalTeams = [];
     const renamedTeams = [];
-    const fetchedSlugsSet = new Set(webTeams.map(wt => String(wt.slug).toLowerCase()));
+    const fetchedSlugsSet = new Set(validWebTeams.map(wt => String(wt.slug).toLowerCase()));
 
     for (const lt of localTeams) {
       if (!lt.nsac_link) continue;
@@ -1366,7 +1431,7 @@ export class NasaValidationService {
       if (!fetchedSlugsSet.has(dcSlug)) {
         // Cek apakah tim ini di-rename di web (nama ternormalisasi sama, tapi slug berbeda)
         const normLocal = normalizeTeamName(lt.name);
-        const renamedMatch = webTeams.find(wt => {
+        const renamedMatch = validWebTeams.find(wt => {
           return normalizeTeamName(wt.title) === normLocal && String(wt.slug).toLowerCase() !== dcSlug;
         });
 
@@ -1393,15 +1458,15 @@ export class NasaValidationService {
     }
 
     const totalOpenRec = await countOpenRecruitments();
-    const recruitingCount = webTeams.filter(wt => wt.joinEnabled && wt.canAcceptMembers).length;
-    const nonRecruitingCount = webTeams.length - recruitingCount;
-    const webOnlyCount = webTeams.filter(wt => !localTeams.some(lt => matchWebTeam(lt, wt))).length;
+    const recruitingCount = validWebTeams.filter(wt => wt.joinEnabled && wt.canAcceptMembers).length;
+    const nonRecruitingCount = validWebTeams.length - recruitingCount;
+    const webOnlyCount = validWebTeams.filter(wt => !localTeams.some(lt => matchWebTeam(lt, wt))).length;
 
-    logger.info(`[NasaSync] Sinkronisasi open recruitment selesai. Total web teams: ${webTeams.length} (${recruitingCount} open, ${nonRecruitingCount} closed, ${webOnlyCount} web-only). Baru: ${createdCount}, Diperbarui: ${updatedCount}, Ditutup: ${closedCount}, Stale Ditutup: ${closedStaleCount}. Total lowongan aktif di bot: ${totalOpenRec}.`);
+    logger.info(`[NasaSync] Sinkronisasi open recruitment selesai. Total web teams aktif: ${validWebTeams.length} (${recruitingCount} open, ${nonRecruitingCount} closed, ${webOnlyCount} web-only). Baru: ${createdCount}, Diperbarui: ${updatedCount}, Ditutup: ${closedCount}, Stale Ditutup: ${closedStaleCount}. Total lowongan aktif di bot: ${totalOpenRec}.`);
 
     return {
       success: true,
-      totalWebTeams: webTeams.length,
+      totalWebTeams: validWebTeams.length,
       openWebTeamsCount,
       recruitingCount,
       nonRecruitingCount,
