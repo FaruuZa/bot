@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { pool } from '../database/pool.js';
 import { GuildConfigService } from './guildConfigService.js';
+import { NasaValidationService } from './nasaValidationService.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -53,6 +54,26 @@ export class ExportService {
       ORDER BY title ASC
     `);
 
+    // Pastikan seluruh tim web memiliki data anggota aktual dari profil web NASA
+    for (const wt of webTeams) {
+      if ((!wt.member_count || wt.member_count === 0) && wt.url) {
+        try {
+          const details = await NasaValidationService.extractTeamDetailsFromUrl(wt.url);
+          if (details && details.memberCount > 0) {
+            wt.member_count = details.memberCount;
+            wt.members = details.members;
+            pool.query('UPDATE web_teams SET member_count = $1, members = $2::jsonb, updated_at = NOW() WHERE slug = $3', [
+              details.memberCount,
+              JSON.stringify(details.members),
+              wt.slug
+            ]).catch(() => {});
+          }
+        } catch (e) {
+          logger.warn(`[Export] Gagal mengekstrak anggota web untuk ${wt.slug}: ${e.message}`);
+        }
+      }
+    }
+
     const result = [];
     let counter = 1;
 
@@ -60,7 +81,6 @@ export class ExportService {
     for (const t of dcTeams) {
       const activeCount = parseInt(t.member_count || 1, 10);
       const isRecruiting = t.recruitment_status === 'OPEN';
-      const slotsNeeded = isRecruiting ? (t.slots_needed || Math.max(0, env.MAX_TEAM_SIZE - activeCount)) : 0;
 
       // Cek apakah tim ini terhubung ke web
       const matchedWeb = webTeams.find((wt) => {
@@ -68,6 +88,10 @@ export class ExportService {
         const linkMatches = t.nsac_link && wt.slug && t.nsac_link.toLowerCase().includes(wt.slug.toLowerCase());
         return nameMatches || linkMatches;
       });
+
+      // Hitung anggota aktual: gunakan jumlah tertinggi antara terdaftar di Discord vs resmi di web Space Apps
+      const effectiveMemberCount = Math.max(activeCount, matchedWeb?.member_count || 0);
+      const slotsNeeded = isRecruiting ? (t.slots_needed || Math.max(0, env.MAX_TEAM_SIZE - effectiveMemberCount)) : 0;
 
       let channelName = '-';
       if (guild && t.text_channel_id) {
@@ -80,9 +104,9 @@ export class ExportService {
         tipe: matchedWeb ? 'Discord & Web' : 'Discord Server',
         nama: t.name,
         status: t.status,
-        jumlahAnggota: activeCount,
+        jumlahAnggota: effectiveMemberCount,
         maxAnggota: env.MAX_TEAM_SIZE,
-        slotKosong: Math.max(0, env.MAX_TEAM_SIZE - activeCount),
+        slotKosong: Math.max(0, env.MAX_TEAM_SIZE - effectiveMemberCount),
         statusRekrutmen: isRecruiting ? `Buka (${slotsNeeded} slot)` : 'Tutup',
         challenge: t.challenge_title || (matchedWeb?.challenge_title) || 'Belum memilih',
         leader: t.leader_username ? `@${t.leader_username}` : '-',
@@ -103,7 +127,7 @@ export class ExportService {
       });
 
       if (!alreadyInDc) {
-        const count = wt.member_count || 1;
+        const count = wt.member_count > 0 ? wt.member_count : 1;
         result.push({
           no: counter++,
           tipe: 'Space Apps Web (Belum di DC)',

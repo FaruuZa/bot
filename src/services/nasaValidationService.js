@@ -862,12 +862,14 @@ export class NasaValidationService {
     }
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       const res = await fetch(url, {
         method: 'GET',
         dispatcher: sslSafeDispatcher,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9,id;q=0.8'
         },
         signal: controller.signal
       });
@@ -897,21 +899,40 @@ export class NasaValidationService {
       // Extract Members & Member Count
       let members = [];
       let memberCount = 0;
-      const memMatch = html.match(/memberships\\":(\[[\s\S]*?\])(?:,\\"[a-zA-Z]|})/);
+      let memMatch = html.match(/memberships\\":(\[[\s\S]*?\])(?:,\\"[a-zA-Z]|})/);
+      if (!memMatch) {
+        memMatch = html.match(/"memberships":(\[[\s\S]*?\])(?:,"[a-zA-Z]|})/);
+      }
+
       if (memMatch) {
         try {
-          const cleanJson = memMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          let cleanJson = memMatch[1];
+          if (cleanJson.includes('\\"')) {
+            cleanJson = cleanJson.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          }
           const parsed = JSON.parse(cleanJson);
           if (Array.isArray(parsed)) {
             members = parsed.map((m) => ({
               id: m.userDetails?.id || m.user || null,
-              fullName: m.userDetails?.fullName || 'Anonymous',
-              username: m.userDetails?.username || null
+              fullName: m.userDetails?.fullName || m.fullName || 'Anonymous',
+              username: m.userDetails?.username || m.username || null
             }));
             memberCount = members.length;
           }
         } catch (mErr) {
           logger.warn(`[NasaSync] Gagal parse memberships JSON: ${mErr.message}`);
+        }
+      }
+
+      // Fallback: Ekstrak fullName jika parse JSON terpotong / bermasalah
+      if (memberCount === 0) {
+        const nameMatches = [...html.matchAll(/(?:\\?"fullName\\?":\\?"([^"\\]+)\\?")/g)];
+        if (nameMatches.length > 0) {
+          const uniqueNames = [...new Set(nameMatches.map((m) => m[1].trim()).filter((n) => n.length > 2))];
+          if (uniqueNames.length > 0) {
+            members = uniqueNames.map((name) => ({ id: null, fullName: name, username: null }));
+            memberCount = members.length;
+          }
         }
       }
 
@@ -991,12 +1012,11 @@ export class NasaValidationService {
     let closedCount = 0;
     let openWebTeamsCount = 0;
 
-    // 1. Upsert snapshot untuk SETIAP webTeam sebelum filter isOpenRec
+    // 1. Upsert snapshot untuk SETIAP webTeam (ekstrak deskripsi & seluruh anggota baik open maupun full)
     for (const webTeam of webTeams) {
-      const isOpenRec = webTeam.joinEnabled && webTeam.canAcceptMembers;
-      if (isOpenRec && webTeam.url) {
+      if (webTeam.url) {
         const details = await this.extractTeamDetailsFromUrl(webTeam.url);
-        if (!webTeam.description && details.description) {
+        if (details.description) {
           webTeam.description = details.description;
         }
         webTeam.memberCount = details.memberCount;
