@@ -47,7 +47,7 @@ export async function getUserActiveTeam(userId, client = pool) {
     JOIN teams t ON tm.team_id = t.id
     LEFT JOIN challenges c ON t.challenge_id = c.id
     LEFT JOIN users u ON t.leader_id = u.id
-    WHERE tm.user_id = $1 AND tm.status = 'ACTIVE' AND t.status IN ('PENDING', 'ACTIVE');
+    WHERE tm.user_id = $1 AND tm.status = 'ACTIVE' AND t.status = 'ACTIVE';
   `;
   const res = await client.query(sql, [userId]);
   return res.rows[0] || null;
@@ -65,7 +65,7 @@ export async function getUserActiveTeamByDiscordId(discordId, client = pool) {
     JOIN teams t ON tm.team_id = t.id
     LEFT JOIN challenges c ON t.challenge_id = c.id
     LEFT JOIN users u_lead ON t.leader_id = u_lead.id
-    WHERE u.discord_id = $1 AND tm.status = 'ACTIVE' AND t.status IN ('PENDING', 'ACTIVE');
+    WHERE u.discord_id = $1 AND tm.status = 'ACTIVE' AND t.status = 'ACTIVE';
   `;
   const res = await client.query(sql, [discordId]);
   return res.rows[0] || null;

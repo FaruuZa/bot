@@ -69,7 +69,7 @@ export class ExportService {
       LEFT JOIN users u ON t.leader_id = u.id
       LEFT JOIN challenges c ON t.challenge_id = c.id
       LEFT JOIN team_recruitments tr ON tr.team_id = t.id AND tr.status = 'OPEN'
-      WHERE t.status != 'DISBANDED'
+      WHERE t.status = 'ACTIVE'
       ORDER BY t.created_at ASC
     `);
 
@@ -79,7 +79,7 @@ export class ExportService {
       FROM team_members tm
       JOIN users u ON tm.user_id = u.id
       JOIN teams t ON tm.team_id = t.id
-      WHERE tm.status = 'ACTIVE' AND t.status != 'DISBANDED'
+      WHERE tm.status = 'ACTIVE' AND t.status = 'ACTIVE'
       ORDER BY tm.team_id ASC, (CASE WHEN tm.role = 'LEADER' THEN 0 ELSE 1 END) ASC, u.username ASC
     `);
 
@@ -221,7 +221,7 @@ export class ExportService {
       JOIN users u ON tm.user_id = u.id
       JOIN teams t ON tm.team_id = t.id
       LEFT JOIN challenges c ON t.challenge_id = c.id
-      WHERE tm.status = 'ACTIVE' AND t.status != 'DISBANDED'
+      WHERE tm.status = 'ACTIVE' AND t.status = 'ACTIVE'
     `);
 
     const membershipMap = new Map();

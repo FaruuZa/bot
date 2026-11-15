@@ -1078,7 +1078,7 @@ export class NasaValidationService {
       FROM teams t
       LEFT JOIN users u ON t.leader_id = u.id
       LEFT JOIN challenges c ON t.challenge_id = c.id
-      WHERE t.status != 'DISBANDED'
+      WHERE t.status = 'ACTIVE'
     `);
 
     // Ambil semua entri lowongan yang saat ini OPEN di database

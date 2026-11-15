@@ -62,7 +62,7 @@ export class DashboardService {
       SELECT
         COUNT(*) FILTER (WHERE status = 'ACTIVE') as active_count,
         COUNT(*) FILTER (WHERE status = 'ARCHIVED') as archived_count,
-        (SELECT COUNT(DISTINCT tm.user_id) FROM team_members tm JOIN teams t ON tm.team_id = t.id WHERE tm.status = 'ACTIVE' AND t.status != 'DISBANDED') as active_members_count
+        (SELECT COUNT(DISTINCT tm.user_id) FROM team_members tm JOIN teams t ON tm.team_id = t.id WHERE tm.status = 'ACTIVE' AND t.status = 'ACTIVE') as active_members_count
       FROM teams
     `);
     const s = stats[0] || {

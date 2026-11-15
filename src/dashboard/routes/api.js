@@ -260,9 +260,9 @@ export function createApiRouter(client) {
       }
 
       const [teamsRes, recruitRes, inTeamsRes, webTeamsRes] = await Promise.all([
-        pool.query("SELECT id, name, nsac_link FROM teams WHERE status != 'DISBANDED'"),
+        pool.query("SELECT id, name, nsac_link FROM teams WHERE status = 'ACTIVE'"),
         pool.query("SELECT COUNT(*) FROM team_recruitments WHERE status = 'OPEN'"),
-        pool.query("SELECT COUNT(DISTINCT tm.user_id) as count FROM team_members tm JOIN teams t ON tm.team_id = t.id WHERE tm.status = 'ACTIVE' AND t.status != 'DISBANDED'"),
+        pool.query("SELECT COUNT(DISTINCT tm.user_id) as count FROM team_members tm JOIN teams t ON tm.team_id = t.id WHERE tm.status = 'ACTIVE' AND t.status = 'ACTIVE'"),
         pool.query("SELECT id, title, slug FROM web_teams WHERE present_in_latest_sync = true")
       ]);
 
@@ -1193,7 +1193,7 @@ export function createApiRouter(client) {
       const { rows: localTeams } = await pool.query(`
         SELECT id, name, nsac_link
         FROM teams
-        WHERE status != 'DISBANDED'
+        WHERE status = 'ACTIVE'
       `);
 
       // 3. Perform matching using single shared matcher
